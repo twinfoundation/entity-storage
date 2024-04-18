@@ -1,6 +1,6 @@
 # Class: MemoryEntityStorageProvider\<T\>
 
-Class for performing entity storage operations in memory.
+Class for performing entity storage operations in-memory.
 
 ## Type parameters
 
