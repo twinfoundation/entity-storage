@@ -34,6 +34,7 @@
 		"@gtsc/logging-provider-models": "next"
 	},
 	"devDependencies": {
+		"@gtsc/logging-provider-memory": "next",
 		"@gtsc/nameof-transformer": "next",
 		"@types/node": "^20.12.7",
 		"@vitest/coverage-v8": "^1.5.0",

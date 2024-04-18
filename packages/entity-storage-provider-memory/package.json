@@ -33,7 +33,6 @@
 		"@gtsc/entity-storage-provider-models": "0.0.3-next.1"
 	},
 	"devDependencies": {
-		"@gtsc/logging-provider-memory": "next",
 		"@gtsc/nameof-transformer": "next",
 		"@vitest/coverage-v8": "^1.5.0",
 		"copyfiles": "^2.4.1",
