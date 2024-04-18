@@ -1,6 +1,6 @@
 # @gtsc/entity-storage-provider-memory - Overview
 
-Entity Storage provider implementation using in memory storage.
+Entity Storage provider implementation using in-memory storage.
 
 ## Installation
 

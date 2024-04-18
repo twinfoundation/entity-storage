@@ -17,7 +17,7 @@ import type { IRequestContext } from "@gtsc/services";
 import type { IMemoryEntityStorageProviderConfig } from "./models/IMemoryEntityStorageProviderConfig";
 
 /**
- * Class for performing entity storage operations in memory.
+ * Class for performing entity storage operations in-memory.
  */
 export class MemoryEntityStorageProvider<T = unknown> implements IEntityStorageProvider<T> {
 	/**
@@ -51,7 +51,7 @@ export class MemoryEntityStorageProvider<T = unknown> implements IEntityStorageP
 	private readonly _sortKeys: IEntitySortDescriptor<T>[];
 
 	/**
-	 * The storage for the in memory items.
+	 * The storage for the in-memory items.
 	 * @internal
 	 */
 	private readonly _store: { [tenantId: string]: T[] };
