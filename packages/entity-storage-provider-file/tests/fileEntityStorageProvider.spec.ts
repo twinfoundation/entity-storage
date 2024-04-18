@@ -210,7 +210,7 @@ describe("FileEntityStorageProvider", () => {
 	test("can fail to bootstrap with invalid directory", async () => {
 		loggingProvider = new MemoryLoggingProvider();
 		const entityStorage = new FileEntityStorageProvider({ loggingProvider }, testDescriptor, {
-			directory: "|",
+			directory: "|\0",
 			baseFilename: TEST_BASE_FILENAME
 		});
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
