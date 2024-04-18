@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { readFile, rmdir } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { Converter, RandomHelper } from "@gtsc/core";
 import { ComparisonOperator, SortDirection, type IEntityDescriptor } from "@gtsc/entity";
 import { MemoryLoggingProvider } from "@gtsc/logging-provider-memory";
@@ -57,7 +57,7 @@ const TEST_STORE_NAME = `${TEST_DIRECTORY}/${TEST_TENANT_ID}_${TEST_BASE_FILENAM
 describe("FileEntityStorageProvider", () => {
 	afterAll(async () => {
 		try {
-			await rmdir(TEST_DIRECTORY_ROOT, { recursive: true });
+			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
 		} catch {}
 	});
 
