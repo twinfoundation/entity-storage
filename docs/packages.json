@@ -8,7 +8,7 @@
 		},
 		{
 			"name": "entity-storage-provider-memory",
-			"description": "Entity Storage provider implementation using in memory storage."
+			"description": "Entity Storage provider implementation using in-memory storage."
 		},
 		{
 			"name": "entity-storage-provider-file",
