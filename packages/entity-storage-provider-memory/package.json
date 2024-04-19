@@ -1,6 +1,6 @@
 {
 	"name": "@gtsc/entity-storage-provider-memory",
-	"version": "0.0.3-next.2",
+	"version": "0.0.3-next.3",
 	"description": "Entity Storage provider implementation using in-memory storage.",
 	"repository": {
 		"type": "git",
@@ -30,7 +30,7 @@
 		"@gtsc/core": "next",
 		"@gtsc/entity": "next",
 		"@gtsc/nameof": "next",
-		"@gtsc/entity-storage-provider-models": "0.0.3-next.2"
+		"@gtsc/entity-storage-provider-models": "0.0.3-next.3"
 	},
 	"devDependencies": {
 		"@gtsc/nameof-transformer": "next",

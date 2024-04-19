@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { Guards, Is } from "@gtsc/core";
 import {
-	type IEntityDescriptor,
-	type IEntitySortDescriptor,
-	type IEntityPropertyDescriptor,
-	type Condition,
-	type SortDirection,
-	EntityPropertyDescriptor,
 	Conditions,
-	EntitySorter
+	EntityPropertyDescriptor,
+	EntitySorter,
+	type Condition,
+	type IEntityDescriptor,
+	type IEntityPropertyDescriptor,
+	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageProvider } from "@gtsc/entity-storage-provider-models";
 import { nameof } from "@gtsc/nameof";
@@ -45,12 +44,6 @@ export class MemoryEntityStorageProvider<T = unknown> implements IEntityStorageP
 	private readonly _primaryKey: IEntityPropertyDescriptor<T>;
 
 	/**
-	 * Keys that can be used for sorting.
-	 * @internal
-	 */
-	private readonly _sortKeys: IEntitySortDescriptor<T>[];
-
-	/**
 	 * The storage for the in-memory items.
 	 * @internal
 	 */
@@ -77,7 +70,6 @@ export class MemoryEntityStorageProvider<T = unknown> implements IEntityStorageP
 		);
 		this._entityDescriptor = entityDescriptor;
 		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
-		this._sortKeys = EntityPropertyDescriptor.getSortKeys<T>(entityDescriptor);
 		this._store = config?.initialValues ?? {};
 	}
 
@@ -208,25 +200,11 @@ export class MemoryEntityStorageProvider<T = unknown> implements IEntityStorageP
 		const finalPageSize = pageSize ?? MemoryEntityStorageProvider._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
-			let finalSortKeys: IEntitySortDescriptor<T>[] | undefined;
-
-			if (Is.arrayValue(sortKeys)) {
-				finalSortKeys = [];
-				for (const sortKey of sortKeys) {
-					const property = this._entityDescriptor.properties.find(p => p.name === sortKey.name);
-					if (property) {
-						finalSortKeys.push({
-							name: sortKey.name,
-							sortDirection: sortKey.sortDirection,
-							type: property.type
-						});
-					}
-				}
-			} else {
-				finalSortKeys = this._sortKeys;
-			}
-
-			if (finalSortKeys) {
+			const finalSortKeys = EntityPropertyDescriptor.buildSortKeys<T>(
+				this._entityDescriptor,
+				sortKeys
+			);
+			if (Is.arrayValue(finalSortKeys)) {
 				allEntities = EntitySorter.sort(allEntities, finalSortKeys);
 			}
 

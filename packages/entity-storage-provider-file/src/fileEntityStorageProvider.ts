@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { access, readFile, writeFile, mkdir } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { BaseError, Guards, Is } from "@gtsc/core";
 import {
@@ -10,7 +10,6 @@ import {
 	type Condition,
 	type IEntityDescriptor,
 	type IEntityPropertyDescriptor,
-	type IEntitySortDescriptor,
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageProvider } from "@gtsc/entity-storage-provider-models";
@@ -52,12 +51,6 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 	 * @internal
 	 */
 	private readonly _primaryKey: IEntityPropertyDescriptor<T>;
-
-	/**
-	 * Keys that can be used for sorting.
-	 * @internal
-	 */
-	private readonly _sortKeys: IEntitySortDescriptor<T>[];
 
 	/**
 	 * The directory to use for storage.
@@ -123,7 +116,6 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 		this._loggingProvider = dependencies.loggingProvider;
 		this._entityDescriptor = entityDescriptor;
 		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
-		this._sortKeys = EntityPropertyDescriptor.getSortKeys<T>(entityDescriptor);
 		this._directory = path.resolve(config.directory);
 		this._baseFilename = config.baseFilename;
 	}
@@ -310,25 +302,11 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 		const finalPageSize = pageSize ?? FileEntityStorageProvider._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
-			let finalSortKeys: IEntitySortDescriptor<T>[] | undefined;
-
-			if (Is.arrayValue(sortKeys)) {
-				finalSortKeys = [];
-				for (const sortKey of sortKeys) {
-					const property = this._entityDescriptor.properties.find(p => p.name === sortKey.name);
-					if (property) {
-						finalSortKeys.push({
-							name: sortKey.name,
-							sortDirection: sortKey.sortDirection,
-							type: property.type
-						});
-					}
-				}
-			} else {
-				finalSortKeys = this._sortKeys;
-			}
-
-			if (finalSortKeys) {
+			const finalSortKeys = EntityPropertyDescriptor.buildSortKeys<T>(
+				this._entityDescriptor,
+				sortKeys
+			);
+			if (Is.arrayValue(finalSortKeys)) {
 				allEntities = EntitySorter.sort(allEntities, finalSortKeys);
 			}
 
