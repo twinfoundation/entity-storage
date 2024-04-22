@@ -527,7 +527,7 @@ describe("FileEntityStorageProvider", () => {
 				baseFilename: TEST_BASE_FILENAME
 			}
 		);
-		await expect(entityStorage.find({})).rejects.toMatchObject({
+		await expect(entityStorage.query({})).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
 			properties: {
@@ -537,7 +537,7 @@ describe("FileEntityStorageProvider", () => {
 		});
 	});
 
-	test("can find items with empty store", async () => {
+	test("can query items with empty store", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -546,7 +546,7 @@ describe("FileEntityStorageProvider", () => {
 				baseFilename: TEST_BASE_FILENAME
 			}
 		);
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -554,7 +554,7 @@ describe("FileEntityStorageProvider", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can find items with single entry", async () => {
+	test("can query items with single entry", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -567,7 +567,7 @@ describe("FileEntityStorageProvider", () => {
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
 		);
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
@@ -575,7 +575,7 @@ describe("FileEntityStorageProvider", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can find items with multiple entries", async () => {
+	test("can query items with multiple entries", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -590,7 +590,7 @@ describe("FileEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.totalEntities).toEqual(30);
@@ -598,7 +598,7 @@ describe("FileEntityStorageProvider", () => {
 		expect(result.cursor).toEqual("20");
 	});
 
-	test("can find items with multiple entries and cursor", async () => {
+	test("can query items with multiple entries and cursor", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -613,9 +613,10 @@ describe("FileEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
-		const result2 = await entityStorage.find(
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result2 = await entityStorage.query(
 			{ tenantId: TEST_TENANT_ID },
+			undefined,
 			undefined,
 			undefined,
 			result.cursor
@@ -627,7 +628,7 @@ describe("FileEntityStorageProvider", () => {
 		expect(result2.cursor).toBeUndefined();
 	});
 
-	test("can find items with multiple entries and apply conditions", async () => {
+	test("can query items with multiple entries and apply conditions", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -642,7 +643,7 @@ describe("FileEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find(
+		const result = await entityStorage.query(
 			{ tenantId: TEST_TENANT_ID },
 			{
 				property: "id",
@@ -657,7 +658,7 @@ describe("FileEntityStorageProvider", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can find items with multiple entries and apply custom sort", async () => {
+	test("can query items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new FileEntityStorageProvider<TestType>(
 			{ loggingProvider },
 			testDescriptor,
@@ -672,7 +673,7 @@ describe("FileEntityStorageProvider", () => {
 				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID }, undefined, [
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, [
 			{
 				name: "id",
 				sortDirection: SortDirection.Ascending
@@ -684,5 +685,31 @@ describe("FileEntityStorageProvider", () => {
 		expect(result.totalEntities).toEqual(30);
 		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toEqual("20");
+	});
+
+	test("can query items and get a reduced data set", async () => {
+		const entityStorage = new FileEntityStorageProvider<TestType>(
+			{ loggingProvider },
+			testDescriptor,
+			{
+				directory: TEST_DIRECTORY,
+				baseFilename: TEST_BASE_FILENAME
+			}
+		);
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set(
+				{ tenantId: TEST_TENANT_ID },
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+			);
+		}
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, undefined, [
+			"id",
+			"value1"
+		]);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(20);
+		expect(result.entities[0].id).toEqual("1");
+		expect(result.entities[0].value1).toEqual("aaa");
+		expect(result.entities[0].value2).toBeUndefined();
 	});
 });
