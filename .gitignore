@@ -7,3 +7,5 @@ node_modules
 coverage
 *.tgz
 **/.tmp
+.env.dev
+vitest.config.ts.timestamp*

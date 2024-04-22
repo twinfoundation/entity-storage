@@ -40,31 +40,6 @@ IService.bootstrap
 
 ___
 
-### find
-
-▸ **find**(`requestContext`, `conditions?`, `sortKeys?`, `cursor?`, `pageSize?`): `Promise`\<\{ `cursor?`: `string` ; `entities`: `T`[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
-
-Find all the entities which match the conditions.
-
-#### Parameters
-
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `requestContext` | `IRequestContext` | The context for the request. |
-| `conditions?` | `Condition`\<`T`\> | The conditions to match for the entities. |
-| `sortKeys?` | \{ `name`: keyof `T` ; `sortDirection`: `SortDirection`  }[] | The optional sort order. |
-| `cursor?` | `string` | The cursor to request the next page of entities. |
-| `pageSize?` | `number` | The maximum number of entities in a page. |
-
-#### Returns
-
-`Promise`\<\{ `cursor?`: `string` ; `entities`: `T`[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
-
-All the entities for the storage matching the conditions,
-and a cursor which can be used to request more entities.
-
-___
-
 ### get
 
 ▸ **get**(`requestContext`, `id`, `secondaryIndex?`): `Promise`\<`undefined` \| `T`\>
@@ -84,6 +59,32 @@ Get an entity.
 `Promise`\<`undefined` \| `T`\>
 
 The object if it can be found or undefined.
+
+___
+
+### query
+
+▸ **query**(`requestContext`, `conditions?`, `sortKeys?`, `keys?`, `cursor?`, `pageSize?`): `Promise`\<\{ `cursor?`: `string` ; `entities`: `Partial`\<`T`\>[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
+
+Query all the entities which match the conditions.
+
+#### Parameters
+
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `requestContext` | `IRequestContext` | The context for the request. |
+| `conditions?` | `Condition`\<`T`\> | The conditions to match for the entities. |
+| `sortKeys?` | \{ `name`: keyof `T` ; `sortDirection`: `SortDirection`  }[] | The optional sort order. |
+| `keys?` | keyof `T`[] | The optional keys to return, defaults to all. |
+| `cursor?` | `string` | The cursor to request the next page of entities. |
+| `pageSize?` | `number` | The maximum number of entities in a page. |
+
+#### Returns
+
+`Promise`\<\{ `cursor?`: `string` ; `entities`: `Partial`\<`T`\>[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
+
+All the entities for the storage matching the conditions,
+and a cursor which can be used to request more entities.
 
 ___
 

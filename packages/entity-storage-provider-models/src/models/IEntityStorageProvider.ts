@@ -37,30 +37,31 @@ export interface IEntityStorageProvider<T = unknown> extends IService {
 	remove(requestContext: IRequestContext, id: string): Promise<void>;
 
 	/**
-	 * Find all the entities which match the conditions.
+	 * Query all the entities which match the conditions.
 	 * @param requestContext The context for the request.
 	 * @param conditions The conditions to match for the entities.
 	 * @param sortKeys The optional sort order.
+	 * @param keys The optional keys to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
-	find(
+	query(
 		requestContext: IRequestContext,
 		conditions?: Condition<T>,
 		sortKeys?: {
 			name: keyof T;
 			sortDirection: SortDirection;
 		}[],
+		keys?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number
 	): Promise<{
 		/**
-		 * The entities.
+		 * The entities, which can be partial if a limited keys list was provided.
 		 */
-		entities: T[];
-
+		entities: Partial<T>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */

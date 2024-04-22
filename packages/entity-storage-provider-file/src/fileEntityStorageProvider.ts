@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BaseError, Guards, Is } from "@gtsc/core";
+import { BaseError, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	Conditions,
 	EntityPropertyDescriptor,
@@ -259,26 +259,27 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 	 * @param requestContext The context for the request.
 	 * @param conditions The conditions to match for the entities.
 	 * @param sortKeys The optional sort order.
+	 * @param keys The optional keys to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
-	public async find(
+	public async query(
 		requestContext: IRequestContext,
 		conditions?: Condition<T>,
 		sortKeys?: {
 			name: keyof T;
 			sortDirection: SortDirection;
 		}[],
+		keys?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number
 	): Promise<{
 		/**
-		 * The entities.
+		 * The entities, which can be partial if a limited keys list was provided.
 		 */
-		entities: T[];
-
+		entities: Partial<T>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -298,7 +299,7 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 			requestContext.tenantId
 		);
 		let allEntities = await this.readTenantStore(requestContext.tenantId);
-		const entities: T[] = [];
+		const entities = [];
 		const finalPageSize = pageSize ?? FileEntityStorageProvider._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
@@ -306,15 +307,13 @@ export class FileEntityStorageProvider<T = unknown> implements IEntityStoragePro
 				this._entityDescriptor,
 				sortKeys
 			);
-			if (Is.arrayValue(finalSortKeys)) {
-				allEntities = EntitySorter.sort(allEntities, finalSortKeys);
-			}
+			allEntities = EntitySorter.sort(allEntities, finalSortKeys);
 
 			const startIndex = cursor ? Number.parseInt(cursor, 10) : 0;
 
 			for (let i = startIndex; i < allEntities.length; i++) {
 				if (Conditions.check(allEntities[i], conditions)) {
-					entities.push(allEntities[i]);
+					entities.push(ObjectHelper.pick(allEntities[i], keys));
 					if (entities.length >= finalPageSize) {
 						nextCursor = (i + 1).toString();
 						break;

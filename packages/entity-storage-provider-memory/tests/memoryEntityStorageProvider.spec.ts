@@ -275,7 +275,7 @@ describe("MemoryEntityStorageProvider", () => {
 
 	test("can fail to find an item with no tenant id", async () => {
 		const entityStorage = new MemoryEntityStorageProvider<TestType>(testDescriptor);
-		await expect(entityStorage.find({})).rejects.toMatchObject({
+		await expect(entityStorage.query({})).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
 			properties: {
@@ -287,7 +287,7 @@ describe("MemoryEntityStorageProvider", () => {
 
 	test("can find items with empty store", async () => {
 		const entityStorage = new MemoryEntityStorageProvider<TestType>(testDescriptor);
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -301,7 +301,7 @@ describe("MemoryEntityStorageProvider", () => {
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
 		);
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
@@ -317,7 +317,7 @@ describe("MemoryEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.totalEntities).toEqual(30);
@@ -333,9 +333,10 @@ describe("MemoryEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID });
-		const result2 = await entityStorage.find(
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result2 = await entityStorage.query(
 			{ tenantId: TEST_TENANT_ID },
+			undefined,
 			undefined,
 			undefined,
 			result.cursor
@@ -355,7 +356,7 @@ describe("MemoryEntityStorageProvider", () => {
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find(
+		const result = await entityStorage.query(
 			{ tenantId: TEST_TENANT_ID },
 			{
 				property: "id",
@@ -378,7 +379,7 @@ describe("MemoryEntityStorageProvider", () => {
 				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" }
 			);
 		}
-		const result = await entityStorage.find({ tenantId: TEST_TENANT_ID }, undefined, [
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, [
 			{
 				name: "id",
 				sortDirection: SortDirection.Ascending
@@ -390,5 +391,24 @@ describe("MemoryEntityStorageProvider", () => {
 		expect(result.totalEntities).toEqual(30);
 		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toEqual("20");
+	});
+
+	test("can query items and get a reduced data set", async () => {
+		const entityStorage = new MemoryEntityStorageProvider<TestType>(testDescriptor);
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set(
+				{ tenantId: TEST_TENANT_ID },
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+			);
+		}
+		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, undefined, [
+			"id",
+			"value1"
+		]);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(20);
+		expect(result.entities[0].id).toEqual("1");
+		expect(result.entities[0].value1).toEqual("aaa");
+		expect(result.entities[0].value2).toBeUndefined();
 	});
 });
