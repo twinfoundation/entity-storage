@@ -30,19 +30,19 @@
 	"dependencies": {
 		"@gtsc/core": "next",
 		"@gtsc/entity": "next",
-		"@gtsc/nameof": "next",
+		"@gtsc/nameof": "^0.0.4",
 		"@gtsc/entity-storage-provider-models": "0.0.3-next.4",
 		"@gtsc/logging-provider-models": "next"
 	},
 	"devDependencies": {
 		"@gtsc/logging-provider-memory": "next",
-		"@gtsc/nameof-transformer": "next",
+		"@gtsc/nameof-transformer": "^0.0.4",
 		"@types/node": "^20.12.7",
 		"@vitest/coverage-v8": "^1.5.0",
 		"copyfiles": "^2.4.1",
 		"dotenv": "^16.4.5",
 		"rimraf": "^5.0.5",
-		"rollup": "^4.14.3",
+		"rollup": "^4.16.3",
 		"rollup-plugin-copy": "^3.5.0",
 		"rollup-plugin-typescript2": "^0.36.0",
 		"ts-patch": "^3.1.2",
