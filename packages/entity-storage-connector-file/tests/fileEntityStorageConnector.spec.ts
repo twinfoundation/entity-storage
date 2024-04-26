@@ -3,8 +3,14 @@
 import { readFile, rm } from "node:fs/promises";
 import { Converter, RandomHelper } from "@gtsc/core";
 import { ComparisonOperator, SortDirection, type IEntityDescriptor } from "@gtsc/entity";
-import { MemoryLoggingProvider } from "@gtsc/logging-provider-memory";
-import type { ILoggingProvider } from "@gtsc/logging-provider-models";
+import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
+import {
+	EntityStorageLoggingConnector,
+	type IEntityLogEntry,
+	EntityLogEntryDescriptor
+} from "@gtsc/logging-connector-entity-storage";
+import type { ILoggingContract } from "@gtsc/logging-models";
+import { LoggingService } from "@gtsc/logging-service";
 import { nameof } from "@gtsc/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
 import type { IFileEntityStorageConnectorConfig } from "../src/models/IFileEntityStorageConnectorConfig";
@@ -46,7 +52,8 @@ const testDescriptor: IEntityDescriptor<TestType> = {
 	]
 };
 
-let memoryLoggingService = new MemoryLoggingProvider();
+let memoryEntityStorageConnector: MemoryEntityStorageConnector<IEntityLogEntry>;
+let testLoggingContract: ILoggingContract;
 
 const TEST_DIRECTORY_ROOT = "./.tmp/";
 const TEST_DIRECTORY = `${TEST_DIRECTORY_ROOT}test-data-${Converter.bytesToHex(RandomHelper.generate(8))}`;
@@ -55,6 +62,16 @@ const TEST_TENANT_ID = "test-tenant";
 const TEST_STORE_NAME = `${TEST_DIRECTORY}/${TEST_TENANT_ID}_${TEST_BASE_FILENAME}.json`;
 
 describe("FileEntityStorageConnector", () => {
+	beforeEach(() => {
+		memoryEntityStorageConnector = new MemoryEntityStorageConnector(EntityLogEntryDescriptor);
+		const entityStorageLoggingConnector = new EntityStorageLoggingConnector({
+			entityStorageConnector: memoryEntityStorageConnector
+		});
+		testLoggingContract = new LoggingService({
+			loggingConnector: entityStorageLoggingConnector
+		});
+	});
+
 	afterAll(async () => {
 		try {
 			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
@@ -65,7 +82,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					undefined as unknown as { loggingService: ILoggingProvider },
+					undefined as unknown as { loggingContract: ILoggingContract },
 					undefined as unknown as IEntityDescriptor<unknown>,
 					undefined as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -81,11 +98,11 @@ describe("FileEntityStorageConnector", () => {
 		);
 	});
 
-	test("can fail to construct when there is no logging service", async () => {
+	test("can fail to construct when there is no logging contract", async () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{} as unknown as { loggingService: ILoggingProvider },
+					{} as unknown as { loggingContract: ILoggingContract },
 					undefined as unknown as IEntityDescriptor<unknown>,
 					undefined as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -94,7 +111,7 @@ describe("FileEntityStorageConnector", () => {
 				name: "GuardError",
 				message: "guard.objectUndefined",
 				properties: {
-					property: "dependencies.loggingService",
+					property: "dependencies.loggingContract",
 					value: "undefined"
 				}
 			})
@@ -105,7 +122,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{ loggingService: memoryLoggingService },
+					{ loggingContract: testLoggingContract },
 					undefined as unknown as IEntityDescriptor<unknown>,
 					undefined as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -125,7 +142,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{ loggingService: memoryLoggingService },
+					{ loggingContract: testLoggingContract },
 					{} as IEntityDescriptor<unknown>,
 					undefined as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -145,7 +162,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{ loggingService: memoryLoggingService },
+					{ loggingContract: testLoggingContract },
 					testDescriptor,
 					undefined as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -165,7 +182,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{ loggingService: memoryLoggingService },
+					{ loggingContract: testLoggingContract },
 					testDescriptor,
 					{} as unknown as IFileEntityStorageConnectorConfig
 				)
@@ -184,7 +201,7 @@ describe("FileEntityStorageConnector", () => {
 	test("can fail to construct when there is no config base filename", async () => {
 		expect(
 			() =>
-				new FileEntityStorageConnector({ loggingService: memoryLoggingService }, testDescriptor, {
+				new FileEntityStorageConnector({ loggingContract: testLoggingContract }, testDescriptor, {
 					directory: TEST_DIRECTORY
 				} as unknown as IFileEntityStorageConnectorConfig)
 		).toThrow(
@@ -201,7 +218,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can construct", async () => {
 		const entityStorage = new FileEntityStorageConnector(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -212,9 +229,8 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to bootstrap with invalid directory", async () => {
-		memoryLoggingService = new MemoryLoggingProvider();
 		const entityStorage = new FileEntityStorageConnector(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: "|\0",
@@ -222,7 +238,7 @@ describe("FileEntityStorageConnector", () => {
 			}
 		);
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
-		const logs = memoryLoggingService.getStore(TEST_TENANT_ID);
+		const logs = memoryEntityStorageConnector.getStore(TEST_TENANT_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
@@ -230,9 +246,8 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can bootstrap and create directory", async () => {
-		memoryLoggingService = new MemoryLoggingProvider();
 		const entityStorage = new FileEntityStorageConnector(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -240,7 +255,7 @@ describe("FileEntityStorageConnector", () => {
 			}
 		);
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
-		const logs = memoryLoggingService.getStore(TEST_TENANT_ID);
+		const logs = memoryEntityStorageConnector.getStore(TEST_TENANT_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
@@ -248,9 +263,8 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can bootstrap and skip existing directory", async () => {
-		memoryLoggingService = new MemoryLoggingProvider();
 		const entityStorage = new FileEntityStorageConnector(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -258,7 +272,7 @@ describe("FileEntityStorageConnector", () => {
 			}
 		);
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
-		const logs = memoryLoggingService.getStore(TEST_TENANT_ID);
+		const logs = memoryEntityStorageConnector.getStore(TEST_TENANT_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(1);
 		expect(logs?.[0].message).toEqual("directoryExists");
@@ -266,7 +280,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to set an item with no tenant id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -285,7 +299,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -306,7 +320,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can set an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{ directory: TEST_DIRECTORY, baseFilename: TEST_BASE_FILENAME }
 		);
@@ -327,7 +341,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can set an item to update it", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{ directory: TEST_DIRECTORY, baseFilename: TEST_BASE_FILENAME }
 		);
@@ -353,7 +367,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to get an item with no tenant id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -372,7 +386,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -393,7 +407,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can not get an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -411,7 +425,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can get an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -432,7 +446,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -453,7 +467,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no tenant id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -472,7 +486,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -493,7 +507,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can not remove an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -515,7 +529,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can remove an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -536,7 +550,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to find an item with no tenant id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -555,7 +569,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with empty store", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -572,7 +586,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with single entry", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -593,7 +607,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -616,7 +630,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and cursor", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -646,7 +660,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and apply conditions", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -676,7 +690,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,
@@ -705,7 +719,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ loggingService: memoryLoggingService },
+			{ loggingContract: testLoggingContract },
 			testDescriptor,
 			{
 				directory: TEST_DIRECTORY,

@@ -13,7 +13,7 @@ import {
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import type { ILoggingProvider } from "@gtsc/logging-provider-models";
+import type { ILoggingContract } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IRequestContext } from "@gtsc/services";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
@@ -35,10 +35,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
 
 	/**
-	 * The logging service.
+	 * The logging contract.
 	 * @internal
 	 */
-	private readonly _loggingService: ILoggingProvider;
+	private readonly _loggingContract: ILoggingContract;
 
 	/**
 	 * The descriptor for the entity.
@@ -66,14 +66,14 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
-	 * @param dependencies The dependencies for the service.
-	 * @param dependencies.loggingService The logging service.
+	 * @param dependencies The dependencies for the connector.
+	 * @param dependencies.loggingContract The logging contract.
 	 * @param entityDescriptor The descriptor for the entity.
 	 * @param config The configuration for the entity storage connector.
 	 */
 	constructor(
 		dependencies: {
-			loggingService: ILoggingProvider;
+			loggingContract: ILoggingContract;
 		},
 		entityDescriptor: IEntityDescriptor<T>,
 		config: IFileEntityStorageConnectorConfig
@@ -85,8 +85,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		);
 		Guards.object<IEntityDescriptor<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(dependencies.loggingService),
-			dependencies.loggingService
+			nameof(dependencies.loggingContract),
+			dependencies.loggingContract
 		);
 		Guards.object<IEntityDescriptor<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
@@ -113,7 +113,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			nameof(config.baseFilename),
 			config.baseFilename
 		);
-		this._loggingService = dependencies.loggingService;
+		this._loggingContract = dependencies.loggingContract;
 		this._entityDescriptor = entityDescriptor;
 		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
 		this._directory = path.resolve(config.directory);
@@ -121,13 +121,13 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	}
 
 	/**
-	 * Bootstrap the service by creating and initializing any resources it needs.
+	 * Bootstrap the connector by creating and initializing any resources it needs.
 	 * @param requestContext The request context for bootstrapping.
 	 * @returns The response of the bootstrapping as log entries.
 	 */
 	public async bootstrap(requestContext: IRequestContext): Promise<void> {
 		if (!(await this.dirExists(this._directory))) {
-			this._loggingService.log(requestContext, {
+			this._loggingContract.log(requestContext, {
 				level: "info",
 				source: FileEntityStorageConnector._CLASS_NAME,
 				message: "directoryCreating",
@@ -139,7 +139,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			try {
 				await mkdir(this._directory, { recursive: true });
 
-				this._loggingService.log(requestContext, {
+				this._loggingContract.log(requestContext, {
 					level: "info",
 					source: FileEntityStorageConnector._CLASS_NAME,
 					message: "directoryCreated",
@@ -148,7 +148,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 					}
 				});
 			} catch (err) {
-				this._loggingService.log(requestContext, {
+				this._loggingContract.log(requestContext, {
 					level: "error",
 					source: FileEntityStorageConnector._CLASS_NAME,
 					message: "directoryCreateFailed",
@@ -159,7 +159,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 				});
 			}
 		} else {
-			this._loggingService.log(requestContext, {
+			this._loggingContract.log(requestContext, {
 				level: "info",
 				source: FileEntityStorageConnector._CLASS_NAME,
 				message: "directoryExists",
