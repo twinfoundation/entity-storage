@@ -3,16 +3,16 @@
 	"label": "Entity Storage",
 	"packages": [
 		{
-			"name": "entity-storage-provider-models",
-			"description": "Models which define the structure of the entity storage provider implementations."
+			"name": "entity-storage-models",
+			"description": "Models which define the structure of the entity storage services and connectors."
 		},
 		{
-			"name": "entity-storage-provider-memory",
-			"description": "Entity Storage provider implementation using in-memory storage."
+			"name": "entity-storage-connector-memory",
+			"description": "Entity Storage connector implementation using in-memory storage."
 		},
 		{
-			"name": "entity-storage-provider-file",
-			"description": "Entity Storage provider implementation using file storage."
+			"name": "entity-storage-connector-file",
+			"description": "Entity Storage connector implementation using file storage."
 		}
 	]
 }

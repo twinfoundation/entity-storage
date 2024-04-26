@@ -39,9 +39,9 @@
 		"prettier": "^3.2.5"
 	},
 	"workspaces": [
-		"packages/entity-storage-provider-models",
-		"packages/entity-storage-provider-memory",
-		"packages/entity-storage-provider-file"
+		"packages/entity-storage-models",
+		"packages/entity-storage-connector-memory",
+		"packages/entity-storage-connector-file"
 	],
 	"type": "module"
 }
