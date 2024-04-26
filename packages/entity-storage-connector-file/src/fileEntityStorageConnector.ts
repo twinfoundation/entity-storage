@@ -4,10 +4,10 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { BaseError, Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
-	Conditions,
+	type EntityCondition,
+	EntityConditions,
 	EntityPropertyDescriptor,
 	EntitySorter,
-	type Condition,
 	type IEntityDescriptor,
 	type IEntityPropertyDescriptor,
 	type SortDirection
@@ -192,7 +192,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 		const store = await this.readTenantStore(requestContext.tenantId);
 
-		const lookupKey = secondaryIndex ?? this._primaryKey.name;
+		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
 		const found = store.find(entity => entity[lookupKey] === id);
 		if (found) {
@@ -219,7 +219,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		const store = await this.readTenantStore(requestContext.tenantId);
 
 		const existingIndex = store.findIndex(
-			e => e[this._primaryKey.name] === entity[this._primaryKey.name]
+			e => e[this._primaryKey.property] === entity[this._primaryKey.property]
 		);
 		if (existingIndex >= 0) {
 			store[existingIndex] = entity;
@@ -246,7 +246,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 		const store = await this.readTenantStore(requestContext.tenantId);
 
-		const index = store.findIndex(e => e[this._primaryKey.name] === id);
+		const index = store.findIndex(e => e[this._primaryKey.property] === id);
 		if (index >= 0) {
 			store.splice(index, 1);
 		}
@@ -258,8 +258,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Find all the entities which match the conditions.
 	 * @param requestContext The context for the request.
 	 * @param conditions The conditions to match for the entities.
-	 * @param sortKeys The optional sort order.
-	 * @param keys The optional keys to return, defaults to all.
+	 * @param sortProperties The optional sort order.
+	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
 	 * @returns All the entities for the storage matching the conditions,
@@ -267,12 +267,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 */
 	public async query(
 		requestContext: IRequestContext,
-		conditions?: Condition<T>,
-		sortKeys?: {
-			name: keyof T;
+		conditions?: EntityCondition<T>,
+		sortProperties?: {
+			property: keyof T;
 			sortDirection: SortDirection;
 		}[],
-		keys?: (keyof T)[],
+		properties?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number
 	): Promise<{
@@ -304,17 +304,17 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		const finalPageSize = pageSize ?? FileEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
-			const finalSortKeys = EntityPropertyDescriptor.buildSortKeys<T>(
+			const finalSortKeys = EntityPropertyDescriptor.buildSortProperties<T>(
 				this._entityDescriptor,
-				sortKeys
+				sortProperties
 			);
 			allEntities = EntitySorter.sort(allEntities, finalSortKeys);
 
 			const startIndex = Coerce.number(cursor) ?? 0;
 
 			for (let i = startIndex; i < allEntities.length; i++) {
-				if (Conditions.check(allEntities[i], conditions)) {
-					entities.push(ObjectHelper.pick(allEntities[i], keys));
+				if (EntityConditions.check(allEntities[i], conditions)) {
+					entities.push(ObjectHelper.pick(allEntities[i], properties));
 					if (entities.length >= finalPageSize) {
 						nextCursor = (i + 1).toString();
 						break;
