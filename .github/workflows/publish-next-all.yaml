@@ -12,11 +12,7 @@ jobs:
       max-parallel: 1
       matrix:
         package:
-          [
-            entity-storage-provider-models,
-            entity-storage-provider-memory,
-            entity-storage-provider-file
-          ]
+          [entity-storage-models, entity-storage-connector-memory, entity-storage-connector-file]
 
     steps:
       - name: Checkout

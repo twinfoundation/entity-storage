@@ -8,9 +8,9 @@ on:
         required: true
         type: choice
         options:
-          - entity-storage-provider-models
-          - entity-storage-provider-memory
-          - entity-storage-provider-file
+          - entity-storage-models
+          - entity-storage-connector-memory
+          - entity-storage-connector-file
 
 jobs:
   publish:
