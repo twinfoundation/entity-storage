@@ -30,8 +30,8 @@ Create a new instance of FileEntityStorageConnector.
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
-| `dependencies` | `Object` | The dependencies for the service. |
-| `dependencies.loggingService` | `ILoggingProvider` | The logging service. |
+| `dependencies` | `Object` | The dependencies for the connector. |
+| `dependencies.loggingContract` | `ILoggingContract` | The logging contract. |
 | `entityDescriptor` | `IEntityDescriptor`\<`T`\> | The descriptor for the entity. |
 | `config` | [`IFileEntityStorageConnectorConfig`](../interfaces/IFileEntityStorageConnectorConfig.md) | The configuration for the entity storage connector. |
 
@@ -45,7 +45,7 @@ Create a new instance of FileEntityStorageConnector.
 
 ▸ **bootstrap**(`requestContext`): `Promise`\<`void`\>
 
-Bootstrap the service by creating and initializing any resources it needs.
+Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 

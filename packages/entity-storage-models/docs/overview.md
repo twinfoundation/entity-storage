@@ -1,6 +1,6 @@
 # @gtsc/entity-storage-models - Overview
 
-Models which define the structure of the entity storage services and connectors.
+Models which define the structure of the entity storage contracts and connectors.
 
 ## Installation
 
