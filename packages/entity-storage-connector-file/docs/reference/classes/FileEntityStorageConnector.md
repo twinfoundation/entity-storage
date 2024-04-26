@@ -93,7 +93,7 @@ ___
 
 ### query
 
-▸ **query**(`requestContext`, `conditions?`, `sortKeys?`, `keys?`, `cursor?`, `pageSize?`): `Promise`\<\{ `cursor?`: `string` ; `entities`: `Partial`\<`T`\>[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
+▸ **query**(`requestContext`, `conditions?`, `sortProperties?`, `properties?`, `cursor?`, `pageSize?`): `Promise`\<\{ `cursor?`: `string` ; `entities`: `Partial`\<`T`\>[] ; `pageSize?`: `number` ; `totalEntities`: `number`  }\>
 
 Find all the entities which match the conditions.
 
@@ -102,9 +102,9 @@ Find all the entities which match the conditions.
 | Name | Type | Description |
 | :------ | :------ | :------ |
 | `requestContext` | `IRequestContext` | The context for the request. |
-| `conditions?` | `Condition`\<`T`\> | The conditions to match for the entities. |
-| `sortKeys?` | \{ `name`: keyof `T` ; `sortDirection`: `SortDirection`  }[] | The optional sort order. |
-| `keys?` | keyof `T`[] | The optional keys to return, defaults to all. |
+| `conditions?` | `EntityCondition`\<`T`\> | The conditions to match for the entities. |
+| `sortProperties?` | \{ `property`: keyof `T` ; `sortDirection`: `SortDirection`  }[] | The optional sort order. |
+| `properties?` | keyof `T`[] | The optional properties to return, defaults to all. |
 | `cursor?` | `string` | The cursor to request the next page of entities. |
 | `pageSize?` | `number` | The maximum number of entities in a page. |
 

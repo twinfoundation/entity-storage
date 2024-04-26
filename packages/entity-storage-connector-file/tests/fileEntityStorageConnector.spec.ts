@@ -31,16 +31,16 @@ const testDescriptor: IEntityDescriptor<TestType> = {
 	name: nameof<TestType>(),
 	properties: [
 		{
-			name: "id",
+			property: "id",
 			type: "string",
 			isPrimary: true
 		},
 		{
-			name: "value1",
+			property: "value1",
 			type: "string"
 		},
 		{
-			name: "value2",
+			property: "value2",
 			type: "string"
 		}
 	]
@@ -691,7 +691,7 @@ describe("FileEntityStorageConnector", () => {
 		}
 		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, [
 			{
-				name: "id",
+				property: "id",
 				sortDirection: SortDirection.Ascending
 			}
 		]);

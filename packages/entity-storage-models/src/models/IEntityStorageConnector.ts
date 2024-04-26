@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { SortDirection, Condition } from "@gtsc/entity";
+import type { EntityCondition, SortDirection } from "@gtsc/entity";
 import type { IRequestContext, IService } from "@gtsc/services";
 
 /**
@@ -40,8 +40,8 @@ export interface IEntityStorageConnector<T = unknown> extends IService {
 	 * Query all the entities which match the conditions.
 	 * @param requestContext The context for the request.
 	 * @param conditions The conditions to match for the entities.
-	 * @param sortKeys The optional sort order.
-	 * @param keys The optional keys to return, defaults to all.
+	 * @param sortProperties The optional sort order.
+	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
 	 * @returns All the entities for the storage matching the conditions,
@@ -49,12 +49,12 @@ export interface IEntityStorageConnector<T = unknown> extends IService {
 	 */
 	query(
 		requestContext: IRequestContext,
-		conditions?: Condition<T>,
-		sortKeys?: {
-			name: keyof T;
+		conditions?: EntityCondition<T>,
+		sortProperties?: {
+			property: keyof T;
 			sortDirection: SortDirection;
 		}[],
-		keys?: (keyof T)[],
+		properties?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number
 	): Promise<{
