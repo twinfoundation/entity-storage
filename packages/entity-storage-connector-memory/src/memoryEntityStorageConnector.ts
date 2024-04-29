@@ -95,7 +95,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
-		const found = this._store[requestContext.tenantId].find(entity => entity[lookupKey] === id);
+		const found = this._store[requestContext.tenantId]?.find(entity => entity[lookupKey] === id);
 		if (found) {
 			return found;
 		}
@@ -143,9 +143,9 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		);
 		Guards.stringValue(MemoryEntityStorageConnector._CLASS_NAME, nameof(id), id);
 
-		const index = this._store[requestContext.tenantId].findIndex(
-			e => e[this._primaryKey.property] === id
-		);
+		const index =
+			this._store[requestContext.tenantId]?.findIndex(e => e[this._primaryKey.property] === id) ??
+			-1;
 		if (index >= 0) {
 			this._store[requestContext.tenantId].splice(index, 1);
 		}
