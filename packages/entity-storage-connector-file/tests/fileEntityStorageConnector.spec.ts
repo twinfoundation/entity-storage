@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { readFile, rm } from "node:fs/promises";
-import { Converter, RandomHelper } from "@gtsc/core";
+import { Converter, I18n, RandomHelper } from "@gtsc/core";
 import { ComparisonOperator, SortDirection, type IEntityDescriptor } from "@gtsc/entity";
 import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
 import {
@@ -62,6 +62,10 @@ const TEST_TENANT_ID = "test-tenant";
 const TEST_STORE_NAME = `${TEST_DIRECTORY}/${TEST_TENANT_ID}_${TEST_BASE_FILENAME}.json`;
 
 describe("FileEntityStorageConnector", () => {
+	beforeAll(async () => {
+		I18n.addDictionary("en", await import("../locales/en.json"));
+	});
+
 	beforeEach(() => {
 		memoryEntityStorageConnector = new MemoryEntityStorageConnector(EntityLogEntryDescriptor);
 		const entityStorageLoggingConnector = new EntityStorageLoggingConnector({
@@ -243,6 +247,8 @@ describe("FileEntityStorageConnector", () => {
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
 		expect(logs?.[1].message).toEqual("directoryCreateFailed");
+		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreating")).toEqual(true);
+		expect(I18n.hasMessage("error.fileEntityStorageConnector.directoryCreateFailed")).toEqual(true);
 	});
 
 	test("can bootstrap and create directory", async () => {
@@ -260,6 +266,8 @@ describe("FileEntityStorageConnector", () => {
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
 		expect(logs?.[1].message).toEqual("directoryCreated");
+		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreated")).toEqual(true);
 	});
 
 	test("can bootstrap and skip existing directory", async () => {
@@ -276,6 +284,7 @@ describe("FileEntityStorageConnector", () => {
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(1);
 		expect(logs?.[0].message).toEqual("directoryExists");
+		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryExists")).toEqual(true);
 	});
 
 	test("can fail to set an item with no tenant id", async () => {
