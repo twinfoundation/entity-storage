@@ -85,7 +85,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		id: string,
 		secondaryIndex?: keyof T
 	): Promise<T | undefined> {
-		Guards.string(
+		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
 			requestContext.tenantId
@@ -110,7 +111,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @returns The id of the entity.
 	 */
 	public async set(requestContext: IRequestContext, entity: T): Promise<void> {
-		Guards.string(
+		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
 			requestContext.tenantId
@@ -136,7 +138,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @returns Nothing.
 	 */
 	public async remove(requestContext: IRequestContext, id: string): Promise<void> {
-		Guards.string(
+		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
 			requestContext.tenantId
@@ -191,7 +194,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		totalEntities: number;
 	}> {
 		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
-		Guards.string(
+		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
 			requestContext.tenantId
