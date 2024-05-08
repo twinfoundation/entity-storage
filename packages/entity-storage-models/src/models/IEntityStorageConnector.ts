@@ -12,13 +12,13 @@ export interface IEntityStorageConnector<T = unknown> extends IService {
 	 * @param requestContext The context for the request.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @returns The object if it can be found or undefined.
+	 * @returns The object if it can be found or undefined, if request context was wildcard then tenantId is also included.
 	 */
 	get(
 		requestContext: IRequestContext,
 		id: string,
 		secondaryIndex?: keyof T
-	): Promise<T | undefined>;
+	): Promise<(T & { tenantId?: string }) | undefined>;
 
 	/**
 	 * Set an entity.
@@ -60,8 +60,9 @@ export interface IEntityStorageConnector<T = unknown> extends IService {
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
+		 * If the request context was wildcard then tenantId is also included.
 		 */
-		entities: Partial<T>[];
+		entities: Partial<T & { tenantId?: string }>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
