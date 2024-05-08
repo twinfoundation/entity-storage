@@ -78,13 +78,13 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @param requestContext The context for the request.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @returns The object if it can be found or undefined.
+	 * @returns The object if it can be found or undefined, if request context was wildcard then tenantId is also included.
 	 */
 	public async get(
 		requestContext: IRequestContext,
 		id: string,
 		secondaryIndex?: keyof T
-	): Promise<T | undefined> {
+	): Promise<(T & { tenantId?: string }) | undefined> {
 		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
 		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
@@ -96,9 +96,22 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
-		const found = this._store[requestContext.tenantId]?.find(entity => entity[lookupKey] === id);
-		if (found) {
-			return found;
+		const tenantsToSearch =
+			requestContext.tenantId === "*" ? Object.keys(this._store) : [requestContext.tenantId];
+
+		for (const tenantId of tenantsToSearch) {
+			const store = this._store[tenantId];
+			const found = store?.find(entity => entity[lookupKey] === id);
+
+			if (found) {
+				const result: T & { tenantId?: string } = {
+					...found
+				};
+				if (requestContext.tenantId === "*") {
+					result.tenantId = tenantId;
+				}
+				return result;
+			}
 		}
 
 		return undefined;
@@ -178,8 +191,9 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
+		 * If the request context was wildcard then tenantId is also included.
 		 */
-		entities: Partial<T>[];
+		entities: Partial<T & { tenantId?: string }>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -200,7 +214,15 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 			requestContext.tenantId
 		);
 
-		let allEntities = this._store[requestContext.tenantId] ?? [];
+		let allEntities: (T & { tenantId?: string })[] = [];
+		if (requestContext.tenantId === "*") {
+			for (const tenantId of Object.keys(this._store)) {
+				allEntities = allEntities.concat(this._store[tenantId].map(e => ({ ...e, tenantId })));
+			}
+		} else {
+			allEntities = (this._store[requestContext.tenantId] as (T & { tenantId?: string })[]) ?? [];
+		}
+
 		const entities = [];
 		const finalPageSize = pageSize ?? MemoryEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;

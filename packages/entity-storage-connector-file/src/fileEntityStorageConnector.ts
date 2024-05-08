@@ -13,7 +13,7 @@ import {
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import type { ILoggingContract } from "@gtsc/logging-models";
+import type { ILogging } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IRequestContext } from "@gtsc/services";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
@@ -38,7 +38,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * The logging contract.
 	 * @internal
 	 */
-	private readonly _loggingContract: ILoggingContract;
+	private readonly _logging: ILogging;
 
 	/**
 	 * The descriptor for the entity.
@@ -59,21 +59,15 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	private readonly _directory: string;
 
 	/**
-	 * The base filename to use for storage.
-	 * @internal
-	 */
-	private readonly _baseFilename: string;
-
-	/**
 	 * Create a new instance of FileEntityStorageConnector.
 	 * @param dependencies The dependencies for the connector.
-	 * @param dependencies.loggingContract The logging contract.
+	 * @param dependencies.logging The logging contract.
 	 * @param entityDescriptor The descriptor for the entity.
 	 * @param config The configuration for the entity storage connector.
 	 */
 	constructor(
 		dependencies: {
-			loggingContract: ILoggingContract;
+			logging: ILogging;
 		},
 		entityDescriptor: IEntityDescriptor<T>,
 		config: IFileEntityStorageConnectorConfig
@@ -85,8 +79,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		);
 		Guards.object<IEntityDescriptor<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(dependencies.loggingContract),
-			dependencies.loggingContract
+			nameof(dependencies.logging),
+			dependencies.logging
 		);
 		Guards.object<IEntityDescriptor<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
@@ -108,16 +102,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			nameof(config.directory),
 			config.directory
 		);
-		Guards.string(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(config.baseFilename),
-			config.baseFilename
-		);
-		this._loggingContract = dependencies.loggingContract;
+		this._logging = dependencies.logging;
 		this._entityDescriptor = entityDescriptor;
 		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
 		this._directory = path.resolve(config.directory);
-		this._baseFilename = config.baseFilename;
 	}
 
 	/**
@@ -127,7 +115,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 */
 	public async bootstrap(requestContext: IRequestContext): Promise<void> {
 		if (!(await this.dirExists(this._directory))) {
-			this._loggingContract.log(requestContext, {
+			this._logging.log(requestContext, {
 				level: "info",
 				source: FileEntityStorageConnector._CLASS_NAME,
 				message: "directoryCreating",
@@ -139,7 +127,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			try {
 				await mkdir(this._directory, { recursive: true });
 
-				this._loggingContract.log(requestContext, {
+				this._logging.log(requestContext, {
 					level: "info",
 					source: FileEntityStorageConnector._CLASS_NAME,
 					message: "directoryCreated",
@@ -148,7 +136,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 					}
 				});
 			} catch (err) {
-				this._loggingContract.log(requestContext, {
+				this._logging.log(requestContext, {
 					level: "error",
 					source: FileEntityStorageConnector._CLASS_NAME,
 					message: "directoryCreateFailed",
@@ -159,7 +147,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 				});
 			}
 		} else {
-			this._loggingContract.log(requestContext, {
+			this._logging.log(requestContext, {
 				level: "info",
 				source: FileEntityStorageConnector._CLASS_NAME,
 				message: "directoryExists",
@@ -175,13 +163,13 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @param requestContext The context for the request.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @returns The object if it can be found or undefined.
+	 * @returns The object if it can be found or undefined, if request context was wildcard then tenantId is also included.
 	 */
 	public async get(
 		requestContext: IRequestContext,
 		id: string,
 		secondaryIndex?: keyof T
-	): Promise<T | undefined> {
+	): Promise<(T & { tenantId?: string }) | undefined> {
 		Guards.object(FileEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
 		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
@@ -191,13 +179,30 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 		Guards.stringValue(FileEntityStorageConnector._CLASS_NAME, nameof(id), id);
 
-		const store = await this.readTenantStore(requestContext.tenantId);
+		const tenantsToSearch = [];
+
+		if (requestContext.tenantId === "*") {
+			tenantsToSearch.push(...(await this.readTenantIndex()));
+		} else {
+			tenantsToSearch.push(requestContext.tenantId);
+		}
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
-		const found = store.find(entity => entity[lookupKey] === id);
-		if (found) {
-			return found;
+		for (const tenantId of tenantsToSearch) {
+			const store = await this.readTenantStore(tenantId);
+
+			const found = store?.find(entity => entity[lookupKey] === id);
+
+			if (found) {
+				const result: T & { tenantId?: string } = {
+					...found
+				};
+				if (requestContext.tenantId === "*") {
+					result.tenantId = tenantId;
+				}
+				return result;
+			}
 		}
 
 		return undefined;
@@ -230,6 +235,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		}
 
 		await this.writeTenantStore(requestContext.tenantId, store);
+
+		const tenantIndex = await this.readTenantIndex();
+		if (!tenantIndex.includes(requestContext.tenantId)) {
+			tenantIndex.push(requestContext.tenantId);
+			await this.writeTenantIndex(tenantIndex);
+		}
 	}
 
 	/**
@@ -255,6 +266,13 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		}
 
 		await this.writeTenantStore(requestContext.tenantId, store);
+
+		const tenantIndex = await this.readTenantIndex();
+		const tenantIdx = tenantIndex.indexOf(requestContext.tenantId);
+		if (tenantIdx >= 0 && store.length === 0) {
+			tenantIndex.splice(tenantIdx, 1);
+			await this.writeTenantIndex(tenantIndex);
+		}
 	}
 
 	/**
@@ -281,8 +299,9 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
+		 * If the request context was wildcard then tenantId is also included.
 		 */
-		entities: Partial<T>[];
+		entities: Partial<T & { tenantId?: string }>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -303,7 +322,19 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			requestContext.tenantId
 		);
 
-		let allEntities = await this.readTenantStore(requestContext.tenantId);
+		let allEntities: (T & { tenantId?: string })[] = [];
+		if (requestContext.tenantId === "*") {
+			const tenantIndex = await this.readTenantIndex();
+			for (const tenantId of tenantIndex) {
+				const store = await this.readTenantStore(tenantId);
+				allEntities = allEntities.concat(store.map(e => ({ ...e, tenantId })));
+			}
+		} else {
+			allEntities = (await this.readTenantStore(requestContext.tenantId)) as (T & {
+				tenantId?: string;
+			})[];
+		}
+
 		const entities = [];
 		const finalPageSize = pageSize ?? FileEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
@@ -336,13 +367,39 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	}
 
 	/**
+	 * Read the tenant index from file.
+	 * @returns The tenant index.
+	 */
+	private async readTenantIndex(): Promise<string[]> {
+		try {
+			const filename = path.join(this._directory, "tenant-index.json");
+			const store = await readFile(filename, "utf8");
+			return JSON.parse(store) as string[];
+		} catch {
+			return [];
+		}
+	}
+
+	/**
+	 * Write the tenant index to the file.
+	 * @param tenantIds The tenant ids to write in the index.
+	 * @returns Nothing.
+	 */
+	private async writeTenantIndex(tenantIds: string[]): Promise<void> {
+		try {
+			const filename = path.join(this._directory, "tenant-index.json");
+			await writeFile(filename, JSON.stringify(tenantIds, undefined, "\t"), "utf8");
+		} catch {}
+	}
+
+	/**
 	 * Read the store from file.
 	 * @param tenantId The tenant id to read the store for.
 	 * @returns The store for the tenant.
 	 */
 	private async readTenantStore(tenantId: string): Promise<T[]> {
 		try {
-			const filename = path.join(this._directory, `${tenantId}_${this._baseFilename}.json`);
+			const filename = path.join(this._directory, `${tenantId}.json`);
 			const store = await readFile(filename, "utf8");
 			return JSON.parse(store) as T[];
 		} catch {
@@ -352,13 +409,13 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Write the store to the file.
-	 * @param tenantId The tenant id to read the store for.
+	 * @param tenantId The tenant id to write the store for.
 	 * @param store The store to write.
 	 * @returns Nothing.
 	 */
 	private async writeTenantStore(tenantId: string, store: T[]): Promise<void> {
 		try {
-			const filename = path.join(this._directory, `${tenantId}_${this._baseFilename}.json`);
+			const filename = path.join(this._directory, `${tenantId}.json`);
 			await writeFile(filename, JSON.stringify(store, undefined, "\t"), "utf8");
 		} catch {}
 	}
