@@ -11,10 +11,7 @@ import {
 	type IEntitySchema
 } from "@gtsc/entity";
 import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
-import {
-	EntityLogEntry,
-	EntityStorageLoggingConnector
-} from "@gtsc/logging-connector-entity-storage";
+import { LogEntry, EntityStorageLoggingConnector } from "@gtsc/logging-connector-entity-storage";
 import type { ILogging } from "@gtsc/logging-models";
 import { LoggingService } from "@gtsc/logging-service";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
@@ -44,10 +41,10 @@ class TestType {
 	public value2!: string;
 }
 
-const entityLogEntrySchema = EntitySchemaHelper.getSchema(EntityLogEntry);
+const logEntrySchema = EntitySchemaHelper.getSchema(LogEntry);
 const testSchema = EntitySchemaHelper.getSchema(TestType);
 
-let memoryEntityStorage: MemoryEntityStorageConnector<EntityLogEntry>;
+let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 let testLogging: ILogging;
 
 const TEST_DIRECTORY_ROOT = "./.tmp/";
@@ -62,7 +59,7 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	beforeEach(() => {
-		memoryEntityStorage = new MemoryEntityStorageConnector<EntityLogEntry>(entityLogEntrySchema);
+		memoryEntityStorage = new MemoryEntityStorageConnector<LogEntry>(logEntrySchema);
 		const entityStorageLoggingConnector = new EntityStorageLoggingConnector({
 			logEntryStorage: memoryEntityStorage
 		});
