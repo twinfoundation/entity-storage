@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { ComparisonOperator, SortDirection, type IEntityDescriptor } from "@gtsc/entity";
+import { ComparisonOperator, type IEntitySchema, SortDirection } from "@gtsc/entity";
 import { nameof } from "@gtsc/nameof";
 import { MemoryEntityStorageConnector } from "../src/memoryEntityStorageConnector";
 
@@ -22,8 +22,8 @@ interface TestType {
 	value2: string;
 }
 
-const testDescriptor: IEntityDescriptor<TestType> = {
-	name: nameof<TestType>(),
+const testSchema: IEntitySchema<TestType> = {
+	type: nameof<TestType>(),
 	properties: [
 		{
 			property: "id",
@@ -45,28 +45,28 @@ const TEST_TENANT_ID = "test-tenant";
 const TEST_TENANT_ID2 = "test-tenant2";
 
 describe("MemoryEntityStorageConnector", () => {
-	test("can fail to construct when there is no descriptor", async () => {
+	test("can fail to construct when there is no schema", async () => {
 		expect(
-			() => new MemoryEntityStorageConnector(undefined as unknown as IEntityDescriptor<unknown>)
+			() => new MemoryEntityStorageConnector(undefined as unknown as IEntitySchema<unknown>)
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
 				message: "guard.objectUndefined",
 				properties: {
-					property: "entityDescriptor",
+					property: "entitySchema",
 					value: "undefined"
 				}
 			})
 		);
 	});
 
-	test("can fail to construct when there is no descriptor properties", async () => {
-		expect(() => new MemoryEntityStorageConnector({} as IEntityDescriptor<unknown>)).toThrow(
+	test("can fail to construct when there is no schema properties", async () => {
+		expect(() => new MemoryEntityStorageConnector({} as IEntitySchema<unknown>)).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
 				message: "guard.array",
 				properties: {
-					property: "entityDescriptor.properties",
+					property: "entitySchema.properties",
 					value: "undefined"
 				}
 			})
@@ -74,12 +74,12 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can construct", async () => {
-		const entityStorage = new MemoryEntityStorageConnector(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector(testSchema);
 		expect(entityStorage).toBeDefined();
 	});
 
 	test("can construct with initial values", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor, {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema, {
 			initialValues: {
 				[TEST_TENANT_ID]: [
 					{
@@ -95,7 +95,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to set an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(entityStorage.set({}, undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -107,7 +107,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(
 			entityStorage.set({ tenantId: TEST_TENANT_ID }, undefined as unknown as TestType)
 		).rejects.toMatchObject({
@@ -121,7 +121,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can set an item", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -136,7 +136,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can set an item to update it", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -157,7 +157,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to get an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(entityStorage.get({}, undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -169,7 +169,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to get an item with no id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(
 			entityStorage.get({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
 		).rejects.toMatchObject({
@@ -183,7 +183,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can not get an item", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -194,7 +194,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can get an item", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -209,7 +209,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can get an item by secondary index", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -224,7 +224,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can get an item using wildcard tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -243,7 +243,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(entityStorage.remove({}, undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -255,7 +255,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with no id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(
 			entityStorage.remove({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
 		).rejects.toMatchObject({
@@ -269,7 +269,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can not remove an item if the tenant id does not exist", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -283,7 +283,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can not remove an item", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -297,7 +297,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can remove an item", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -310,7 +310,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can fail to find an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await expect(entityStorage.query({})).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -322,7 +322,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with empty store", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
@@ -332,7 +332,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with single entry", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -346,7 +346,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -362,7 +362,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and cursor", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -385,7 +385,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and apply conditions", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -408,7 +408,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and apply custom sort", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -430,7 +430,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can query items and get a reduced data set", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -450,7 +450,7 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can query items with wildcard tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>(testDescriptor);
+		const entityStorage = new MemoryEntityStorageConnector<TestType>(testSchema);
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
