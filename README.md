@@ -1,4 +1,4 @@
-# GTSC / Entity Storage
+# GTSC Entity Storage
 
 This mono-repository contains the packages to use with Entity Storage in GTSC applications.
 

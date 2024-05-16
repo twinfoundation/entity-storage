@@ -3,12 +3,12 @@
 import { Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
-	EntityPropertyDescriptor,
 	EntitySorter,
+	type IEntitySchema,
+	type IEntitySchemaProperty,
 	type EntityCondition,
-	type IEntityDescriptor,
-	type IEntityPropertyDescriptor,
-	type SortDirection
+	type SortDirection,
+	EntitySchemaHelper
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
@@ -32,16 +32,16 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
 
 	/**
-	 * The descriptor for the entity.
+	 * The schema for the entity.
 	 * @internal
 	 */
-	private readonly _entityDescriptor: IEntityDescriptor<T>;
+	private readonly _entitySchema: IEntitySchema<T>;
 
 	/**
 	 * The primary key.
 	 * @internal
 	 */
-	private readonly _primaryKey: IEntityPropertyDescriptor<T>;
+	private readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
 	 * The storage for the in-memory items.
@@ -51,25 +51,22 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 	/**
 	 * Create a new instance of MemoryEntityStorageConnector.
-	 * @param entityDescriptor The descriptor for the entity.
+	 * @param entitySchema The schema for the entity.
 	 * @param config The configuration for the entity storage connector.
 	 */
-	constructor(
-		entityDescriptor: IEntityDescriptor<T>,
-		config?: IMemoryEntityStorageConnectorConfig<T>
-	) {
-		Guards.object<IEntityDescriptor<T>>(
+	constructor(entitySchema: IEntitySchema<T>, config?: IMemoryEntityStorageConnectorConfig<T>) {
+		Guards.object<IEntitySchema<T>>(
 			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(entityDescriptor),
-			entityDescriptor
+			nameof(entitySchema),
+			entitySchema
 		);
 		Guards.array(
 			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(entityDescriptor.properties),
-			entityDescriptor.properties
+			nameof(entitySchema.properties),
+			entitySchema.properties
 		);
-		this._entityDescriptor = entityDescriptor;
-		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
+		this._entitySchema = entitySchema;
+		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(entitySchema);
 		this._store = config?.initialValues ?? {};
 	}
 
@@ -227,8 +224,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		const finalPageSize = pageSize ?? MemoryEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
-			const finalSortKeys = EntityPropertyDescriptor.buildSortProperties<T>(
-				this._entityDescriptor,
+			const finalSortKeys = EntitySchemaHelper.buildSortProperties<T>(
+				this._entitySchema,
 				sortProperties
 			);
 			allEntities = EntitySorter.sort(allEntities, finalSortKeys);

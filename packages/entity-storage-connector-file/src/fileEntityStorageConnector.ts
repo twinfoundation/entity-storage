@@ -4,12 +4,12 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { BaseError, Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
-	type EntityCondition,
 	EntityConditions,
-	EntityPropertyDescriptor,
+	EntitySchemaHelper,
 	EntitySorter,
-	type IEntityDescriptor,
-	type IEntityPropertyDescriptor,
+	type EntityCondition,
+	type IEntitySchema,
+	type IEntitySchemaProperty,
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
@@ -41,16 +41,16 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	private readonly _logging: ILogging;
 
 	/**
-	 * The descriptor for the entity.
+	 * The schema for the entity.
 	 * @internal
 	 */
-	private readonly _entityDescriptor: IEntityDescriptor<T>;
+	private readonly _entitySchema: IEntitySchema<T>;
 
 	/**
 	 * The primary key.
 	 * @internal
 	 */
-	private readonly _primaryKey: IEntityPropertyDescriptor<T>;
+	private readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
 	 * The directory to use for storage.
@@ -62,49 +62,45 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Create a new instance of FileEntityStorageConnector.
 	 * @param dependencies The dependencies for the connector.
 	 * @param dependencies.logging The logging contract.
-	 * @param entityDescriptor The descriptor for the entity.
+	 * @param entitySchema The schema for the entity.
 	 * @param config The configuration for the entity storage connector.
 	 */
 	constructor(
 		dependencies: {
 			logging: ILogging;
 		},
-		entityDescriptor: IEntityDescriptor<T>,
+		entitySchema: IEntitySchema<T>,
 		config: IFileEntityStorageConnectorConfig
 	) {
-		Guards.object<IEntityDescriptor<T>>(
+		Guards.object<IEntitySchema<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(dependencies),
 			dependencies
 		);
-		Guards.object<IEntityDescriptor<T>>(
+		Guards.object<IEntitySchema<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(dependencies.logging),
 			dependencies.logging
 		);
-		Guards.object<IEntityDescriptor<T>>(
+		Guards.object<IEntitySchema<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(entityDescriptor),
-			entityDescriptor
+			nameof(entitySchema),
+			entitySchema
 		);
 		Guards.array(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(entityDescriptor.properties),
-			entityDescriptor.properties
+			nameof(entitySchema.properties),
+			entitySchema.properties
 		);
-		Guards.object<IEntityDescriptor<T>>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(config),
-			config
-		);
+		Guards.object<IEntitySchema<T>>(FileEntityStorageConnector._CLASS_NAME, nameof(config), config);
 		Guards.string(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(config.directory),
 			config.directory
 		);
 		this._logging = dependencies.logging;
-		this._entityDescriptor = entityDescriptor;
-		this._primaryKey = EntityPropertyDescriptor.getPrimaryKey<T>(entityDescriptor);
+		this._entitySchema = entitySchema;
+		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(entitySchema);
 		this._directory = path.resolve(config.directory);
 	}
 
@@ -339,8 +335,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		const finalPageSize = pageSize ?? FileEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
 		if (allEntities.length > 0) {
-			const finalSortKeys = EntityPropertyDescriptor.buildSortProperties<T>(
-				this._entityDescriptor,
+			const finalSortKeys = EntitySchemaHelper.buildSortProperties<T>(
+				this._entitySchema,
 				sortProperties
 			);
 			allEntities = EntitySorter.sort(allEntities, finalSortKeys);
