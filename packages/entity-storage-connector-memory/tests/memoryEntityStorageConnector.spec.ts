@@ -1,45 +1,40 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { ComparisonOperator, type IEntitySchema, SortDirection } from "@gtsc/entity";
-import { nameof } from "@gtsc/nameof";
+import {
+	ComparisonOperator,
+	EntitySchemaHelper,
+	SortDirection,
+	entity,
+	property,
+	type IEntitySchema
+} from "@gtsc/entity";
 import { MemoryEntityStorageConnector } from "../src/memoryEntityStorageConnector";
 
 /**
  * Test Type Definition.
  */
-interface TestType {
+@entity()
+class TestType {
 	/**
 	 * Id.
 	 */
-	id: string;
+	@property({ type: "string", isPrimary: true })
+	public id!: string;
+
 	/**
 	 * Value1.
 	 */
-	value1: string;
+	@property({ type: "string" })
+	public value1!: string;
+
 	/**
 	 * Value2.
 	 */
-	value2: string;
+	@property({ type: "string" })
+	public value2!: string;
 }
 
-const testSchema: IEntitySchema<TestType> = {
-	type: nameof<TestType>(),
-	properties: [
-		{
-			property: "id",
-			type: "string",
-			isPrimary: true
-		},
-		{
-			property: "value1",
-			type: "string"
-		},
-		{
-			property: "value2",
-			type: "string"
-		}
-	]
-};
+const testSchema = EntitySchemaHelper.getSchema(TestType);
 
 const TEST_TENANT_ID = "test-tenant";
 const TEST_TENANT_ID2 = "test-tenant2";
