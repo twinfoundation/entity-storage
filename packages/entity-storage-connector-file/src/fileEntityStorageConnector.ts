@@ -166,7 +166,11 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		id: string,
 		secondaryIndex?: keyof T
 	): Promise<(T & { tenantId?: string }) | undefined> {
-		Guards.object<IRequestContext>(FileEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.object<IRequestContext>(
+			FileEntityStorageConnector._CLASS_NAME,
+			nameof(requestContext),
+			requestContext
+		);
 		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
@@ -211,7 +215,11 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns The id of the entity.
 	 */
 	public async set(requestContext: IRequestContext, entity: T): Promise<void> {
-		Guards.object<IRequestContext>(FileEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.object<IRequestContext>(
+			FileEntityStorageConnector._CLASS_NAME,
+			nameof(requestContext),
+			requestContext
+		);
 		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
@@ -246,7 +254,11 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns Nothing.
 	 */
 	public async remove(requestContext: IRequestContext, id: string): Promise<void> {
-		Guards.object<IRequestContext>(FileEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.object<IRequestContext>(
+			FileEntityStorageConnector._CLASS_NAME,
+			nameof(requestContext),
+			requestContext
+		);
 		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
@@ -311,7 +323,11 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		 */
 		totalEntities: number;
 	}> {
-		Guards.object<IRequestContext>(FileEntityStorageConnector._CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.object<IRequestContext>(
+			FileEntityStorageConnector._CLASS_NAME,
+			nameof(requestContext),
+			requestContext
+		);
 		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(requestContext.tenantId),
