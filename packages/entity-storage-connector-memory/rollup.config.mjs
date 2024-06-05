@@ -13,8 +13,20 @@ const plugins = [
 ];
 
 const globs = {};
-for (const dep in packageDetails.dependencies) {
-	globs[dep] = dep;
+if (packageDetails.dependencies) {
+	for (const dep in packageDetails.dependencies) {
+		globs[dep] = dep;
+	}
+}
+if (packageDetails.peerDependencies) {
+	for (const dep in packageDetails.peerDependencies) {
+		globs[dep] = dep;
+	}
+}
+if (packageDetails.devDependencies) {
+	for (const dep in packageDetails.devDependencies) {
+		globs[dep] = dep;
+	}
 }
 
 export default {
