@@ -3,17 +3,17 @@
 import { Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
+	EntitySchemaFactory,
+	EntitySchemaHelper,
 	EntitySorter,
+	type EntityCondition,
 	type IEntitySchema,
 	type IEntitySchemaProperty,
-	type EntityCondition,
-	type SortDirection,
-	EntitySchemaHelper
+	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
 import type { IRequestContext } from "@gtsc/services";
-import type { IMemoryEntityStorageConnectorConfig } from "./models/IMemoryEntityStorageConnectorConfig";
 
 /**
  * Class for performing entity storage operations in-memory.
@@ -51,23 +51,19 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 	/**
 	 * Create a new instance of MemoryEntityStorageConnector.
-	 * @param entitySchema The schema for the entity.
-	 * @param config The configuration for the entity storage connector.
+	 * @param options The options for the connector.
+	 * @param options.entitySchema The schema for the entity.
 	 */
-	constructor(entitySchema: IEntitySchema<T>, config?: IMemoryEntityStorageConnectorConfig<T>) {
-		Guards.object<IEntitySchema<T>>(
+	constructor(options: { entitySchema: string }) {
+		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(options), options);
+		Guards.stringValue(
 			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(entitySchema),
-			entitySchema
+			nameof(options.entitySchema),
+			options.entitySchema
 		);
-		Guards.array(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(entitySchema.properties),
-			entitySchema.properties
-		);
-		this._entitySchema = entitySchema;
-		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(entitySchema);
-		this._store = config?.initialValues ?? {};
+		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
+		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
+		this._store = {};
 	}
 
 	/**

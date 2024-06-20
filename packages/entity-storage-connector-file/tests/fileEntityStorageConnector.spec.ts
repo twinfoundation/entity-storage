@@ -4,16 +4,16 @@ import { readFile, rm } from "node:fs/promises";
 import { Converter, I18n, RandomHelper } from "@gtsc/core";
 import {
 	ComparisonOperator,
+	EntitySchemaFactory,
 	EntitySchemaHelper,
 	SortDirection,
 	entity,
-	property,
-	type IEntitySchema
+	property
 } from "@gtsc/entity";
 import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
-import { LogEntry, EntityStorageLoggingConnector } from "@gtsc/logging-connector-entity-storage";
-import type { ILogging } from "@gtsc/logging-models";
-import { LoggingService } from "@gtsc/logging-service";
+import { EntityStorageLoggingConnector, LogEntry } from "@gtsc/logging-connector-entity-storage";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
+import { nameof } from "@gtsc/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
 import type { IFileEntityStorageConnectorConfig } from "../src/models/IFileEntityStorageConnectorConfig";
 
@@ -41,11 +41,7 @@ class TestType {
 	public value2!: string;
 }
 
-const logEntrySchema = EntitySchemaHelper.getSchema(LogEntry);
-const testSchema = EntitySchemaHelper.getSchema(TestType);
-
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
-let testLogging: ILogging;
 
 const TEST_DIRECTORY_ROOT = "./.tmp/";
 const TEST_DIRECTORY = `${TEST_DIRECTORY_ROOT}test-data-${Converter.bytesToHex(RandomHelper.generate(8))}`;
@@ -56,16 +52,22 @@ const TEST_STORE_NAME = `${TEST_DIRECTORY}/${TEST_TENANT_ID}.json`;
 describe("FileEntityStorageConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
+
+		EntitySchemaFactory.register(nameof(TestType), () => EntitySchemaHelper.getSchema(TestType));
+		EntitySchemaFactory.register(nameof(LogEntry), () => EntitySchemaHelper.getSchema(LogEntry));
 	});
 
 	beforeEach(() => {
-		memoryEntityStorage = new MemoryEntityStorageConnector<LogEntry>(logEntrySchema);
-		const entityStorageLoggingConnector = new EntityStorageLoggingConnector({
-			logEntryStorage: memoryEntityStorage
+		memoryEntityStorage = new MemoryEntityStorageConnector<LogEntry>({
+			entitySchema: nameof(LogEntry)
 		});
-		testLogging = new LoggingService({
-			loggingConnector: entityStorageLoggingConnector
-		});
+		LoggingConnectorFactory.register(
+			"logging",
+			() =>
+				new EntityStorageLoggingConnector({
+					logEntryStorage: memoryEntityStorage
+				})
+		);
 	});
 
 	afterAll(async () => {
@@ -74,40 +76,22 @@ describe("FileEntityStorageConnector", () => {
 		} catch {}
 	});
 
-	test("can fail to construct when there is no dependencies", async () => {
+	test("can fail to construct when there is no options", async () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					undefined as unknown as { logging: ILogging },
-					undefined as unknown as IEntitySchema<unknown>,
-					undefined as unknown as IFileEntityStorageConnectorConfig
+					undefined as unknown as {
+						loggingConnectorType?: string;
+						entitySchema: string;
+						config: IFileEntityStorageConnectorConfig;
+					}
 				)
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
 				message: "guard.objectUndefined",
 				properties: {
-					property: "dependencies",
-					value: "undefined"
-				}
-			})
-		);
-	});
-
-	test("can fail to construct when there is no logging", async () => {
-		expect(
-			() =>
-				new FileEntityStorageConnector(
-					{} as unknown as { logging: ILogging },
-					undefined as unknown as IEntitySchema<unknown>,
-					undefined as unknown as IFileEntityStorageConnectorConfig
-				)
-		).toThrow(
-			expect.objectContaining({
-				name: "GuardError",
-				message: "guard.objectUndefined",
-				properties: {
-					property: "dependencies.logging",
+					property: "options",
 					value: "undefined"
 				}
 			})
@@ -118,36 +102,18 @@ describe("FileEntityStorageConnector", () => {
 		expect(
 			() =>
 				new FileEntityStorageConnector(
-					{ logging: testLogging },
-					undefined as unknown as IEntitySchema<unknown>,
-					undefined as unknown as IFileEntityStorageConnectorConfig
+					{} as unknown as {
+						loggingConnectorType?: string;
+						entitySchema: string;
+						config: IFileEntityStorageConnectorConfig;
+					}
 				)
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
-				message: "guard.objectUndefined",
+				message: "guard.string",
 				properties: {
-					property: "entitySchema",
-					value: "undefined"
-				}
-			})
-		);
-	});
-
-	test("can fail to construct when there is no schema properties", async () => {
-		expect(
-			() =>
-				new FileEntityStorageConnector(
-					{ logging: testLogging },
-					{} as IEntitySchema<unknown>,
-					undefined as unknown as IFileEntityStorageConnectorConfig
-				)
-		).toThrow(
-			expect.objectContaining({
-				name: "GuardError",
-				message: "guard.array",
-				properties: {
-					property: "entitySchema.properties",
+					property: "options.entitySchema",
 					value: "undefined"
 				}
 			})
@@ -157,17 +123,17 @@ describe("FileEntityStorageConnector", () => {
 	test("can fail to construct when there is no config", async () => {
 		expect(
 			() =>
-				new FileEntityStorageConnector(
-					{ logging: testLogging },
-					testSchema,
-					undefined as unknown as IFileEntityStorageConnectorConfig
-				)
+				new FileEntityStorageConnector({ entitySchema: "test" } as unknown as {
+					loggingConnectorType?: string;
+					entitySchema: string;
+					config: IFileEntityStorageConnectorConfig;
+				})
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
 				message: "guard.objectUndefined",
 				properties: {
-					property: "config",
+					property: "options.config",
 					value: "undefined"
 				}
 			})
@@ -177,17 +143,17 @@ describe("FileEntityStorageConnector", () => {
 	test("can fail to construct when there is no config directory", async () => {
 		expect(
 			() =>
-				new FileEntityStorageConnector(
-					{ logging: testLogging },
-					testSchema,
-					{} as unknown as IFileEntityStorageConnectorConfig
-				)
+				new FileEntityStorageConnector({ entitySchema: "test", config: {} } as unknown as {
+					loggingConnectorType?: string;
+					entitySchema: string;
+					config: IFileEntityStorageConnectorConfig;
+				})
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
 				message: "guard.string",
 				properties: {
-					property: "config.directory",
+					property: "options.config.directory",
 					value: "undefined"
 				}
 			})
@@ -195,15 +161,21 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can construct", async () => {
-		const entityStorage = new FileEntityStorageConnector({ logging: testLogging }, testSchema, {
-			directory: TEST_DIRECTORY
+		const entityStorage = new FileEntityStorageConnector({
+			entitySchema: nameof(TestType),
+			config: {
+				directory: TEST_DIRECTORY
+			}
 		});
 		expect(entityStorage).toBeDefined();
 	});
 
 	test("can fail to bootstrap with invalid directory", async () => {
-		const entityStorage = new FileEntityStorageConnector({ logging: testLogging }, testSchema, {
-			directory: "|\0"
+		const entityStorage = new FileEntityStorageConnector({
+			entitySchema: nameof(TestType),
+			config: {
+				directory: "|\0"
+			}
 		});
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
 		const logs = memoryEntityStorage.getStore(TEST_TENANT_ID);
@@ -216,8 +188,11 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can bootstrap and create directory", async () => {
-		const entityStorage = new FileEntityStorageConnector({ logging: testLogging }, testSchema, {
-			directory: TEST_DIRECTORY
+		const entityStorage = new FileEntityStorageConnector({
+			entitySchema: nameof(TestType),
+			config: {
+				directory: TEST_DIRECTORY
+			}
 		});
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
 		const logs = memoryEntityStorage.getStore(TEST_TENANT_ID);
@@ -230,8 +205,11 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can bootstrap and skip existing directory", async () => {
-		const entityStorage = new FileEntityStorageConnector({ logging: testLogging }, testSchema, {
-			directory: TEST_DIRECTORY
+		const entityStorage = new FileEntityStorageConnector({
+			entitySchema: nameof(TestType),
+			config: {
+				directory: TEST_DIRECTORY
+			}
 		});
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
 		const logs = memoryEntityStorage.getStore(TEST_TENANT_ID);
@@ -242,13 +220,12 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to set an item with no tenant id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: {
 				directory: TEST_DIRECTORY
 			}
-		);
+		});
 		await expect(entityStorage.set({}, undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -260,13 +237,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(
 			entityStorage.set({ tenantId: TEST_TENANT_ID }, undefined as unknown as TestType)
 		).rejects.toMatchObject({
@@ -280,11 +254,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can set an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{ directory: TEST_DIRECTORY }
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -301,11 +274,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can set an item to update it", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{ directory: TEST_DIRECTORY }
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -327,13 +299,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to get an item with no tenant id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(entityStorage.get({}, undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -345,13 +314,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to get an item with no id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(
 			entityStorage.get({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
 		).rejects.toMatchObject({
@@ -365,13 +331,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can not get an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -382,13 +345,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can get an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -403,13 +363,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can get an item by secondary index", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -423,13 +380,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can get an item using wildcard tenant id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -448,13 +402,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with no tenant id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(entityStorage.remove({}, undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -466,13 +417,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with no id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(
 			entityStorage.remove({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
 		).rejects.toMatchObject({
@@ -486,13 +434,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can not remove an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -507,13 +452,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can remove an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -527,13 +469,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can fail to find an item with no tenant id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await expect(entityStorage.query({})).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -545,13 +484,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with empty store", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
@@ -561,13 +497,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with single entry", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.set(
 			{ tenantId: TEST_TENANT_ID },
 			{ id: "1", value1: "aaa", value2: "bbb" }
@@ -581,13 +514,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with multiple entries", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -603,13 +533,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with multiple entries and cursor", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -632,13 +559,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with multiple entries and apply conditions", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -661,13 +585,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with multiple entries and apply custom sort", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -689,13 +610,10 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items and get a reduced data set", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ tenantId: TEST_TENANT_ID },
@@ -718,13 +636,10 @@ describe("FileEntityStorageConnector", () => {
 			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
 		} catch {}
 
-		const entityStorage = new FileEntityStorageConnector<TestType>(
-			{ logging: testLogging },
-			testSchema,
-			{
-				directory: TEST_DIRECTORY
-			}
-		);
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType),
+			config: { directory: TEST_DIRECTORY }
+		});
 		await entityStorage.bootstrap({ tenantId: TEST_TENANT_ID });
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(

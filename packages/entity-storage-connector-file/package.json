@@ -1,6 +1,6 @@
 {
 	"name": "@gtsc/entity-storage-connector-file",
-	"version": "0.0.3-next.13",
+	"version": "0.0.3-next.14",
 	"description": "Entity Storage connector implementation using file storage",
 	"repository": {
 		"type": "git",
@@ -31,13 +31,13 @@
 		"@gtsc/core": "next",
 		"@gtsc/entity": "next",
 		"@gtsc/nameof": "^0.0.4",
-		"@gtsc/entity-storage-models": "0.0.3-next.13",
+		"@gtsc/entity-storage-models": "0.0.3-next.14",
 		"@gtsc/logging-models": "next"
 	},
 	"devDependencies": {
 		"@gtsc/logging-connector-entity-storage": "next",
 		"@gtsc/logging-service": "next",
-		"@gtsc/entity-storage-connector-memory": "next",
+		"@gtsc/entity-storage-connector-memory": "0.0.3-next.14",
 		"@gtsc/nameof-transformer": "^0.0.4",
 		"@types/node": "^20.14.6",
 		"@vitest/coverage-v8": "^1.6.0",

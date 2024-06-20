@@ -5,6 +5,7 @@ import path from "node:path";
 import { BaseError, Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
+	EntitySchemaFactory,
 	EntitySchemaHelper,
 	EntitySorter,
 	type EntityCondition,
@@ -13,7 +14,7 @@ import {
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import type { ILogging } from "@gtsc/logging-models";
+import { LoggingConnectorFactory, type ILoggingConnector } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IRequestContext } from "@gtsc/services";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
@@ -35,10 +36,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
 
 	/**
-	 * The logging contract.
+	 * The logging connector.
 	 * @internal
 	 */
-	private readonly _logging: ILogging;
+	private readonly _logging: ILoggingConnector;
 
 	/**
 	 * The schema for the entity.
@@ -60,48 +61,36 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
-	 * @param dependencies The dependencies for the connector.
-	 * @param dependencies.logging The logging contract.
-	 * @param entitySchema The schema for the entity.
-	 * @param config The configuration for the entity storage connector.
+	 * @param options The options for the connector.
+	 * @param options.loggingConnectorType The type of logging connector to use.
+	 * @param options.entitySchema The name of the entity schema.
+	 * @param options.config The configuration for the connector.
 	 */
-	constructor(
-		dependencies: {
-			logging: ILogging;
-		},
-		entitySchema: IEntitySchema<T>,
-		config: IFileEntityStorageConnectorConfig
-	) {
-		Guards.object<IEntitySchema<T>>(
+	constructor(options: {
+		loggingConnectorType?: string;
+		entitySchema: string;
+		config: IFileEntityStorageConnectorConfig;
+	}) {
+		Guards.object(FileEntityStorageConnector._CLASS_NAME, nameof(options), options);
+		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(dependencies),
-			dependencies
+			nameof(options.entitySchema),
+			options.entitySchema
 		);
 		Guards.object<IEntitySchema<T>>(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(dependencies.logging),
-			dependencies.logging
+			nameof(options.config),
+			options.config
 		);
-		Guards.object<IEntitySchema<T>>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(entitySchema),
-			entitySchema
-		);
-		Guards.array(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(entitySchema.properties),
-			entitySchema.properties
-		);
-		Guards.object<IEntitySchema<T>>(FileEntityStorageConnector._CLASS_NAME, nameof(config), config);
 		Guards.string(
 			FileEntityStorageConnector._CLASS_NAME,
-			nameof(config.directory),
-			config.directory
+			nameof(options.config.directory),
+			options.config.directory
 		);
-		this._logging = dependencies.logging;
-		this._entitySchema = entitySchema;
-		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(entitySchema);
-		this._directory = path.resolve(config.directory);
+		this._logging = LoggingConnectorFactory.get(options.loggingConnectorType ?? "logging");
+		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
+		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
+		this._directory = path.resolve(options.config.directory);
 	}
 
 	/**
