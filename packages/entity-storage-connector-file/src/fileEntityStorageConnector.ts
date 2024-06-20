@@ -62,7 +62,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.loggingConnectorType The type of logging connector to use.
+	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
 	 * @param options.entitySchema The name of the entity schema.
 	 * @param options.config The configuration for the connector.
 	 */

@@ -26,7 +26,7 @@ The options for the connector.
 
 • **options.loggingConnectorType?**: `string`
 
-The type of logging connector to use.
+The type of logging connector to use, defaults to "logging".
 
 • **options.entitySchema**: `string`
 
