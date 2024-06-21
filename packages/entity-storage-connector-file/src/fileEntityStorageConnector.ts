@@ -77,12 +77,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			nameof(options.entitySchema),
 			options.entitySchema
 		);
-		Guards.object(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(options.config),
-			options.config
-		);
-		Guards.string(
+		Guards.object(FileEntityStorageConnector._CLASS_NAME, nameof(options.config), options.config);
+		Guards.stringValue(
 			FileEntityStorageConnector._CLASS_NAME,
 			nameof(options.config.directory),
 			options.config.directory
