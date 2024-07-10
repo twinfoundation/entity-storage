@@ -20,16 +20,15 @@ import type { IRequestContext } from "@gtsc/services";
  */
 export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
 	/**
-	 * Runtime name for the class.
-	 * @internal
-	 */
-	private static readonly _CLASS_NAME: string = nameof<MemoryEntityStorageConnector>();
-
-	/**
 	 * Default Page Size for cursor.
 	 * @internal
 	 */
 	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
+
+	/**
+	 * Runtime name for the class.
+	 */
+	public readonly CLASS_NAME: string = nameof<MemoryEntityStorageConnector>();
 
 	/**
 	 * The schema for the entity.
@@ -55,12 +54,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @param options.entitySchema The schema for the entity.
 	 */
 	constructor(options: { entitySchema: string }) {
-		Guards.object(MemoryEntityStorageConnector._CLASS_NAME, nameof(options), options);
-		Guards.stringValue(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(options.entitySchema),
-			options.entitySchema
-		);
+		Guards.object(this.CLASS_NAME, nameof(options), options);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 		this._store = {};
@@ -78,18 +73,10 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		id: string,
 		secondaryIndex?: keyof T
 	): Promise<(T & { tenantId?: string }) | undefined> {
-		Guards.object<IRequestContext>(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
 
-		Guards.stringValue(MemoryEntityStorageConnector._CLASS_NAME, nameof(id), id);
+		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
@@ -121,17 +108,9 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @returns The id of the entity.
 	 */
 	public async set(requestContext: IRequestContext, entity: T): Promise<void> {
-		Guards.object<IRequestContext>(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
-		Guards.object<T>(MemoryEntityStorageConnector._CLASS_NAME, nameof(entity), entity);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
+		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		this._store[requestContext.tenantId] ??= [];
 
@@ -152,17 +131,9 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @returns Nothing.
 	 */
 	public async remove(requestContext: IRequestContext, id: string): Promise<void> {
-		Guards.object<IRequestContext>(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
-		Guards.stringValue(MemoryEntityStorageConnector._CLASS_NAME, nameof(id), id);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
+		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const index =
 			this._store[requestContext.tenantId]?.findIndex(e => e[this._primaryKey.property] === id) ??
@@ -212,16 +183,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		 */
 		totalEntities: number;
 	}> {
-		Guards.object<IRequestContext>(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			MemoryEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
 
 		let allEntities: (T & { tenantId?: string })[] = [];
 		if (requestContext.tenantId === "*") {

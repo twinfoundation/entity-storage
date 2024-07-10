@@ -40,6 +40,18 @@ The configuration for the connector.
 
 [`FileEntityStorageConnector`](FileEntityStorageConnector.md)\<`T`\>
 
+## Properties
+
+### CLASS\_NAME
+
+> `readonly` **CLASS\_NAME**: `string`
+
+Runtime name for the class.
+
+#### Implementation of
+
+`IEntityStorageConnector.CLASS_NAME`
+
 ## Methods
 
 ### bootstrap()

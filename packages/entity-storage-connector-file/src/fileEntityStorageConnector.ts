@@ -24,16 +24,15 @@ import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStor
  */
 export class FileEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
 	/**
-	 * Runtime name for the class.
-	 * @internal
-	 */
-	private static readonly _CLASS_NAME: string = nameof<FileEntityStorageConnector>();
-
-	/**
 	 * Default Page Size for cursor.
 	 * @internal
 	 */
 	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
+
+	/**
+	 * Runtime name for the class.
+	 */
+	public readonly CLASS_NAME: string = nameof<FileEntityStorageConnector>();
 
 	/**
 	 * The logging connector.
@@ -71,18 +70,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		entitySchema: string;
 		config: IFileEntityStorageConnectorConfig;
 	}) {
-		Guards.object(FileEntityStorageConnector._CLASS_NAME, nameof(options), options);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(options.entitySchema),
-			options.entitySchema
-		);
-		Guards.object(FileEntityStorageConnector._CLASS_NAME, nameof(options.config), options.config);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(options.config.directory),
-			options.config.directory
-		);
+		Guards.object(this.CLASS_NAME, nameof(options), options);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
+		Guards.object(this.CLASS_NAME, nameof(options.config), options.config);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.config.directory), options.config.directory);
 		this._logging = LoggingConnectorFactory.get(options.loggingConnectorType ?? "logging");
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
@@ -98,7 +89,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		if (!(await this.dirExists(this._directory))) {
 			this._logging.log(requestContext, {
 				level: "info",
-				source: FileEntityStorageConnector._CLASS_NAME,
+				source: this.CLASS_NAME,
 				message: "directoryCreating",
 				data: {
 					directory: this._directory
@@ -110,7 +101,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 				this._logging.log(requestContext, {
 					level: "info",
-					source: FileEntityStorageConnector._CLASS_NAME,
+					source: this.CLASS_NAME,
 					message: "directoryCreated",
 					data: {
 						directory: this._directory
@@ -119,7 +110,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			} catch (err) {
 				this._logging.log(requestContext, {
 					level: "error",
-					source: FileEntityStorageConnector._CLASS_NAME,
+					source: this.CLASS_NAME,
 					message: "directoryCreateFailed",
 					data: {
 						directory: this._directory
@@ -130,7 +121,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		} else {
 			this._logging.log(requestContext, {
 				level: "info",
-				source: FileEntityStorageConnector._CLASS_NAME,
+				source: this.CLASS_NAME,
 				message: "directoryExists",
 				data: {
 					directory: this._directory
@@ -151,18 +142,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		id: string,
 		secondaryIndex?: keyof T
 	): Promise<(T & { tenantId?: string }) | undefined> {
-		Guards.object<IRequestContext>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
 
-		Guards.stringValue(FileEntityStorageConnector._CLASS_NAME, nameof(id), id);
+		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const tenantsToSearch = [];
 
@@ -200,17 +183,9 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns The id of the entity.
 	 */
 	public async set(requestContext: IRequestContext, entity: T): Promise<void> {
-		Guards.object<IRequestContext>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
-		Guards.object<T>(FileEntityStorageConnector._CLASS_NAME, nameof(entity), entity);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
+		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		const store = await this.readTenantStore(requestContext.tenantId);
 
@@ -239,17 +214,9 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns Nothing.
 	 */
 	public async remove(requestContext: IRequestContext, id: string): Promise<void> {
-		Guards.object<IRequestContext>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
-		Guards.stringValue(FileEntityStorageConnector._CLASS_NAME, nameof(id), id);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
+		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const store = await this.readTenantStore(requestContext.tenantId);
 
@@ -308,16 +275,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		 */
 		totalEntities: number;
 	}> {
-		Guards.object<IRequestContext>(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext),
-			requestContext
-		);
-		Guards.stringValue(
-			FileEntityStorageConnector._CLASS_NAME,
-			nameof(requestContext.tenantId),
-			requestContext.tenantId
-		);
+		Guards.object<IRequestContext>(this.CLASS_NAME, nameof(requestContext), requestContext);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext.tenantId), requestContext.tenantId);
 
 		let allEntities: (T & { tenantId?: string })[] = [];
 		if (requestContext.tenantId === "*") {
