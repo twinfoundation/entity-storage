@@ -35,8 +35,8 @@ class TestType {
 	public value2!: string;
 }
 
-const TEST_TENANT_ID = "test-tenant";
-const TEST_TENANT_ID2 = "test-tenant2";
+const TEST_PARTITION_ID = "test-partition";
+const TEST_PARTITION_ID2 = "test-partition2";
 
 describe("MemoryEntityStorageConnector", () => {
 	beforeAll(async () => {
@@ -88,31 +88,31 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(entityStorage).toBeDefined();
 	});
 
-	test("can fail to set an item with no tenant id", async () => {
+	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
-		await expect(entityStorage.set({}, undefined as unknown as TestType)).rejects.toMatchObject({
+		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
-			message: "guard.string",
+			message: "guard.objectUndefined",
 			properties: {
-				property: "requestContext.tenantId",
+				property: "entity",
 				value: "undefined"
 			}
 		});
 	});
 
-	test("can fail to set an item with no entity", async () => {
+	test("can fail to set an item with no partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
 		await expect(
-			entityStorage.set({ tenantId: TEST_TENANT_ID }, undefined as unknown as TestType)
+			entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" })
 		).rejects.toMatchObject({
 			name: "GuardError",
-			message: "guard.objectUndefined",
+			message: "guard.string",
 			properties: {
-				property: "entity",
+				property: "requestContext.partitionId",
 				value: "undefined"
 			}
 		});
@@ -123,10 +123,10 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		const store = entityStorage.getStore(TEST_TENANT_ID);
+		const store = entityStorage.getStore(TEST_PARTITION_ID);
 		expect(store).toBeDefined();
 		expect(store?.length).toEqual(1);
 		expect(store?.[0]).toBeDefined();
@@ -140,16 +140,16 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
 
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "ccc", value2: "ddd" }
+			{ id: "1", value1: "ccc", value2: "ddd" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
 
-		const store = entityStorage.getStore(TEST_TENANT_ID);
+		const store = entityStorage.getStore(TEST_PARTITION_ID);
 		expect(store).toBeDefined();
 		expect(store?.length).toEqual(1);
 		expect(store?.[0]).toBeDefined();
@@ -158,26 +158,14 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(store?.[0].value2).toEqual("ddd");
 	});
 
-	test("can fail to get an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
-		});
-		await expect(entityStorage.get({}, undefined as unknown as string)).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.tenantId",
-				value: "undefined"
-			}
-		});
-	});
-
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
 		await expect(
-			entityStorage.get({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
+			entityStorage.get(undefined as unknown as string, undefined, {
+				partitionId: TEST_PARTITION_ID
+			})
 		).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -193,10 +181,10 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		const item = await entityStorage.get({ tenantId: TEST_TENANT_ID }, "2");
+		const item = await entityStorage.get("2", undefined, { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeUndefined();
 	});
@@ -206,16 +194,16 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		const item = await entityStorage.get({ tenantId: TEST_TENANT_ID }, "1");
+		const item = await entityStorage.get("1", undefined, { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("1");
 		expect(item?.value1).toEqual("aaa");
 		expect(item?.value2).toEqual("bbb");
-		expect(item?.tenantId).toBeUndefined();
+		expect(item?.partitionId).toBeUndefined();
 	});
 
 	test("can get an item by secondary index", async () => {
@@ -223,51 +211,37 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		const item = await entityStorage.get({ tenantId: TEST_TENANT_ID }, "aaa", "value1");
+		const item = await entityStorage.get("aaa", "value1", { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("1");
 		expect(item?.value1).toEqual("aaa");
 		expect(item?.value2).toEqual("bbb");
-		expect(item?.tenantId).toBeUndefined();
+		expect(item?.partitionId).toBeUndefined();
 	});
 
-	test("can get an item using wildcard tenant id", async () => {
+	test("can get an item using wildcard partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID2 },
-			{ id: "2", value1: "ccc", value2: "ddd" }
+			{ id: "2", value1: "ccc", value2: "ddd" },
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
-		const item = await entityStorage.get({ tenantId: "*" }, "2");
+		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("2");
 		expect(item?.value1).toEqual("ccc");
 		expect(item?.value2).toEqual("ddd");
-		expect(item?.tenantId).toEqual(TEST_TENANT_ID2);
-	});
-
-	test("can fail to remove an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
-		});
-		await expect(entityStorage.remove({}, undefined as unknown as string)).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.tenantId",
-				value: "undefined"
-			}
-		});
+		expect(item?.partitionId).toEqual(TEST_PARTITION_ID2);
 	});
 
 	test("can fail to remove an item with no id", async () => {
@@ -275,7 +249,7 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await expect(
-			entityStorage.remove({ tenantId: TEST_TENANT_ID }, undefined as unknown as string)
+			entityStorage.remove(undefined as unknown as string, { partitionId: TEST_PARTITION_ID })
 		).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -286,18 +260,32 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 	});
 
-	test("can not remove an item if the tenant id does not exist", async () => {
+	test("can fail to remove an item with no partition id", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof(TestType)
+		});
+		await expect(entityStorage.remove("1")).rejects.toMatchObject({
+			name: "GuardError",
+			message: "guard.string",
+			properties: {
+				property: "requestContext.partitionId",
+				value: "undefined"
+			}
+		});
+	});
+
+	test("can not remove an item if the partition id does not exist", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
 
-		await entityStorage.remove({ tenantId: TEST_TENANT_ID2 }, "1");
+		await entityStorage.remove("1", { partitionId: TEST_PARTITION_ID2 });
 
-		const store = entityStorage.getStore(TEST_TENANT_ID);
+		const store = entityStorage.getStore(TEST_PARTITION_ID);
 		expect(store).toBeDefined();
 		expect(store?.length).toEqual(1);
 	});
@@ -307,13 +295,13 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
 
-		await entityStorage.remove({ tenantId: TEST_TENANT_ID }, "2");
+		await entityStorage.remove("2", { partitionId: TEST_PARTITION_ID });
 
-		const store = entityStorage.getStore(TEST_TENANT_ID);
+		const store = entityStorage.getStore(TEST_PARTITION_ID);
 		expect(store).toBeDefined();
 		expect(store?.length).toEqual(1);
 	});
@@ -323,35 +311,28 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		await entityStorage.remove({ tenantId: TEST_TENANT_ID }, "1");
+		await entityStorage.remove("1", { partitionId: TEST_PARTITION_ID });
 
-		const store = entityStorage.getStore(TEST_TENANT_ID);
+		const store = entityStorage.getStore(TEST_PARTITION_ID);
 		expect(store).toBeDefined();
 		expect(store?.length).toEqual(0);
-	});
-
-	test("can fail to find an item with no tenant id", async () => {
-		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
-		});
-		await expect(entityStorage.query({})).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.tenantId",
-				value: "undefined"
-			}
-		});
 	});
 
 	test("can find items with empty store", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -364,10 +345,17 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof(TestType)
 		});
 		await entityStorage.set(
-			{ tenantId: TEST_TENANT_ID },
-			{ id: "1", value1: "aaa", value2: "bbb" }
+			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ partitionId: TEST_PARTITION_ID }
 		);
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
@@ -381,11 +369,18 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.totalEntities).toEqual(30);
@@ -399,17 +394,25 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID });
+		const result = await entityStorage.query(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		const result2 = await entityStorage.query(
-			{ tenantId: TEST_TENANT_ID },
 			undefined,
 			undefined,
 			undefined,
-			result.cursor
+			result.cursor,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
 		);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
@@ -424,17 +427,21 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
 		const result = await entityStorage.query(
-			{ tenantId: TEST_TENANT_ID },
 			{
 				property: "id",
 				value: "20",
 				operator: ComparisonOperator.Equals
-			}
+			},
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
 		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
@@ -449,16 +456,23 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, [
-			{
-				property: "id",
-				sortDirection: SortDirection.Ascending
-			}
-		]);
+		const result = await entityStorage.query(
+			undefined,
+			[
+				{
+					property: "id",
+					sortDirection: SortDirection.Ascending
+				}
+			],
+			undefined,
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.entities[0].id).toEqual("1");
@@ -473,48 +487,52 @@ describe("MemoryEntityStorageConnector", () => {
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
-		const result = await entityStorage.query({ tenantId: TEST_TENANT_ID }, undefined, undefined, [
-			"id",
-			"value1"
-		]);
+		const result = await entityStorage.query(
+			undefined,
+			undefined,
+			["id", "value1"],
+			undefined,
+			undefined,
+			{ partitionId: TEST_PARTITION_ID }
+		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.entities[0].id).toEqual("1");
 		expect(result.entities[0].value1).toEqual("aaa");
 		expect(result.entities[0].value2).toBeUndefined();
-		expect(result.entities[0].tenantId).toBeUndefined();
+		expect(result.entities[0].partitionId).toBeUndefined();
 	});
 
-	test("can query items with wildcard tenant id", async () => {
+	test("can query items with wildcard partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof(TestType)
 		});
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(
-				{ tenantId: TEST_TENANT_ID2 },
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" }
+				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ partitionId: TEST_PARTITION_ID2 }
 			);
 		}
-		const result = await entityStorage.query({ tenantId: "*" });
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(10);
 		expect(result.entities[0].id).toEqual("1");
 		expect(result.entities[0].value1).toEqual("aaa");
 		expect(result.entities[0].value2).toEqual("bbb");
-		expect(result.entities[0].tenantId).toEqual(TEST_TENANT_ID);
+		expect(result.entities[0].partitionId).toEqual(TEST_PARTITION_ID);
 		expect(result.entities[5].id).toEqual("1");
 		expect(result.entities[5].value1).toEqual("aaa");
 		expect(result.entities[5].value2).toEqual("bbb");
-		expect(result.entities[5].tenantId).toEqual(TEST_TENANT_ID2);
+		expect(result.entities[5].partitionId).toEqual(TEST_PARTITION_ID2);
 	});
 });
