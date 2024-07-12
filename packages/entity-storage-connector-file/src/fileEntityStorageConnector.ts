@@ -85,7 +85,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @param requestContext The request context for bootstrapping.
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(requestContext: IServiceRequestContext): Promise<void> {
+	public async bootstrap(requestContext?: IServiceRequestContext): Promise<void> {
 		if (!(await this.dirExists(this._directory))) {
 			this._logging.log(
 				{

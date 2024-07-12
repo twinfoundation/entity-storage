@@ -56,13 +56,13 @@ Runtime name for the class.
 
 ### bootstrap()
 
-> **bootstrap**(`requestContext`): `Promise`\<`void`\>
+> **bootstrap**(`requestContext`?): `Promise`\<`void`\>
 
 Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 
-• **requestContext**: `IServiceRequestContext`
+• **requestContext?**: `IServiceRequestContext`
 
 The request context for bootstrapping.
 
