@@ -12,7 +12,11 @@ import {
 } from "@gtsc/entity";
 import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
 import { EntityStorageConnectorFactory } from "@gtsc/entity-storage-models";
-import { EntityStorageLoggingConnector, LogEntry } from "@gtsc/logging-connector-entity-storage";
+import {
+	EntityStorageLoggingConnector,
+	LogEntry,
+	initSchema
+} from "@gtsc/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
@@ -55,7 +59,7 @@ describe("FileEntityStorageConnector", () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
 		EntitySchemaFactory.register(nameof(TestType), () => EntitySchemaHelper.getSchema(TestType));
-		EntitySchemaFactory.register(nameof(LogEntry), () => EntitySchemaHelper.getSchema(LogEntry));
+		initSchema();
 	});
 
 	beforeEach(() => {
