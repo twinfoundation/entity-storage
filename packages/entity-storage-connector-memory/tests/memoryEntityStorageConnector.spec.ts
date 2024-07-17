@@ -40,7 +40,7 @@ const TEST_PARTITION_ID2 = "test-partition2";
 
 describe("MemoryEntityStorageConnector", () => {
 	beforeAll(async () => {
-		EntitySchemaFactory.register(nameof(TestType), () => EntitySchemaHelper.getSchema(TestType));
+		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
 	});
 
 	test("can fail to construct when there are no options", async () => {
@@ -84,13 +84,13 @@ describe("MemoryEntityStorageConnector", () => {
 	});
 
 	test("can construct", async () => {
-		const entityStorage = new MemoryEntityStorageConnector({ entitySchema: nameof(TestType) });
+		const entityStorage = new MemoryEntityStorageConnector({ entitySchema: nameof<TestType>() });
 		expect(entityStorage).toBeDefined();
 	});
 
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -104,7 +104,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can fail to set an item with no partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await expect(
 			entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" })
@@ -120,7 +120,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can set an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -137,7 +137,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can set an item to update it", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -160,7 +160,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await expect(
 			entityStorage.get(undefined as unknown as string, undefined, {
@@ -178,7 +178,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can not get an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -191,7 +191,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can get an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -208,7 +208,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -225,7 +225,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can get an item using wildcard partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -246,7 +246,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await expect(
 			entityStorage.remove(undefined as unknown as string, { partitionId: TEST_PARTITION_ID })
@@ -262,7 +262,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await expect(entityStorage.remove("1")).rejects.toMatchObject({
 			name: "GuardError",
@@ -276,7 +276,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can not remove an item if the partition id does not exist", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -292,7 +292,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can not remove an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -308,7 +308,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can remove an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -323,7 +323,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with empty store", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		const result = await entityStorage.query(
 			undefined,
@@ -342,7 +342,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with single entry", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
@@ -365,7 +365,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with multiple entries", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
@@ -390,7 +390,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with multiple entries and cursor", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
@@ -423,7 +423,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with multiple entries and apply conditions", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
@@ -452,7 +452,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can find items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
@@ -483,7 +483,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
@@ -509,7 +509,7 @@ describe("MemoryEntityStorageConnector", () => {
 
 	test("can query items with wildcard partition id", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType)
+			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(

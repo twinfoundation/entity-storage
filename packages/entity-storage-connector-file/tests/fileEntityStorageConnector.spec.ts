@@ -14,7 +14,7 @@ import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-mem
 import { EntityStorageConnectorFactory } from "@gtsc/entity-storage-models";
 import {
 	EntityStorageLoggingConnector,
-	LogEntry,
+	type LogEntry,
 	initSchema
 } from "@gtsc/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
@@ -58,13 +58,13 @@ describe("FileEntityStorageConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
-		EntitySchemaFactory.register(nameof(TestType), () => EntitySchemaHelper.getSchema(TestType));
+		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
 		initSchema();
 	});
 
 	beforeEach(() => {
 		memoryEntityStorage = new MemoryEntityStorageConnector<LogEntry>({
-			entitySchema: nameof(LogEntry)
+			entitySchema: nameof<LogEntry>()
 		});
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
@@ -162,7 +162,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can construct", async () => {
 		const entityStorage = new FileEntityStorageConnector({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: {
 				directory: TEST_DIRECTORY
 			}
@@ -172,7 +172,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to bootstrap with invalid directory", async () => {
 		const entityStorage = new FileEntityStorageConnector({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: {
 				directory: "|\0"
 			}
@@ -189,7 +189,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can bootstrap and create directory", async () => {
 		const entityStorage = new FileEntityStorageConnector({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: {
 				directory: TEST_DIRECTORY
 			}
@@ -206,7 +206,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can bootstrap and skip existing directory", async () => {
 		const entityStorage = new FileEntityStorageConnector({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: {
 				directory: TEST_DIRECTORY
 			}
@@ -221,7 +221,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
@@ -236,7 +236,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to set an item with no partition id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: {
 				directory: TEST_DIRECTORY
 			}
@@ -255,7 +255,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can set an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -275,7 +275,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can set an item to update it", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -300,7 +300,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await expect(
@@ -319,7 +319,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can not get an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -333,7 +333,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can get an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -351,7 +351,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -368,7 +368,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can get an item using wildcard partition id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -390,7 +390,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await expect(
@@ -407,7 +407,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can fail to remove an item with no partition id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await expect(entityStorage.remove("2")).rejects.toMatchObject({
@@ -422,7 +422,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can not remove an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -440,7 +440,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can remove an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -457,7 +457,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with empty store", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		const result = await entityStorage.query(
@@ -477,7 +477,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with single entry", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.set(
@@ -501,7 +501,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		for (let i = 0; i < 30; i++) {
@@ -527,7 +527,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and cursor", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		for (let i = 0; i < 30; i++) {
@@ -561,7 +561,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and apply conditions", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		for (let i = 0; i < 30; i++) {
@@ -591,7 +591,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		for (let i = 0; i < 30; i++) {
@@ -623,7 +623,7 @@ describe("FileEntityStorageConnector", () => {
 
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		for (let i = 0; i < 30; i++) {
@@ -653,7 +653,7 @@ describe("FileEntityStorageConnector", () => {
 		} catch {}
 
 		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof(TestType),
+			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap({ partitionId: TEST_PARTITION_ID });
