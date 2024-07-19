@@ -82,10 +82,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param requestContext The request context for bootstrapping.
+	 * @param systemPartitionId The system partition id.
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(requestContext?: IServiceRequestContext): Promise<void> {
+	public async bootstrap(systemPartitionId: string): Promise<void> {
 		if (!(await this.dirExists(this._directory))) {
 			this._logging.log(
 				{
@@ -96,7 +96,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				},
-				requestContext
+				{ partitionId: systemPartitionId }
 			);
 
 			try {
@@ -111,7 +111,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 							directory: this._directory
 						}
 					},
-					requestContext
+					{ partitionId: systemPartitionId }
 				);
 			} catch (err) {
 				this._logging.log(
@@ -124,7 +124,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						},
 						error: BaseError.fromError(err)
 					},
-					requestContext
+					{ partitionId: systemPartitionId }
 				);
 			}
 		} else {
@@ -137,7 +137,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				},
-				requestContext
+				{ partitionId: systemPartitionId }
 			);
 		}
 	}

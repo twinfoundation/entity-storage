@@ -56,15 +56,15 @@ Runtime name for the class.
 
 ### bootstrap()
 
-> **bootstrap**(`requestContext`?): `Promise`\<`void`\>
+> **bootstrap**(`systemPartitionId`): `Promise`\<`void`\>
 
 Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 
-• **requestContext?**: `IServiceRequestContext`
+• **systemPartitionId**: `string`
 
-The request context for bootstrapping.
+The system partition id.
 
 #### Returns
 
