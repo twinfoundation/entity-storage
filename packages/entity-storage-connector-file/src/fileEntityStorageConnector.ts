@@ -14,7 +14,7 @@ import {
 	type SortDirection
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import { LoggingConnectorFactory, type ILoggingConnector } from "@gtsc/logging-models";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
@@ -33,12 +33,6 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Runtime name for the class.
 	 */
 	public readonly CLASS_NAME: string = nameof<FileEntityStorageConnector>();
-
-	/**
-	 * The logging connector.
-	 * @internal
-	 */
-	private readonly _logging: ILoggingConnector;
 
 	/**
 	 * The schema for the entity.
@@ -61,20 +55,14 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
 	 * @param options.entitySchema The name of the entity schema.
 	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		loggingConnectorType?: string;
-		entitySchema: string;
-		config: IFileEntityStorageConnectorConfig;
-	}) {
+	constructor(options: { entitySchema: string; config: IFileEntityStorageConnectorConfig }) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object(this.CLASS_NAME, nameof(options.config), options.config);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.directory), options.config.directory);
-		this._logging = LoggingConnectorFactory.get(options.loggingConnectorType ?? "logging");
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 		this._directory = path.resolve(options.config.directory);
@@ -82,12 +70,20 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param systemPartitionId The system partition id.
+	 * @param systemRequestContext The system request context.
+	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemPartitionId: string): Promise<void> {
+	public async bootstrap(
+		systemRequestContext: IServiceRequestContext,
+		systemLoggingConnectorType?: string
+	): Promise<void> {
+		const systemLogging = LoggingConnectorFactory.getIfExists(
+			systemLoggingConnectorType ?? "system-logging"
+		);
+
 		if (!(await this.dirExists(this._directory))) {
-			this._logging.log(
+			await systemLogging?.log(
 				{
 					level: "info",
 					source: this.CLASS_NAME,
@@ -96,13 +92,13 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				},
-				{ partitionId: systemPartitionId }
+				systemRequestContext
 			);
 
 			try {
 				await mkdir(this._directory, { recursive: true });
 
-				this._logging.log(
+				await systemLogging?.log(
 					{
 						level: "info",
 						source: this.CLASS_NAME,
@@ -111,10 +107,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 							directory: this._directory
 						}
 					},
-					{ partitionId: systemPartitionId }
+					systemRequestContext
 				);
 			} catch (err) {
-				this._logging.log(
+				await systemLogging?.log(
 					{
 						level: "error",
 						source: this.CLASS_NAME,
@@ -124,11 +120,11 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						},
 						error: BaseError.fromError(err)
 					},
-					{ partitionId: systemPartitionId }
+					systemRequestContext
 				);
 			}
 		} else {
-			this._logging.log(
+			await systemLogging?.log(
 				{
 					level: "info",
 					source: this.CLASS_NAME,
@@ -137,7 +133,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				},
-				{ partitionId: systemPartitionId }
+				systemRequestContext
 			);
 		}
 	}
