@@ -41,7 +41,8 @@
 	"workspaces": [
 		"packages/entity-storage-models",
 		"packages/entity-storage-connector-memory",
-		"packages/entity-storage-connector-file"
+		"packages/entity-storage-connector-file",
+		"packages/entity-storage-connector-scylladb"
 	],
 	"type": "module"
 }
