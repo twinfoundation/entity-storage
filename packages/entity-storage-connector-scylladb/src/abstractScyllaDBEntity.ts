@@ -7,10 +7,11 @@ import {
 	type IEntitySchema,
 	EntitySchemaFactory,
 	EntitySchemaHelper,
-    type EntityCondition,
-    type SortDirection,
-		IComparator,
-		ComparisonOperator
+	type EntityCondition,
+	type SortDirection,
+	type IComparator,
+	ComparisonOperator,
+	LogicalOperator
 } from "@gtsc/entity";
 import { type ILoggingConnector, LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
@@ -27,7 +28,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 	 * Limit the number of entities when finding.
 	 * @internal
 	 */
-	protected static readonly PAGE_SIZE: number = 40;
+	public static readonly PAGE_SIZE: number = 40;
 
 	/**
 	 * Class name.
@@ -56,13 +57,13 @@ export abstract class AbstractScyllaDBEntity<T> {
 	 * The schema for the entity.
 	 * @internal
 	 */
-	private readonly _entitySchema: IEntitySchema<T>;
+	protected readonly _entitySchema: IEntitySchema<T>;
 
 	/**
 	 * The partition key.
 	 * @internal
 	 */
-	private readonly _primaryKey: IEntitySchemaProperty<T>;
+	protected readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
@@ -230,7 +231,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 						}
 					}
 
-					const operator = condition.logicalOperator ?? logicalOperator.AND;
+					const operator = condition.operator ?? LogicalOperator.And;
 					conditionQuery = `${conds.join(` ${operator} `)}`;
 				}
 			}
@@ -242,13 +243,20 @@ export abstract class AbstractScyllaDBEntity<T> {
 			connection = await this.openConnection(this._config);
 
 			const countQuery = sql.replace("SELECT *", "SELECT COUNT(*) AS totalEntities");
-			const countResults = await this.queryDB(connection, countQuery, params, undefined, returnSize);
+			const countResults = await this.queryDB(
+				connection,
+				countQuery,
+				params,
+				undefined,
+				returnSize
+			);
 
-			if (sort) {
-				const sortKey = sort?.key ?? this._primaryKey.name;
+			// Only supported one sort property at the moment. This code would need to be revised in a follow-up
+			if (Is.array(sortProperties) && sortProperties.length >= 1) {
+				const sortKey = sortProperties[0].property ?? this._primaryKey.property;
 				const sortDir =
-					sort?.direction ??
-					this._entityDescriptor.properties.find(e => e.name === sortKey)?.sortDirection ??
+					sortProperties[0].sortDirection ??
+					this._entitySchema.properties?.find(e => e.property === sortKey)?.sortDirection ??
 					"asc";
 
 				sql += ` ORDER BY "${String(sortKey)}" ${sortDir.toUpperCase()}`;
@@ -265,10 +273,10 @@ export abstract class AbstractScyllaDBEntity<T> {
 			// We just use the cursor
 			const result = await this.queryDB(connection, sql, params, cursor, returnSize);
 
-			const entities: T[] = [];
+			const entities: Partial<T & { partitionId?: string }>[] = [];
 
 			for (const row of result.rows) {
-				entities.push(this.convertRowToObject(row) as T);
+				entities.push(this.convertRowToObject(row) as Partial<T & { partitionId?: string }>);
 			}
 
 			return {
@@ -290,11 +298,11 @@ export abstract class AbstractScyllaDBEntity<T> {
 	 * @returns The new connection.
 	 * @internal
 	 */
-	protected async openConnection(config: IScyllaDBConfig): Promise<Client> {
+	protected async openConnection(config: IScyllaDBConfig, keyspace?: string): Promise<Client> {
 		const client = new Client({
 			contactPoints: config.hosts,
 			localDataCenter: config.localDataCenter,
-			keyspace: config.keyspace
+			keyspace
 		});
 
 		await client.connect();
@@ -339,7 +347,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 				{
 					prepare: true,
 					autoPage: false,
-					fetchSize: pageSize ?? this._PAGE_SIZE,
+					fetchSize: pageSize ?? AbstractScyllaDBEntity.PAGE_SIZE,
 					pageState
 				},
 				(n: number, row: CassandraTypes.Row) => {
@@ -395,10 +403,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 	 * @returns The value as a property for the object.
 	 * @internal
 	 */
-	protected dbValueToProperty(
-		value: unknown,
-		fieldDescriptor: IEntitySchemaProperty<T>
-	): unknown {
+	protected dbValueToProperty(value: unknown, fieldDescriptor: IEntitySchemaProperty<T>): unknown {
 		if (fieldDescriptor.type === "object") {
 			if (
 				value === "null" ||
@@ -414,11 +419,11 @@ export abstract class AbstractScyllaDBEntity<T> {
 				return JSON.parse(value);
 			} catch {
 				throw new GeneralError(this.CLASS_NAME, "parseJSONFailed", {
-					name: fieldDescriptor.name,
+					name: fieldDescriptor.property,
 					value
 				});
 			}
-		} else if (fieldDescriptor.type === "UUID") {
+		} else if (fieldDescriptor.format === "uuid") {
 			return (value as CassandraTypes.Uuid).toString();
 		}
 
@@ -432,14 +437,11 @@ export abstract class AbstractScyllaDBEntity<T> {
 	 * @returns The value after conversion.
 	 * @internal
 	 */
-	protected propertyToDbValue(
-		value: unknown,
-		fieldDescriptor?: IEntitySchemaProperty<T>
-	): unknown {
+	protected propertyToDbValue(value: unknown, fieldDescriptor?: IEntitySchemaProperty<T>): unknown {
 		if (fieldDescriptor) {
 			if (fieldDescriptor.type === "object") {
 				return Is.empty(value) ? "null" : this.jsonWrap(value);
-			} else if (fieldDescriptor.type === "UUID") {
+			} else if (fieldDescriptor.format === "uuid") {
 				if (!Is.string(value)) {
 					return;
 				}
