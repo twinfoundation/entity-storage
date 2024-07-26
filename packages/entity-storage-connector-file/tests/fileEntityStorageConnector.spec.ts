@@ -17,7 +17,7 @@ import {
 	type LogEntry,
 	initSchema
 } from "@gtsc/logging-connector-entity-storage";
-import { LoggingConnectorFactory } from "@gtsc/logging-models";
+import { LoggingConnectorFactory, SystemLoggingConnector } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
 import type { IFileEntityStorageConnectorConfig } from "../src/models/IFileEntityStorageConnectorConfig";
@@ -67,7 +67,13 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<LogEntry>()
 		});
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
-		LoggingConnectorFactory.register("system-logging", () => new EntityStorageLoggingConnector());
+
+		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
+		const systemLoggingConnector = new SystemLoggingConnector({
+			loggingConnectorType: "logging",
+			systemPartitionId: TEST_PARTITION_ID
+		});
+		LoggingConnectorFactory.register("system-logging", () => systemLoggingConnector);
 	});
 
 	afterAll(async () => {
@@ -177,7 +183,7 @@ describe("FileEntityStorageConnector", () => {
 				directory: "|\0"
 			}
 		});
-		await entityStorage.bootstrap({ partitionId: TEST_PARTITION_ID });
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
@@ -194,7 +200,7 @@ describe("FileEntityStorageConnector", () => {
 				directory: TEST_DIRECTORY
 			}
 		});
-		await entityStorage.bootstrap({ partitionId: TEST_PARTITION_ID });
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
@@ -211,7 +217,7 @@ describe("FileEntityStorageConnector", () => {
 				directory: TEST_DIRECTORY
 			}
 		});
-		await entityStorage.bootstrap({ partitionId: TEST_PARTITION_ID });
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(1);
@@ -656,7 +662,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
-		await entityStorage.bootstrap({ partitionId: TEST_PARTITION_ID });
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 5; i++) {
 			await entityStorage.set(
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },

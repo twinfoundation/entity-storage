@@ -52,15 +52,11 @@ Runtime name for the class.
 
 ### bootstrap()
 
-> **bootstrap**(`systemRequestContext`, `systemLoggingConnectorType`?): `Promise`\<`void`\>
+> **bootstrap**(`systemLoggingConnectorType`?): `Promise`\<`void`\>
 
 Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
-
-• **systemRequestContext**: `IServiceRequestContext`
-
-The system request context.
 
 • **systemLoggingConnectorType?**: `string`
 

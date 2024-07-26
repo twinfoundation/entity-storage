@@ -70,71 +70,55 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param systemRequestContext The system request context.
 	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(
-		systemRequestContext: IServiceRequestContext,
-		systemLoggingConnectorType?: string
-	): Promise<void> {
+	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
 		const systemLogging = LoggingConnectorFactory.getIfExists(
 			systemLoggingConnectorType ?? "system-logging"
 		);
 
 		if (!(await this.dirExists(this._directory))) {
-			await systemLogging?.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					message: "directoryCreating",
-					data: {
-						directory: this._directory
-					}
-				},
-				systemRequestContext
-			);
+			await systemLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				message: "directoryCreating",
+				data: {
+					directory: this._directory
+				}
+			});
 
 			try {
 				await mkdir(this._directory, { recursive: true });
 
-				await systemLogging?.log(
-					{
-						level: "info",
-						source: this.CLASS_NAME,
-						message: "directoryCreated",
-						data: {
-							directory: this._directory
-						}
-					},
-					systemRequestContext
-				);
-			} catch (err) {
-				await systemLogging?.log(
-					{
-						level: "error",
-						source: this.CLASS_NAME,
-						message: "directoryCreateFailed",
-						data: {
-							directory: this._directory
-						},
-						error: BaseError.fromError(err)
-					},
-					systemRequestContext
-				);
-			}
-		} else {
-			await systemLogging?.log(
-				{
+				await systemLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
-					message: "directoryExists",
+					message: "directoryCreated",
 					data: {
 						directory: this._directory
 					}
-				},
-				systemRequestContext
-			);
+				});
+			} catch (err) {
+				await systemLogging?.log({
+					level: "error",
+					source: this.CLASS_NAME,
+					message: "directoryCreateFailed",
+					data: {
+						directory: this._directory
+					},
+					error: BaseError.fromError(err)
+				});
+			}
+		} else {
+			await systemLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				message: "directoryExists",
+				data: {
+					directory: this._directory
+				}
+			});
 		}
 	}
 
