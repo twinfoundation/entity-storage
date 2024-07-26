@@ -1,12 +1,12 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 
-import { BaseError, Coerce, GeneralError, Guards, IError, Is, ObjectHelper } from "@gtsc/core";
+import { BaseError, GeneralError, Guards, type IError, Is } from "@gtsc/core";
+import { EntitySchemaFactory, EntitySchemaPropertyType, type IEntitySchemaProperty } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
 import { AbstractScyllaDBEntity } from "./abstractScyllaDBEntity";
-import { EntitySchemaPropertyType, IEntitySchemaProperty } from "@gtsc/entity";
 
 /**
  * Store entities using ScyllaDB.
@@ -51,28 +51,34 @@ export class ScyllaDBEntityStorage<T = unknown>
 			this._config.keyspace = systemPartitionId;
 			dbConnection = await this.openConnection(this._config);
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const structuredTypes: IStructuredTypeDescriptor<any>[] = this._entitySchema.structuredTypes ?? [];
+			// Need to find structured properties (declared as type: object)
+			const structuredProperties = this._entitySchema.properties?.filter(
+				property => property.type === EntitySchemaPropertyType.Object
+			);
 
-			// Creating the structured types
-			for (const structuredType of structuredTypes) {
-				const typeFields: string[] = [];
-				for (const field of structuredType.fields) {
-					typeFields.push(`"${String(field.name)}" ${this.toDbField(field)}`);
+			if (Is.array(structuredProperties)) {
+				for (const strProperty of structuredProperties) {
+					const subTypeSchemaRef = strProperty.itemTypeRef;
+					if (!Is.undefined(subTypeSchemaRef)) {
+						const objSchema = EntitySchemaFactory.get(subTypeSchemaRef);
+						const typeFields: string[] = [];
+						for (const field of objSchema.properties ?? []) {
+							typeFields.push(`"${String(field.property)}" ${this.toDbField(field)}`);
+						}
+						const sql = `CREATE TYPE IF NOT EXISTS
+																		"${subTypeSchemaRef}" (${typeFields.join(",")})`;
+
+						await this._logging.log({
+							level: "info",
+							source: this.CLASS_NAME,
+							ts: Date.now(),
+							message: "entityStorage.sqlCreateType",
+							data: sql
+						});
+
+						await this.execute(dbConnection, sql);
+					}
 				}
-
-				const sql = `CREATE TYPE IF NOT EXISTS
-                                "${structuredType.name}" (${typeFields.join(",")})`;
-
-				await this._logging.log({
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "entityStorage.sqlCreateType",
-					data: sql
-				});
-
-				await this.execute(dbConnection, sql);
 			}
 
 			const fields: string[] = [];
@@ -259,9 +265,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 	 * @returns The DB type.
 	 * @throws GeneralException if no mapping found.
 	 */
-	private toDbField(
-		logicalField: IEntitySchemaProperty<T> | IStructuredTypeFieldDescriptor<T>
-	): string {
+	private toDbField(logicalField: IEntitySchemaProperty<T>): string {
 		let dbType: string;
 
 		const simpleTypes = new Set<string>([
@@ -277,36 +281,52 @@ export class ScyllaDBEntityStorage<T = unknown>
 		switch (logicalField.type) {
 			case "string":
 				dbType = "TEXT";
-				break;
-			case "UUID":
-				dbType = "UUID";
-				break;
-			case "float":
-				dbType = "FLOAT";
-				break;
-			case "double":
-				dbType = "DOUBLE";
-				break;
-			case "integer":
-				if (logicalField.size === 1) {
-					dbType = "TINYINT";
-				} else if (logicalField.size === 2) {
-					dbType = "SMALLINT";
-				} else if (logicalField.size === 3) {
-					dbType = "INT";
-				} else if (logicalField.size === 8) {
-					dbType = "BIGINT";
-				} else {
-					dbType = "INT";
+				switch (logicalField.format) {
+					case "uuid":
+						dbType = "UUID";
+						break;
+					case "date":
+					case "date-time":
+						dbType = "TIMESTAMP";
+						break;
 				}
 				break;
-			case "timestamp":
-				dbType = "TIMESTAMP";
+			case "number":
+				dbType = "DOUBLE";
+				switch (logicalField.format) {
+					case "float":
+						dbType = "FLOAT";
+						break;
+					case "double":
+						dbType = "DOUBLE";
+						break;
+				}
+				break;
+			case "integer":
+				dbType = "INT";
+				switch (logicalField.format) {
+					case "int8":
+					case "uint8":
+						dbType = "TINYINT";
+						break;
+					case "int16":
+					case "uint16":
+						dbType = "SMALLINT";
+						break;
+					case "int32":
+					case "uint32":
+						dbType = "INT";
+						break;
+					case "int64":
+					case "uint64":
+						dbType = "BIGINT";
+						break;
+				}
 				break;
 			case "boolean":
 				dbType = "BOOLEAN";
 				break;
-			case "structure":
+			case "object":
 				if (!logicalField.itemType) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
@@ -321,7 +341,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 				}
 				dbType = `frozen<"${logicalField.itemType}">`;
 				break;
-			case "list":
+			case "array":
 				if (!logicalField.itemType) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
@@ -330,7 +350,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 				}
 				if (simpleTypes.has(logicalField.itemType)) {
 					dbType = `SET<${this.toDbField({
-						name: logicalField.name,
+						name: logicalField.property,
 						type: logicalField.itemType as EntitySchemaPropertyType
 					})}>`;
 				} else {
