@@ -1,4 +1,4 @@
-# GTSC Entity Storage Connector ScyllaDB
+# Entity Storage Connector ScyllaDB
 
 Entity Storage connector implementation using ScyllaDB.
 
