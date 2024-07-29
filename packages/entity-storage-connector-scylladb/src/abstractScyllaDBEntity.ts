@@ -279,7 +279,10 @@ export abstract class AbstractScyllaDBEntity<T> {
 			const entities: Partial<T & { partitionId?: string }>[] = [];
 
 			for (const row of result.rows) {
-				entities.push(this.convertRowToObject(row) as Partial<T & { partitionId?: string }>);
+				entities.push({
+					...(this.convertRowToObject(row) as T),
+					partitionId: requestContext?.partitionId
+				});
 			}
 
 			return {

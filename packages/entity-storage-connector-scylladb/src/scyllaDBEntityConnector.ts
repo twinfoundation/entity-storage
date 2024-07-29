@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0.
 
 import { BaseError, GeneralError, Guards, type IError, Is } from "@gtsc/core";
-import { EntitySchemaFactory, EntitySchemaPropertyType, type IEntitySchemaProperty } from "@gtsc/entity";
+import {
+	EntitySchemaFactory,
+	EntitySchemaPropertyType,
+	type IEntitySchemaProperty
+} from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
@@ -25,7 +29,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 	 * Runtime name for the class.
 	 * @internal
 	 */
-	protected override readonly CLASS_NAME: string = nameof<ScyllaDBEntityStorage>();
+	public override readonly CLASS_NAME: string = nameof<ScyllaDBEntityStorage>();
 
 	/**
 	 * Bootstrap the service by creating and initializing any resources it needs.
@@ -48,14 +52,16 @@ export class ScyllaDBEntityStorage<T = unknown>
 
 			// Connection has to be closed and now open a new one with our keyspace
 			await this.closeConnection(dbConnection);
-			this._config.keyspace = systemPartitionId;
-			dbConnection = await this.openConnection(this._config);
+			dbConnection = await this.openConnection(this._config, systemPartitionId);
 
 			// Need to find structured properties (declared as type: object)
 			const structuredProperties = this._entitySchema.properties?.filter(
-				property => property.type === EntitySchemaPropertyType.Object
+				property =>
+					property.type === EntitySchemaPropertyType.Object ||
+					(property.type === EntitySchemaPropertyType.Array && property.itemTypeRef)
 			);
 
+			// Needs to support objects that may have itemRef other objects (to be done)
 			if (Is.array(structuredProperties)) {
 				for (const strProperty of structuredProperties) {
 					const subTypeSchemaRef = strProperty.itemTypeRef;
@@ -144,8 +150,8 @@ export class ScyllaDBEntityStorage<T = unknown>
 
 	/**
 	 * Set an entity.
-	 * @param requestContext The context for the request.
 	 * @param entity The entity to set.
+	 * @param requestContext The context for the request.
 	 */
 	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
@@ -234,7 +240,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 				data: sql
 			});
 
-			connection = await this.openConnection(this._config);
+			connection = await this.openConnection(this._config, requestContext?.partitionId);
 
 			await this.execute(connection, sql, [primaryFieldValue]);
 		} catch (error) {
@@ -267,16 +273,6 @@ export class ScyllaDBEntityStorage<T = unknown>
 	 */
 	private toDbField(logicalField: IEntitySchemaProperty<T>): string {
 		let dbType: string;
-
-		const simpleTypes = new Set<string>([
-			"string",
-			"UUID",
-			"float",
-			"double",
-			"integer",
-			"timestamp",
-			"boolean"
-		]);
 
 		switch (logicalField.type) {
 			case "string":
@@ -327,44 +323,30 @@ export class ScyllaDBEntityStorage<T = unknown>
 				dbType = "BOOLEAN";
 				break;
 			case "object":
-				if (!logicalField.itemType) {
+				if (!logicalField.itemTypeRef) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
 						table: this.fullTableName
 					});
 				}
-				if (simpleTypes.has(logicalField.itemType)) {
-					throw new GeneralError(this.CLASS_NAME, "itemTypeNotValid", {
-						type: logicalField.type,
-						table: this.fullTableName
-					});
-				}
-				dbType = `frozen<"${logicalField.itemType}">`;
+				dbType = `frozen<"${logicalField.itemTypeRef}">`;
 				break;
 			case "array":
-				if (!logicalField.itemType) {
+				if (!logicalField.itemType && !logicalField.itemTypeRef) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
 						table: this.fullTableName
 					});
 				}
-				if (simpleTypes.has(logicalField.itemType)) {
+				if (logicalField.itemType) {
 					dbType = `SET<${this.toDbField({
-						name: logicalField.property,
+						property: logicalField.property,
 						type: logicalField.itemType as EntitySchemaPropertyType
 					})}>`;
 				} else {
-					dbType = `SET<frozen<"${logicalField.itemType}">>`;
+					dbType = `SET<frozen<"${logicalField.itemTypeRef}">>`;
 				}
 				break;
-			case "object":
-				dbType = "TEXT";
-				break;
-			default:
-				throw new GeneralError(this.CLASS_NAME, "unknownFieldType", {
-					type: logicalField.type,
-					table: this.fullTableName
-				});
 		}
 
 		return dbType;

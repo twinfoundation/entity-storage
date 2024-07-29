@@ -6,8 +6,8 @@ import type { IScyllaDBConfig } from "./IScyllaDBConfig";
  * Definition of MySQL DB configuration.
  */
 export interface IScyllaDBTableConfig extends IScyllaDBConfig {
-    /**
-     * The name of the table for the storage.
-     */
-    tableName: string;
+	/**
+	 * The name of the table for the storage.
+	 */
+	tableName: string;
 }
