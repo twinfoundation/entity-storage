@@ -100,7 +100,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 		id: string,
 		secondaryIndex?: keyof T,
 		requestContext?: IServiceRequestContext
-	): Promise<T | undefined> {
+	): Promise<(T & { partitionId?: string }) | undefined> {
 		Guards.stringValue("ScyllaDBEntity", nameof(id), id);
 
 		let connection;
@@ -117,12 +117,15 @@ export abstract class AbstractScyllaDBEntity<T> {
 				data: sql
 			});
 
-			connection = await this.openConnection(this._config);
+			connection = await this.openConnection(this._config, requestContext?.partitionId);
 
 			const result = await this.queryDB(connection, sql, [id]);
 
 			if (result.rows.length === 1) {
-				return this.convertRowToObject(result.rows[0]) as T;
+				return {
+					...(this.convertRowToObject(result.rows[0]) as T),
+					partitionId: requestContext?.partitionId
+				};
 			}
 		} catch (error) {
 			throw new GeneralError(
@@ -240,7 +243,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 				sql += ` WHERE ${conditionQuery}`;
 			}
 
-			connection = await this.openConnection(this._config);
+			connection = await this.openConnection(this._config, requestContext?.partitionId);
 
 			const countQuery = sql.replace("SELECT *", "SELECT COUNT(*) AS totalEntities");
 			const countResults = await this.queryDB(
