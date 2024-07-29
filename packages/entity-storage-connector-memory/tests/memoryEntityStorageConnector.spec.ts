@@ -425,16 +425,16 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		for (let i = 0; i < 30; i++) {
+		for (let i = 0; i < 100; i++) {
 			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ id: (i + 1).toString(), value1: "aaa", value2: i % 3 === 0 ? "ccc" : "bbb" },
 				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
 		const result = await entityStorage.query(
 			{
-				property: "id",
-				value: "20",
+				property: "value2",
+				value: "ccc",
 				operator: ComparisonOperator.Equals
 			},
 			undefined,
@@ -444,10 +444,10 @@ describe("MemoryEntityStorageConnector", () => {
 			{ partitionId: TEST_PARTITION_ID }
 		);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(30);
+		expect(result.entities.length).toEqual(20);
+		expect(result.totalEntities).toEqual(34);
 		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toBeUndefined();
+		expect(result.cursor).toEqual("58");
 	});
 
 	test("can find items with multiple entries and apply custom sort", async () => {

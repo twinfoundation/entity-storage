@@ -76,7 +76,7 @@ describe("FileEntityStorageConnector", () => {
 		LoggingConnectorFactory.register("system-logging", () => systemLoggingConnector);
 	});
 
-	afterAll(async () => {
+	afterEach(async () => {
 		try {
 			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
 		} catch {}
@@ -218,10 +218,11 @@ describe("FileEntityStorageConnector", () => {
 			}
 		});
 		await entityStorage.bootstrap();
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(1);
-		expect(logs?.[0].message).toEqual("directoryExists");
+		expect(logs?.length).toEqual(3);
+		expect(logs?.[2].message).toEqual("directoryExists");
 		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryExists")).toEqual(true);
 	});
 
@@ -264,6 +265,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -284,6 +286,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -328,6 +331,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -342,6 +346,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -360,6 +365,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -377,6 +383,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -431,6 +438,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -449,6 +457,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -466,6 +475,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		const result = await entityStorage.query(
 			undefined,
 			undefined,
@@ -486,6 +496,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set(
 			{ id: "1", value1: "aaa", value2: "bbb" },
 			{ partitionId: TEST_PARTITION_ID }
@@ -510,6 +521,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
@@ -536,6 +548,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
@@ -570,16 +583,17 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
-		for (let i = 0; i < 30; i++) {
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 100; i++) {
 			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
+				{ id: (i + 1).toString(), value1: "aaa", value2: i % 3 === 0 ? "ccc" : "bbb" },
 				{ partitionId: TEST_PARTITION_ID }
 			);
 		}
 		const result = await entityStorage.query(
 			{
-				property: "id",
-				value: "20",
+				property: "value2",
+				value: "ccc",
 				operator: ComparisonOperator.Equals
 			},
 			undefined,
@@ -589,10 +603,10 @@ describe("FileEntityStorageConnector", () => {
 			{ partitionId: TEST_PARTITION_ID }
 		);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(30);
+		expect(result.entities.length).toEqual(20);
+		expect(result.totalEntities).toEqual(34);
 		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toBeUndefined();
+		expect(result.cursor).toEqual("58");
 	});
 
 	test("can query items with multiple entries and apply custom sort", async () => {
@@ -600,6 +614,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" },
@@ -632,6 +647,7 @@ describe("FileEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
 				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
@@ -654,10 +670,6 @@ describe("FileEntityStorageConnector", () => {
 	});
 
 	test("can query items with wildcard partition id", async () => {
-		try {
-			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
-		} catch {}
-
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }

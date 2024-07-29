@@ -291,6 +291,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		const entities = [];
 		const finalPageSize = pageSize ?? FileEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
+		let totalEntities = 0;
+
 		if (allEntities.length > 0) {
 			const finalSortKeys = EntitySchemaHelper.buildSortProperties<T>(
 				this._entitySchema,
@@ -299,13 +301,16 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			allEntities = EntitySorter.sort(allEntities, finalSortKeys);
 
 			const startIndex = Coerce.number(cursor) ?? 0;
+			totalEntities = startIndex;
 
 			for (let i = startIndex; i < allEntities.length; i++) {
 				if (EntityConditions.check(allEntities[i], conditions)) {
-					entities.push(ObjectHelper.pick(allEntities[i], properties));
-					if (entities.length >= finalPageSize) {
-						nextCursor = (i + 1).toString();
-						break;
+					totalEntities++;
+					if (entities.length < finalPageSize) {
+						entities.push(ObjectHelper.pick(allEntities[i], properties));
+						if (entities.length >= finalPageSize) {
+							nextCursor = (i + 1).toString();
+						}
 					}
 				}
 			}
@@ -315,7 +320,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			entities,
 			cursor: nextCursor,
 			pageSize: finalPageSize,
-			totalEntities: allEntities.length
+			totalEntities
 		};
 	}
 
