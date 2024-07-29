@@ -1,11 +1,11 @@
-# GTSC Entity Storage Connector File
+# GTSC Entity Storage Connector ScyllaDB
 
-Entity Storage connector implementation using file storage.
+Entity Storage connector implementation using ScyllaDB.
 
 ## Installation
 
 ```shell
-npm install @gtsc/entity-storage-connector-file
+npm install @gtsc/entity-storage-connector-scylladb
 ```
 
 ## Examples
