@@ -1,7 +1,14 @@
 {
+	"info": {
+		"scyllaDBEntityStorageConnector": {
+			"tableCreating": "Creating table \"{table}\"",
+			"tableCreated": "Created table \"{table}\"",
+			"tableExists": "Skipping create table \"{table}\" as it already exists"
+		}
+	},
 	"error": {
-		"fileEntityStorageConnector": {
-			"directoryCreateFailed": "Creating directory \"{directory}\" failed"
+		"scyllaDBEntityStorageConnector": {
+			"tableCreateFailed": "Creating table \"{directory}\" failed"
 		}
 	}
 }

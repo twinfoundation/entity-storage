@@ -3,7 +3,6 @@
 /* eslint-disable max-classes-per-file */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { readFile, rm } from "node:fs/promises";
 import { I18n } from "@gtsc/core";
 import {
 	ComparisonOperator,
@@ -26,9 +25,15 @@ import { nameof } from "@gtsc/nameof";
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
 import { ScyllaDBEntityConnector } from "../src/scyllaDBEntityConnector";
 
+/**
+ * Test SubType Definition.
+ */
 @entity()
 class SubType {
-	@property({ type: "string" })
+	/**
+	 * Field1.
+	 */
+	@property({ type: "string", format: "date-time" })
 	public field1!: string;
 }
 
@@ -52,8 +57,8 @@ class TestType {
 	/**
 	 * Value2.
 	 */
-	@property({ type: "string" })
-	public value2!: string;
+	@property({ type: "number", format: "uint8" })
+	public value2!: number;
 
 	/**
 	 * Value3.
@@ -66,6 +71,8 @@ let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 
 const TEST_PARTITION_ID = "test-partition";
 const TEST_PARTITION_ID2 = "test-partition2";
+
+const TABLE_NAME = "test-table";
 
 describe("ScyllaDBEntityConnector", () => {
 	beforeAll(async () => {
@@ -174,67 +181,76 @@ describe("ScyllaDBEntityConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: "test1",
-				hosts: ["localhost"]
+				hosts: ["localhost"],
+				localDataCenter: "datacenter1"
 			}
 		});
 		expect(entityStorage).toBeDefined();
 	});
 
-	test("can fail to bootstrap with invalid host", async () => {
+	test.skip("can fail to bootstrap with invalid host", async () => {
 		const entityStorage = new ScyllaDBEntityConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
 				hosts: ["example.org"],
-				tableName: "test1"
-			}
-		});
-		await entityStorage.bootstrap(TEST_PARTITION_ID);
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
-		/*
-		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(2);
-		expect(logs?.[0].message).toEqual("directoryCreating");
-		expect(logs?.[1].message).toEqual("directoryCreateFailed");
-		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreating")).toEqual(true);
-		expect(I18n.hasMessage("error.fileEntityStorageConnector.directoryCreateFailed")).toEqual(true); */
-	});
-	/*
-	test("can bootstrap and create directory", async () => {
-		const entityStorage = new FileEntityStorageConnector({
-			entitySchema: nameof<TestType>(),
-			config: {
-				directory: TEST_DIRECTORY
+				tableName: "test1",
+				localDataCenter: "datacenter1"
 			}
 		});
 		await entityStorage.bootstrap(TEST_PARTITION_ID);
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
-		expect(logs?.[0].message).toEqual("directoryCreating");
-		expect(logs?.[1].message).toEqual("directoryCreated");
-		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreating")).toEqual(true);
-		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreated")).toEqual(true);
+		expect(logs?.[0].message).toEqual("tableCreating");
+		expect(logs?.[1].message).toEqual("tableCreateFailed");
+		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
+		expect(I18n.hasMessage("error.scyllaDBEntityStorageConnector.tableCreateFailed")).toEqual(true);
 	});
 
-	test("can bootstrap and skip existing directory", async () => {
-		const entityStorage = new FileEntityStorageConnector({
+	test("can bootstrap and create table", async () => {
+		const entityStorage = new ScyllaDBEntityConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
-				directory: TEST_DIRECTORY
+				tableName: TABLE_NAME,
+				hosts: ["localhost:9042"],
+				localDataCenter: "datacenter1"
+			}
+		});
+		await entityStorage.bootstrap(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		expect(logs).toBeDefined();
+		expect(logs?.length).toEqual(2);
+		expect(logs?.[0].message).toEqual("tableCreating");
+		expect(logs?.[1].message).toEqual("tableCreated");
+		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
+	});
+
+	test("can bootstrap and skip existing table", async () => {
+		const entityStorage = new ScyllaDBEntityConnector({
+			entitySchema: nameof<TestType>(),
+			config: {
+				tableName: TABLE_NAME,
+				hosts: ["localhost"],
+				localDataCenter: "datacenter1"
 			}
 		});
 		await entityStorage.bootstrap(TEST_PARTITION_ID);
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(1);
-		expect(logs?.[0].message).toEqual("directoryExists");
-		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryExists")).toEqual(true);
+		expect(logs?.[0].message).toEqual("tableExists");
+		expect(I18n.hasMessage("info.fileEntityStorageConnector.tableExists")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBEntityConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: {
+				tableName: TABLE_NAME,
+				hosts: ["localhost"],
+				localDataCenter: "datacenter1"
+			}
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -247,14 +263,16 @@ describe("ScyllaDBEntityConnector", () => {
 	});
 
 	test("can fail to set an item with no partition id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBEntityConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: {
-				directory: TEST_DIRECTORY
+				tableName: TABLE_NAME,
+				hosts: ["localhost"],
+				localDataCenter: "datacenter1"
 			}
 		});
 		await expect(
-			entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" })
+			entityStorage.set({ id: "1", value1: "aaa", value2: 35, value3: { field1: "f" } })
 		).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -264,7 +282,7 @@ describe("ScyllaDBEntityConnector", () => {
 			}
 		});
 	});
-
+	/*
 	test("can set an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),

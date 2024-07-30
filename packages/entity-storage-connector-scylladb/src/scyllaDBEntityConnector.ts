@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 
-import { BaseError, GeneralError, Guards, type IError, Is } from "@gtsc/core";
+import { BaseError, GeneralError, Guards, type IError, Is, StringHelper } from "@gtsc/core";
 import {
 	EntitySchemaFactory,
 	EntitySchemaPropertyType,
@@ -43,7 +43,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 				source: this.CLASS_NAME,
 				ts: Date.now(),
 				message: "tableCreating",
-				data: this.fullTableName
+				data: { table: this.fullTableName }
 			},
 			{ partitionId: systemPartitionId }
 		);
@@ -51,11 +51,11 @@ export class ScyllaDBEntityConnector<T = unknown>
 		try {
 			let dbConnection = await this.openConnection(this._config);
 
-			await this.createKeyspace(dbConnection, systemPartitionId);
+			await this.createKeyspace(dbConnection, StringHelper.camelCase(systemPartitionId));
 
 			// Connection has to be closed and now open a new one with our keyspace
 			await this.closeConnection(dbConnection);
-			dbConnection = await this.openConnection(this._config, systemPartitionId);
+			dbConnection = await this.openConnection(this._config, StringHelper.camelCase(systemPartitionId));
 
 			// Need to find structured properties (declared as type: object)
 			const structuredProperties = this._entitySchema.properties?.filter(
@@ -69,6 +69,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 				for (const strProperty of structuredProperties) {
 					const subTypeSchemaRef = strProperty.itemTypeRef;
 					if (!Is.undefined(subTypeSchemaRef)) {
+						console.log(subTypeSchemaRef);
 						const objSchema = EntitySchemaFactory.get(subTypeSchemaRef);
 						const typeFields: string[] = [];
 						for (const field of objSchema.properties ?? []) {
@@ -134,11 +135,12 @@ export class ScyllaDBEntityConnector<T = unknown>
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "tableCreated",
-					data: this.fullTableName
+					data: { table: this.fullTableName }
 				},
 				{ partitionId: systemPartitionId }
 			);
 		} catch (err) {
+			console.log(err);
 			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
 				await this._logging.log(
 					{
@@ -146,7 +148,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 						source: this.CLASS_NAME,
 						ts: Date.now(),
 						message: "tableExists",
-						data: this.fullTableName
+						data: { table: this.fullTableName }
 					},
 					{ partitionId: systemPartitionId }
 				);
@@ -158,7 +160,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 						ts: Date.now(),
 						message: "tableCreateFailed",
 						error: err as IError,
-						data: this.fullTableName
+						data: { table: this.fullTableName }
 					},
 					{ partitionId: systemPartitionId }
 				);
@@ -173,6 +175,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 */
 	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
 
 		let connection;
 		const id = entity[this._primaryKey?.property];
@@ -217,7 +220,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, requestContext?.partitionId);
+			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
 
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
@@ -252,6 +255,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 */
 	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
 
 		let connection;
 		const primaryFieldValue = this.propertyToDbValue(id, this._primaryKey);
@@ -270,7 +274,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, requestContext?.partitionId);
+			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
 
 			await this.execute(connection, sql, [primaryFieldValue]);
 		} catch (error) {

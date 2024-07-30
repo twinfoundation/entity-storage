@@ -77,6 +77,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 		entitySchema: string;
 		config: IScyllaDBTableConfig;
 	}) {
+		console.log(options);
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object<IScyllaDBTableConfig>(this.CLASS_NAME, nameof(options.config), options.config);
@@ -103,6 +104,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 		requestContext?: IServiceRequestContext
 	): Promise<(T & { partitionId?: string }) | undefined> {
 		Guards.stringValue("ScyllaDBEntity", nameof(id), id);
+		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
 
 		let connection;
 		try {
@@ -121,7 +123,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, requestContext?.partitionId);
+			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
 
 			const result = await this.queryDB(connection, sql, [id]);
 
@@ -187,6 +189,8 @@ export abstract class AbstractScyllaDBEntity<T> {
 	}> {
 		let connection;
 		try {
+			Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
+
 			const returnSize = pageSize ?? AbstractScyllaDBEntity.PAGE_SIZE;
 			let sql = `SELECT * FROM "${this.fullTableName}"`;
 
@@ -247,7 +251,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 				sql += ` WHERE ${conditionQuery}`;
 			}
 
-			connection = await this.openConnection(this._config, requestContext?.partitionId);
+			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
 
 			const countQuery = sql.replace("SELECT *", "SELECT COUNT(*) AS totalEntities");
 			const countResults = await this.queryDB(
@@ -317,6 +321,8 @@ export abstract class AbstractScyllaDBEntity<T> {
 			localDataCenter: config.localDataCenter,
 			keyspace
 		});
+
+		console.log(config);
 
 		await client.connect();
 
