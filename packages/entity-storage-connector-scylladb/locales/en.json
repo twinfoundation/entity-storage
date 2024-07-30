@@ -1,0 +1,7 @@
+{
+	"error": {
+		"fileEntityStorageConnector": {
+			"directoryCreateFailed": "Creating directory \"{directory}\" failed"
+		}
+	}
+}

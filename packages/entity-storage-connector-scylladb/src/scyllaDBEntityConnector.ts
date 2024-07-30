@@ -15,7 +15,7 @@ import { AbstractScyllaDBEntity } from "./abstractScyllaDBEntity";
 /**
  * Store entities using ScyllaDB.
  */
-export class ScyllaDBEntityStorage<T = unknown>
+export class ScyllaDBEntityConnector<T = unknown>
 	extends AbstractScyllaDBEntity<T>
 	implements IEntityStorageConnector<T>
 {
@@ -29,7 +29,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 	 * Runtime name for the class.
 	 * @internal
 	 */
-	public override readonly CLASS_NAME: string = nameof<ScyllaDBEntityStorage>();
+	public override readonly CLASS_NAME: string = nameof<ScyllaDBEntityConnector>();
 
 	/**
 	 * Bootstrap the service by creating and initializing any resources it needs.
@@ -262,7 +262,7 @@ export class ScyllaDBEntityStorage<T = unknown>
 	 * @returns The entitty storage page size.
 	 */
 	public pageSize(): number {
-		return ScyllaDBEntityStorage._PAGE_SIZE;
+		return ScyllaDBEntityConnector._PAGE_SIZE;
 	}
 
 	/**

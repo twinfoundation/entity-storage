@@ -12,9 +12,9 @@ export interface IScyllaDBConfig {
 	/**
 	 * The local data center.
 	 */
-	localDataCenter: string;
+	localDataCenter?: string;
 	/**
 	 * The keyspace to use.
 	 */
-	keyspace: string;
+	keyspace?: string;
 }
