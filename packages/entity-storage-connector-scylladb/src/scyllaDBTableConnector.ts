@@ -10,13 +10,13 @@ import {
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
-import { AbstractScyllaDBEntity } from "./abstractScyllaDBEntity";
+import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
 
 /**
  * Store entities using ScyllaDB.
  */
-export class ScyllaDBEntityConnector<T = unknown>
-	extends AbstractScyllaDBEntity<T>
+export class ScyllaDBTableConnector<T = unknown>
+	extends AbstractScyllaDBConnector<T>
 	implements IEntityStorageConnector<T>
 {
 	/**
@@ -29,7 +29,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 * Runtime name for the class.
 	 * @internal
 	 */
-	public override readonly CLASS_NAME: string = nameof<ScyllaDBEntityConnector>();
+	public override readonly CLASS_NAME: string = nameof<ScyllaDBTableConnector>();
 
 	/**
 	 * Bootstrap the service by creating and initializing any resources it needs.
@@ -55,7 +55,10 @@ export class ScyllaDBEntityConnector<T = unknown>
 
 			// Connection has to be closed and now open a new one with our keyspace
 			await this.closeConnection(dbConnection);
-			dbConnection = await this.openConnection(this._config, StringHelper.camelCase(systemPartitionId));
+			dbConnection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(systemPartitionId)
+			);
 
 			// Need to find structured properties (declared as type: object)
 			const structuredProperties = this._entitySchema.properties?.filter(
@@ -69,7 +72,6 @@ export class ScyllaDBEntityConnector<T = unknown>
 				for (const strProperty of structuredProperties) {
 					const subTypeSchemaRef = strProperty.itemTypeRef;
 					if (!Is.undefined(subTypeSchemaRef)) {
-						console.log(subTypeSchemaRef);
 						const objSchema = EntitySchemaFactory.get(subTypeSchemaRef);
 						const typeFields: string[] = [];
 						for (const field of objSchema.properties ?? []) {
@@ -83,13 +85,24 @@ export class ScyllaDBEntityConnector<T = unknown>
 								level: "info",
 								source: this.CLASS_NAME,
 								ts: Date.now(),
-								message: "entityStorage.sqlCreateType",
+								message: "sqlCreateType",
 								data: sql
 							},
 							{ partitionId: systemPartitionId }
 						);
 
 						await this.execute(dbConnection, sql);
+
+						await this._logging.log(
+							{
+								level: "info",
+								source: this.CLASS_NAME,
+								ts: Date.now(),
+								message: "typeCreated",
+								data: { typeName: subTypeSchemaRef }
+							},
+							{ partitionId: systemPartitionId }
+						);
 					}
 				}
 			}
@@ -121,7 +134,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "entityStorage.sqlCreateTable",
+					message: "sqlCreateTable",
 					data: sql
 				},
 				{ partitionId: systemPartitionId }
@@ -175,7 +188,11 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 */
 	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(requestContext?.partitionId),
+			requestContext?.partitionId
+		);
 
 		let connection;
 		const id = entity[this._primaryKey?.property];
@@ -220,7 +237,10 @@ export class ScyllaDBEntityConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext?.partitionId)
+			);
 
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
@@ -255,7 +275,11 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 */
 	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(requestContext?.partitionId),
+			requestContext?.partitionId
+		);
 
 		let connection;
 		const primaryFieldValue = this.propertyToDbValue(id, this._primaryKey);
@@ -274,7 +298,10 @@ export class ScyllaDBEntityConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext?.partitionId)
+			);
 
 			await this.execute(connection, sql, [primaryFieldValue]);
 		} catch (error) {
@@ -296,7 +323,7 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 * @returns The entitty storage page size.
 	 */
 	public pageSize(): number {
-		return ScyllaDBEntityConnector._PAGE_SIZE;
+		return ScyllaDBTableConnector._PAGE_SIZE;
 	}
 
 	/**

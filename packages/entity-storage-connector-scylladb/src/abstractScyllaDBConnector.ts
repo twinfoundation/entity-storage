@@ -23,7 +23,7 @@ import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
 /**
  * Store entities using ScyllaDB.
  */
-export abstract class AbstractScyllaDBEntity<T> {
+export abstract class AbstractScyllaDBConnector<T> {
 	/**
 	 * Limit the number of entities when finding.
 	 * @internal
@@ -104,7 +104,11 @@ export abstract class AbstractScyllaDBEntity<T> {
 		requestContext?: IServiceRequestContext
 	): Promise<(T & { partitionId?: string }) | undefined> {
 		Guards.stringValue("ScyllaDBEntity", nameof(id), id);
-		Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(requestContext?.partitionId),
+			requestContext?.partitionId
+		);
 
 		let connection;
 		try {
@@ -123,7 +127,10 @@ export abstract class AbstractScyllaDBEntity<T> {
 				requestContext
 			);
 
-			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext?.partitionId)
+			);
 
 			const result = await this.queryDB(connection, sql, [id]);
 
@@ -189,9 +196,13 @@ export abstract class AbstractScyllaDBEntity<T> {
 	}> {
 		let connection;
 		try {
-			Guards.stringValue(this.CLASS_NAME, nameof(requestContext?.partitionId), requestContext?.partitionId);
+			Guards.stringValue(
+				this.CLASS_NAME,
+				nameof(requestContext?.partitionId),
+				requestContext?.partitionId
+			);
 
-			const returnSize = pageSize ?? AbstractScyllaDBEntity.PAGE_SIZE;
+			const returnSize = pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE;
 			let sql = `SELECT * FROM "${this.fullTableName}"`;
 
 			const conds: string[] = [];
@@ -251,7 +262,10 @@ export abstract class AbstractScyllaDBEntity<T> {
 				sql += ` WHERE ${conditionQuery}`;
 			}
 
-			connection = await this.openConnection(this._config, StringHelper.camelCase(requestContext?.partitionId));
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext?.partitionId)
+			);
 
 			const countQuery = sql.replace("SELECT *", "SELECT COUNT(*) AS totalEntities");
 			const countResults = await this.queryDB(
@@ -366,7 +380,7 @@ export abstract class AbstractScyllaDBEntity<T> {
 				{
 					prepare: true,
 					autoPage: false,
-					fetchSize: pageSize ?? AbstractScyllaDBEntity.PAGE_SIZE,
+					fetchSize: pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE,
 					pageState
 				},
 				(n: number, row: CassandraTypes.Row) => {

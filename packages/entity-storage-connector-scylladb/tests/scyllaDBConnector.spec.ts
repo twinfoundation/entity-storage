@@ -23,7 +23,7 @@ import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
-import { ScyllaDBEntityConnector } from "../src/scyllaDBEntityConnector";
+import { ScyllaDBTableConnector } from "../src/scyllaDBTableConnector";
 
 /**
  * Test SubType Definition.
@@ -79,6 +79,7 @@ describe("ScyllaDBEntityConnector", () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
 		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
+		EntitySchemaFactory.register(nameof<SubType>(), () => EntitySchemaHelper.getSchema(SubType));
 		initSchema();
 	});
 
@@ -95,7 +96,7 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can fail to construct when there is no options", async () => {
 		expect(
 			() =>
-				new ScyllaDBEntityConnector(
+				new ScyllaDBTableConnector(
 					undefined as unknown as {
 						loggingConnectorType?: string;
 						entitySchema: string;
@@ -117,7 +118,7 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can fail to construct when there is no schema", async () => {
 		expect(
 			() =>
-				new ScyllaDBEntityConnector(
+				new ScyllaDBTableConnector(
 					{} as unknown as {
 						loggingConnectorType?: string;
 						entitySchema: string;
@@ -139,7 +140,7 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can fail to construct when there is no config", async () => {
 		expect(
 			() =>
-				new ScyllaDBEntityConnector({ entitySchema: "test" } as unknown as {
+				new ScyllaDBTableConnector({ entitySchema: "test" } as unknown as {
 					loggingConnectorType?: string;
 					entitySchema: string;
 					config: IScyllaDBTableConfig;
@@ -159,7 +160,7 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can fail to construct when there is no config", async () => {
 		expect(
 			() =>
-				new ScyllaDBEntityConnector({ entitySchema: "test", config: {} } as unknown as {
+				new ScyllaDBTableConnector({ entitySchema: "test", config: {} } as unknown as {
 					loggingConnectorType?: string;
 					entitySchema: string;
 					config: IScyllaDBTableConfig;
@@ -177,7 +178,7 @@ describe("ScyllaDBEntityConnector", () => {
 	});
 
 	test("can construct", async () => {
-		const entityStorage = new ScyllaDBEntityConnector({
+		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: "test1",
@@ -189,7 +190,7 @@ describe("ScyllaDBEntityConnector", () => {
 	});
 
 	test.skip("can fail to bootstrap with invalid host", async () => {
-		const entityStorage = new ScyllaDBEntityConnector({
+		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
 				hosts: ["example.org"],
@@ -203,12 +204,13 @@ describe("ScyllaDBEntityConnector", () => {
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("tableCreating");
 		expect(logs?.[1].message).toEqual("tableCreateFailed");
-		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
-		expect(I18n.hasMessage("error.scyllaDBEntityStorageConnector.tableCreateFailed")).toEqual(true);
+
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.tableCreating")).toEqual(true);
+		expect(I18n.hasMessage("error.scyllaDBTableConnector.tableCreateFailed")).toEqual(true);
 	});
 
 	test("can bootstrap and create table", async () => {
-		const entityStorage = new ScyllaDBEntityConnector({
+		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: TABLE_NAME,
@@ -219,15 +221,20 @@ describe("ScyllaDBEntityConnector", () => {
 		await entityStorage.bootstrap(TEST_PARTITION_ID);
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(2);
+		expect(logs?.length).toEqual(5);
 		expect(logs?.[0].message).toEqual("tableCreating");
-		expect(logs?.[1].message).toEqual("tableCreated");
-		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
-		expect(I18n.hasMessage("info.scyllaDBEntityStorageConnector.tableCreating")).toEqual(true);
+		expect(logs?.[1].message).toEqual("sqlCreateType");
+		expect(logs?.[2].message).toEqual("typeCreated");
+		expect(logs?.[3].message).toEqual("sqlCreateTable");
+		expect(logs?.[4].message).toEqual("tableCreated");
+
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.typeCreated")).toEqual(true);
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.sqlCreateType")).toEqual(true);
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.sqlCreateTable")).toEqual(true);
 	});
 
 	test("can bootstrap and skip existing table", async () => {
-		const entityStorage = new ScyllaDBEntityConnector({
+		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: TABLE_NAME,
@@ -240,11 +247,12 @@ describe("ScyllaDBEntityConnector", () => {
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(1);
 		expect(logs?.[0].message).toEqual("tableExists");
-		expect(I18n.hasMessage("info.fileEntityStorageConnector.tableExists")).toEqual(true);
+
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.tableExists")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new ScyllaDBEntityConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: TABLE_NAME,
@@ -263,7 +271,7 @@ describe("ScyllaDBEntityConnector", () => {
 	});
 
 	test("can fail to set an item with no partition id", async () => {
-		const entityStorage = new ScyllaDBEntityConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: {
 				tableName: TABLE_NAME,

@@ -1,14 +1,17 @@
 {
 	"info": {
-		"scyllaDBEntityStorageConnector": {
+		"scyllaDBTableConnector": {
 			"tableCreating": "Creating table \"{table}\"",
 			"tableCreated": "Created table \"{table}\"",
-			"tableExists": "Skipping create table \"{table}\" as it already exists"
+			"tableExists": "Skipping create table \"{table}\" as it already exists",
+			"typeCreated": "Created type \"{typeName}\"",
+			"sqlCreateTable": "SQL: \"{sql}\"",
+			"sqlCreateType": "SQL: \"{sql}\""
 		}
 	},
 	"error": {
-		"scyllaDBEntityStorageConnector": {
-			"tableCreateFailed": "Creating table \"{directory}\" failed"
+		"scyllaDBTableConnector": {
+			"tableCreateFailed": "Creating table \"{table}\" failed"
 		}
 	}
 }

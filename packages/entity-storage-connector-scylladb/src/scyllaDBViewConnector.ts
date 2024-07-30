@@ -5,21 +5,21 @@ import { EntitySchemaHelper, type IEntitySchema } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
-import { AbstractScyllaDBEntity } from "./abstractScyllaDBEntity";
+import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
 import type { IScyllaDBViewConfig } from "./models/IScyllaDBViewConfig";
 
 /**
  * Manage entities using ScyllaDB Views.
  */
-export class ScyllaDBEntityViewConnector<T, U>
-	extends AbstractScyllaDBEntity<U>
+export class ScyllaDBViewConnector<T, U>
+	extends AbstractScyllaDBConnector<U>
 	implements IEntityStorageConnector<U>
 {
 	/**
 	 * Runtime name for the class.
 	 * @internal
 	 */
-	public override readonly CLASS_NAME: string = nameof<ScyllaDBEntityViewConnector<T, U>>();
+	public override readonly CLASS_NAME: string = nameof<ScyllaDBViewConnector<T, U>>();
 
 	/**
 	 * The view descriptor.
