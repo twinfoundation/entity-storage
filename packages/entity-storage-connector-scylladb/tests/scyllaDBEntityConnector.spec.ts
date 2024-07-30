@@ -26,6 +26,11 @@ import { nameof } from "@gtsc/nameof";
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
 import { ScyllaDBEntityConnector } from "../src/scyllaDBEntityConnector";
 
+@entity()
+class SubType {
+	@property({ type: "string" })
+	public field1!: string;
+}
 
 /**
  * Test Type Definition.
@@ -57,17 +62,10 @@ class TestType {
 	public value3!: SubType;
 }
 
-@entity()
-class SubType {
-	@property({ type: "string" })
-	public field1!: string;
-}
-
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 
 const TEST_PARTITION_ID = "test-partition";
 const TEST_PARTITION_ID2 = "test-partition2";
-
 
 describe("ScyllaDBEntityConnector", () => {
 	beforeAll(async () => {
@@ -85,8 +83,7 @@ describe("ScyllaDBEntityConnector", () => {
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
 	});
 
-	afterAll(async () => {
-	});
+	afterAll(async () => {});
 
 	test("can fail to construct when there is no options", async () => {
 		expect(
@@ -165,7 +162,7 @@ describe("ScyllaDBEntityConnector", () => {
 				name: "GuardError",
 				message: "guard.string",
 				properties: {
-					property: "options.config.directory",
+					property: "options.config.tableName",
 					value: "undefined"
 				}
 			})
@@ -201,7 +198,7 @@ describe("ScyllaDBEntityConnector", () => {
 		expect(I18n.hasMessage("info.fileEntityStorageConnector.directoryCreating")).toEqual(true);
 		expect(I18n.hasMessage("error.fileEntityStorageConnector.directoryCreateFailed")).toEqual(true); */
 	});
-/*
+	/*
 	test("can bootstrap and create directory", async () => {
 		const entityStorage = new FileEntityStorageConnector({
 			entitySchema: nameof<TestType>(),

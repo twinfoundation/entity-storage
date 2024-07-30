@@ -37,13 +37,16 @@ export class ScyllaDBEntityConnector<T = unknown>
 	 * @returns The response of the bootstrapping as log entries.
 	 */
 	public async bootstrap(systemPartitionId: string): Promise<void> {
-		this._logging.log({
-			level: "info",
-			source: this.CLASS_NAME,
-			ts: Date.now(),
-			message: "tableCreating",
-			data: this.fullTableName
-		});
+		this._logging.log(
+			{
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "tableCreating",
+				data: this.fullTableName
+			},
+			{ partitionId: systemPartitionId }
+		);
 
 		try {
 			let dbConnection = await this.openConnection(this._config);
@@ -74,13 +77,16 @@ export class ScyllaDBEntityConnector<T = unknown>
 						const sql = `CREATE TYPE IF NOT EXISTS
 																		"${subTypeSchemaRef}" (${typeFields.join(",")})`;
 
-						await this._logging.log({
-							level: "info",
-							source: this.CLASS_NAME,
-							ts: Date.now(),
-							message: "entityStorage.sqlCreateType",
-							data: sql
-						});
+						await this._logging.log(
+							{
+								level: "info",
+								source: this.CLASS_NAME,
+								ts: Date.now(),
+								message: "entityStorage.sqlCreateType",
+								data: sql
+							},
+							{ partitionId: systemPartitionId }
+						);
 
 						await this.execute(dbConnection, sql);
 					}
@@ -109,41 +115,53 @@ export class ScyllaDBEntityConnector<T = unknown>
 
 			const sql = `CREATE TABLE IF NOT EXISTS "${this.fullTableName}" (${fields.join(",")})`;
 
-			await this._logging.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.sqlCreateTable",
-				data: sql
-			});
-
-			await this.execute(dbConnection, sql);
-
-			await this._logging.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "tableCreated",
-				data: this.fullTableName
-			});
-		} catch (err) {
-			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-				await this._logging.log({
+			await this._logging.log(
+				{
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "tableExists",
-					data: this.fullTableName
-				});
-			} else {
-				await this._logging.log({
-					level: "error",
+					message: "entityStorage.sqlCreateTable",
+					data: sql
+				},
+				{ partitionId: systemPartitionId }
+			);
+
+			await this.execute(dbConnection, sql);
+
+			await this._logging.log(
+				{
+					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "tableCreateFailed",
-					error: err as IError,
+					message: "tableCreated",
 					data: this.fullTableName
-				});
+				},
+				{ partitionId: systemPartitionId }
+			);
+		} catch (err) {
+			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
+				await this._logging.log(
+					{
+						level: "info",
+						source: this.CLASS_NAME,
+						ts: Date.now(),
+						message: "tableExists",
+						data: this.fullTableName
+					},
+					{ partitionId: systemPartitionId }
+				);
+			} else {
+				await this._logging.log(
+					{
+						level: "error",
+						source: this.CLASS_NAME,
+						ts: Date.now(),
+						message: "tableCreateFailed",
+						error: err as IError,
+						data: this.fullTableName
+					},
+					{ partitionId: systemPartitionId }
+				);
 			}
 		}
 	}
@@ -172,12 +190,15 @@ export class ScyllaDBEntityConnector<T = unknown>
 			}
 
 			if (propNames.length === 0) {
-				await this._logging.log({
-					level: "warn",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "entityStorage.sqlSetNoProperties"
-				});
+				await this._logging.log(
+					{
+						level: "warn",
+						source: this.CLASS_NAME,
+						ts: Date.now(),
+						message: "entityStorage.sqlSetNoProperties"
+					},
+					requestContext
+				);
 				return;
 			}
 
@@ -185,25 +206,31 @@ export class ScyllaDBEntityConnector<T = unknown>
 				","
 			)})`;
 
-			await this._logging.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.sqlSet",
-				data: sql
-			});
+			await this._logging.log(
+				{
+					level: "info",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "entityStorage.sqlSet",
+					data: sql
+				},
+				requestContext
+			);
 
 			connection = await this.openConnection(this._config, requestContext?.partitionId);
 
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
-			await this._logging.log({
-				level: "error",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.setFailed",
-				error: error as IError
-			});
+			await this._logging.log(
+				{
+					level: "error",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "entityStorage.setFailed",
+					error: error as IError
+				},
+				requestContext
+			);
 
 			throw new GeneralError(
 				this.CLASS_NAME,
@@ -232,13 +259,16 @@ export class ScyllaDBEntityConnector<T = unknown>
 		try {
 			const sql = `DELETE FROM "${this.fullTableName}" WHERE "${String(this._primaryKey?.property)}"=?`;
 
-			await this._logging.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.sqlRemove",
-				data: sql
-			});
+			await this._logging.log(
+				{
+					level: "info",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "entityStorage.sqlRemove",
+					data: sql
+				},
+				requestContext
+			);
 
 			connection = await this.openConnection(this._config, requestContext?.partitionId);
 

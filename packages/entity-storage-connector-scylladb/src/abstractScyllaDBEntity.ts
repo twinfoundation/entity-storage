@@ -77,8 +77,9 @@ export abstract class AbstractScyllaDBEntity<T> {
 		entitySchema: string;
 		config: IScyllaDBTableConfig;
 	}) {
-		Guards.object<IScyllaDBTableConfig>(this.CLASS_NAME, nameof(options.config), options.config);
+		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
+		Guards.object<IScyllaDBTableConfig>(this.CLASS_NAME, nameof(options.config), options.config);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.tableName), options.config.tableName);
 
 		this._logging = LoggingConnectorFactory.get(options.loggingConnectorType ?? "logging");
@@ -109,13 +110,16 @@ export abstract class AbstractScyllaDBEntity<T> {
 
 			const sql = `SELECT * FROM "${this.fullTableName}" WHERE "${String(indexField)}"= ?`;
 
-			await this._logging?.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.sqlGet",
-				data: sql
-			});
+			await this._logging?.log(
+				{
+					level: "info",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "entityStorage.sqlGet",
+					data: sql
+				},
+				requestContext
+			);
 
 			connection = await this.openConnection(this._config, requestContext?.partitionId);
 
@@ -265,13 +269,16 @@ export abstract class AbstractScyllaDBEntity<T> {
 				sql += ` ORDER BY "${String(sortKey)}" ${sortDir.toUpperCase()}`;
 			}
 
-			await this._logging?.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "entityStorage.sqlFind",
-				data: sql
-			});
+			await this._logging?.log(
+				{
+					level: "info",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "entityStorage.sqlFind",
+					data: sql
+				},
+				requestContext
+			);
 
 			// We just use the cursor
 			const result = await this.queryDB(connection, sql, params, cursor, returnSize);
