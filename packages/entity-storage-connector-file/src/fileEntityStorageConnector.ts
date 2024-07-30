@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BaseError, Coerce, Guards, Is, ObjectHelper } from "@gtsc/core";
+import { BaseError, Coerce, GeneralError, Guards, Is, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
 	EntitySchemaFactory,
@@ -99,6 +99,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				});
+
+				await this.writePartitionIndex([]);
 			} catch (err) {
 				await systemLogging?.log({
 					level: "error",
@@ -181,6 +183,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			requestContext?.partitionId
 		);
 
+		const partitionIndex = await this.readPartitionIndex();
+
 		const store = await this.readPartitionStore(requestContext.partitionId);
 
 		const existingIndex = store.findIndex(
@@ -194,7 +198,6 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 		await this.writePartitionStore(requestContext.partitionId, store);
 
-		const partitionIndex = await this.readPartitionIndex();
 		if (!partitionIndex.includes(requestContext.partitionId)) {
 			partitionIndex.push(requestContext.partitionId);
 			await this.writePartitionIndex(partitionIndex);
@@ -215,6 +218,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			requestContext?.partitionId
 		);
 
+		const partitionIndex = await this.readPartitionIndex();
+
 		const store = await this.readPartitionStore(requestContext.partitionId);
 
 		const index = store.findIndex(e => e[this._primaryKey.property] === id);
@@ -224,7 +229,6 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 		await this.writePartitionStore(requestContext.partitionId, store);
 
-		const partitionIndex = await this.readPartitionIndex();
 		const partitionIdx = partitionIndex.indexOf(requestContext.partitionId);
 		if (partitionIdx >= 0 && store.length === 0) {
 			partitionIndex.splice(partitionIdx, 1);
@@ -329,12 +333,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns The partition index.
 	 */
 	private async readPartitionIndex(): Promise<string[]> {
+		const filename = path.join(this._directory, "partition-index.json");
 		try {
-			const filename = path.join(this._directory, "partition-index.json");
 			const store = await readFile(filename, "utf8");
 			return JSON.parse(store) as string[];
 		} catch {
-			return [];
+			throw new GeneralError(this.CLASS_NAME, "notBootstrapped", { filename });
 		}
 	}
 
@@ -344,10 +348,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @returns Nothing.
 	 */
 	private async writePartitionIndex(partitionIds: string[]): Promise<void> {
-		try {
-			const filename = path.join(this._directory, "partition-index.json");
-			await writeFile(filename, JSON.stringify(partitionIds, undefined, "\t"), "utf8");
-		} catch {}
+		const filename = path.join(this._directory, "partition-index.json");
+		await writeFile(filename, JSON.stringify(partitionIds, undefined, "\t"), "utf8");
 	}
 
 	/**
