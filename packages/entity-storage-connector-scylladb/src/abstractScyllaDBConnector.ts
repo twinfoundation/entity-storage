@@ -77,7 +77,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 		entitySchema: string;
 		config: IScyllaDBTableConfig;
 	}) {
-		console.log(options);
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object<IScyllaDBTableConfig>(this.CLASS_NAME, nameof(options.config), options.config);
@@ -335,9 +334,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 			localDataCenter: config.localDataCenter,
 			keyspace
 		});
-
-		console.log(config);
-
 		await client.connect();
 
 		return client;
@@ -472,7 +468,8 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 */
 	protected propertyToDbValue(value: unknown, fieldDescriptor?: IEntitySchemaProperty<T>): unknown {
 		if (fieldDescriptor) {
-			if (fieldDescriptor.type === "object") {
+			// eslint-disable-next-line no-constant-condition
+			if (fieldDescriptor.type === "string" && false /* && fieldDescriptor.format === "json"*/) {
 				return Is.empty(value) ? "null" : this.jsonWrap(value);
 			} else if (fieldDescriptor.format === "uuid") {
 				if (!Is.string(value)) {

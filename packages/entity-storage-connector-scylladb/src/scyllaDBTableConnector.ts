@@ -85,7 +85,7 @@ export class ScyllaDBTableConnector<T = unknown>
 								level: "info",
 								source: this.CLASS_NAME,
 								ts: Date.now(),
-								message: "sqlCreateType",
+								message: "sql",
 								data: sql
 							},
 							{ partitionId: systemPartitionId }
@@ -134,7 +134,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "sqlCreateTable",
+					message: "sql",
 					data: sql
 				},
 				{ partitionId: systemPartitionId }
@@ -215,7 +215,7 @@ export class ScyllaDBTableConnector<T = unknown>
 						level: "warn",
 						source: this.CLASS_NAME,
 						ts: Date.now(),
-						message: "entityStorage.sqlSetNoProperties"
+						message: "noProperties"
 					},
 					requestContext
 				);
@@ -231,7 +231,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "entityStorage.sqlSet",
+					message: "sql",
 					data: sql
 				},
 				requestContext
@@ -242,6 +242,8 @@ export class ScyllaDBTableConnector<T = unknown>
 				StringHelper.camelCase(requestContext?.partitionId)
 			);
 
+			console.log(propValues);
+
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
 			await this._logging.log(
@@ -249,7 +251,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					level: "error",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "entityStorage.setFailed",
+					message: "setFailed",
 					error: error as IError
 				},
 				requestContext

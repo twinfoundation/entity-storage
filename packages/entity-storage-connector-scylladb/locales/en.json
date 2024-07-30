@@ -5,8 +5,7 @@
 			"tableCreated": "Created table \"{table}\"",
 			"tableExists": "Skipping create table \"{table}\" as it already exists",
 			"typeCreated": "Created type \"{typeName}\"",
-			"sqlCreateTable": "SQL: \"{sql}\"",
-			"sqlCreateType": "SQL: \"{sql}\""
+			"sql": "SQL: \"{sql}\""
 		}
 	},
 	"error": {

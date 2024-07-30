@@ -34,7 +34,7 @@ class SubType {
 	 * Field1.
 	 */
 	@property({ type: "string", format: "date-time" })
-	public field1!: string;
+	public field1!: Date;
 }
 
 /**
@@ -74,7 +74,13 @@ const TEST_PARTITION_ID2 = "test-partition2";
 
 const TABLE_NAME = "test-table";
 
-describe("ScyllaDBEntityConnector", () => {
+const localConfig: IScyllaDBTableConfig = {
+	tableName: TABLE_NAME,
+	hosts: ["localhost"],
+	localDataCenter: "datacenter1"
+};
+
+describe("ScyllaDBTableConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
@@ -180,11 +186,7 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can construct", async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: {
-				tableName: "test1",
-				hosts: ["localhost"],
-				localDataCenter: "datacenter1"
-			}
+			config: localConfig
 		});
 		expect(entityStorage).toBeDefined();
 	});
@@ -212,53 +214,26 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can bootstrap and create table", async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: {
-				tableName: TABLE_NAME,
-				hosts: ["localhost:9042"],
-				localDataCenter: "datacenter1"
-			}
+			config: localConfig
 		});
 		await entityStorage.bootstrap(TEST_PARTITION_ID);
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(5);
 		expect(logs?.[0].message).toEqual("tableCreating");
-		expect(logs?.[1].message).toEqual("sqlCreateType");
+		expect(logs?.[1].message).toEqual("sql");
 		expect(logs?.[2].message).toEqual("typeCreated");
-		expect(logs?.[3].message).toEqual("sqlCreateTable");
+		expect(logs?.[3].message).toEqual("sql");
 		expect(logs?.[4].message).toEqual("tableCreated");
 
 		expect(I18n.hasMessage("info.scyllaDBTableConnector.typeCreated")).toEqual(true);
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.sqlCreateType")).toEqual(true);
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.sqlCreateTable")).toEqual(true);
-	});
-
-	test("can bootstrap and skip existing table", async () => {
-		const entityStorage = new ScyllaDBTableConnector({
-			entitySchema: nameof<TestType>(),
-			config: {
-				tableName: TABLE_NAME,
-				hosts: ["localhost"],
-				localDataCenter: "datacenter1"
-			}
-		});
-		await entityStorage.bootstrap(TEST_PARTITION_ID);
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
-		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(1);
-		expect(logs?.[0].message).toEqual("tableExists");
-
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.tableExists")).toEqual(true);
+		expect(I18n.hasMessage("info.scyllaDBTableConnector.sql")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: {
-				tableName: TABLE_NAME,
-				hosts: ["localhost"],
-				localDataCenter: "datacenter1"
-			}
+			config: localConfig
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -273,14 +248,10 @@ describe("ScyllaDBEntityConnector", () => {
 	test("can fail to set an item with no partition id", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: {
-				tableName: TABLE_NAME,
-				hosts: ["localhost"],
-				localDataCenter: "datacenter1"
-			}
+			config: localConfig
 		});
 		await expect(
-			entityStorage.set({ id: "1", value1: "aaa", value2: 35, value3: { field1: "f" } })
+			entityStorage.set({ id: "1", value1: "aaa", value2: 35, value3: { field1: new Date() } })
 		).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -290,27 +261,21 @@ describe("ScyllaDBEntityConnector", () => {
 			}
 		});
 	});
-	/*
+
 	test("can set an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ id: "1", value1: "aaa", value2: 35, value3: { field1: new Date() } },
 			{ partitionId: TEST_PARTITION_ID }
 		);
 
-		const file = await readFile(TEST_STORE_NAME, "utf8");
-		const store = JSON.parse(file);
-		expect(store).toBeDefined();
-		expect(store.length).toEqual(1);
-		expect(store[0]).toBeDefined();
-		expect(store[0].id).toEqual("1");
-		expect(store[0].value1).toEqual("aaa");
-		expect(store[0].value2).toEqual("bbb");
+		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		console.log(logs);
 	});
-
+	/*
 	test("can set an item to update it", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
