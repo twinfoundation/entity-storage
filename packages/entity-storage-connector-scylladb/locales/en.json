@@ -11,7 +11,10 @@
 	"error": {
 		"scyllaDBTableConnector": {
 			"tableCreateFailed": "Creating table \"{table}\" failed",
-			"getFailed": "Getting item with \"{id}\" failed"
+			"getFailed": "Getting item with \"{id}\" failed",
+			"dropTableFailed": " \"{table}\" cannot be dropped",
+			"truncateTableFailed": " \"{table}\" cannot be dropped",
+			"removeFailed": "Removing item with \"{id}\" failed"
 		}
 	}
 }

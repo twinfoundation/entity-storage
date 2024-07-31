@@ -326,10 +326,10 @@ export class ScyllaDBTableConnector<T = unknown>
 	}
 
 	/**
-	 * Clears table.
+	 * Drops table.
 	 * @param requestContext Context Request.
 	 */
-	public async clearTable(requestContext: IServiceRequestContext): Promise<void> {
+	public async dropTable(requestContext: IServiceRequestContext): Promise<void> {
 		let connection;
 
 		Guards.stringValue(
@@ -344,9 +344,46 @@ export class ScyllaDBTableConnector<T = unknown>
 				StringHelper.camelCase(requestContext.partitionId)
 			);
 
-			await connection.execute(`DROP TABLE "${this.fullTableName}"`);
+			await connection.execute(`DROP TABLE IF EXISTS "${this.fullTableName}"`);
 		} catch (error) {
-			throw new GeneralError(this.CLASS_NAME, "clearTableFailed", {}, error);
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"dropTableFailed",
+				{ table: this.fullTableName },
+				error
+			);
+		} finally {
+			await this.closeConnection(connection);
+		}
+	}
+
+	/**
+	 * Truncates (clear) table.
+	 * @param requestContext Context Request.
+	 */
+	public async truncateTable(requestContext: IServiceRequestContext): Promise<void> {
+		let connection;
+
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(requestContext?.partitionId),
+			requestContext?.partitionId
+		);
+
+		try {
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext.partitionId)
+			);
+
+			await connection.execute(`TRUNCATE TABLE "${this.fullTableName}"`);
+		} catch (error) {
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"truncateTableFailed",
+				{ table: this.fullTableName },
+				error
+			);
 		} finally {
 			await this.closeConnection(connection);
 		}

@@ -270,7 +270,9 @@ export abstract class AbstractScyllaDBConnector<T> {
 				StringHelper.camelCase(requestContext?.partitionId)
 			);
 
-			const countQuery = sql.replace("SELECT *", "SELECT COUNT(*) AS totalEntities");
+			// eslint-disable-next-line @typescript-eslint/quotes
+			const countQueryFragment = `SELECT COUNT(*) AS "totalEntities"`;
+			const countQuery = sql.replace("SELECT *", countQueryFragment);
 			const countResults = await this.queryDB(
 				connection,
 				countQuery,
@@ -295,8 +297,8 @@ export abstract class AbstractScyllaDBConnector<T> {
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "entityStorage.sqlFind",
-					data: sql
+					message: "sql",
+					data: { sql }
 				},
 				requestContext
 			);
