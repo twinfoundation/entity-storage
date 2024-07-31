@@ -102,7 +102,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 		secondaryIndex?: keyof T,
 		requestContext?: IServiceRequestContext
 	): Promise<(T & { partitionId?: string }) | undefined> {
-		Guards.stringValue("ScyllaDBEntity", nameof(id), id);
+		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 		Guards.stringValue(
 			this.CLASS_NAME,
 			nameof(requestContext?.partitionId),
@@ -113,15 +113,19 @@ export abstract class AbstractScyllaDBConnector<T> {
 		try {
 			const indexField = secondaryIndex ?? this._primaryKey?.property;
 
-			const sql = `SELECT * FROM "${this.fullTableName}" WHERE "${String(indexField)}"= ?`;
+			let sql = `SELECT * FROM "${this.fullTableName}" WHERE "${String(indexField)}"= ?`;
+
+			if (secondaryIndex) {
+				sql += "ALLOW FILTERING";
+			}
 
 			await this._logging?.log(
 				{
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "entityStorage.sqlGet",
-					data: sql
+					message: "sql",
+					data: { sql }
 				},
 				requestContext
 			);
@@ -142,7 +146,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
-				"entityStorage.getFailed",
+				"getFailed",
 				{
 					id
 				},
@@ -439,13 +443,13 @@ export abstract class AbstractScyllaDBConnector<T> {
 				value === "undefined" ||
 				value === "" ||
 				value === null ||
-				value === undefined ||
-				!Is.string(value)
+				value === undefined
 			) {
 				return;
 			}
+		} else if (fieldDescriptor.type === "string" && fieldDescriptor.format === "json") {
 			try {
-				return JSON.parse(value);
+				return JSON.parse(value as string);
 			} catch {
 				throw new GeneralError(this.CLASS_NAME, "parseJSONFailed", {
 					name: fieldDescriptor.property,
@@ -469,7 +473,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	protected propertyToDbValue(value: unknown, fieldDescriptor?: IEntitySchemaProperty<T>): unknown {
 		if (fieldDescriptor) {
 			// eslint-disable-next-line no-constant-condition
-			if (fieldDescriptor.type === "string" && false /* && fieldDescriptor.format === "json"*/) {
+			if (fieldDescriptor.type === "string" && fieldDescriptor.format === "json") {
 				return Is.empty(value) ? "null" : this.jsonWrap(value);
 			} else if (fieldDescriptor.format === "uuid") {
 				if (!Is.string(value)) {

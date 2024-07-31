@@ -10,7 +10,8 @@
 	},
 	"error": {
 		"scyllaDBTableConnector": {
-			"tableCreateFailed": "Creating table \"{table}\" failed"
+			"tableCreateFailed": "Creating table \"{table}\" failed",
+			"getFailed": "Getting item with \"{id}\" failed"
 		}
 	}
 }

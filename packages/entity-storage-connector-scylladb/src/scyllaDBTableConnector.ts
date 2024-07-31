@@ -153,7 +153,6 @@ export class ScyllaDBTableConnector<T = unknown>
 				{ partitionId: systemPartitionId }
 			);
 		} catch (err) {
-			console.log(err);
 			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
 				await this._logging.log(
 					{
@@ -242,8 +241,6 @@ export class ScyllaDBTableConnector<T = unknown>
 				StringHelper.camelCase(requestContext?.partitionId)
 			);
 
-			console.log(propValues);
-
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
 			await this._logging.log(
@@ -309,7 +306,7 @@ export class ScyllaDBTableConnector<T = unknown>
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
-				"entityStorage.removeFailed",
+				"removeFailed",
 				{
 					id
 				},
@@ -326,6 +323,33 @@ export class ScyllaDBTableConnector<T = unknown>
 	 */
 	public pageSize(): number {
 		return ScyllaDBTableConnector._PAGE_SIZE;
+	}
+
+	/**
+	 * Clears table.
+	 * @param requestContext Context Request.
+	 */
+	public async clearTable(requestContext: IServiceRequestContext): Promise<void> {
+		let connection;
+
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(requestContext?.partitionId),
+			requestContext?.partitionId
+		);
+
+		try {
+			connection = await this.openConnection(
+				this._config,
+				StringHelper.camelCase(requestContext.partitionId)
+			);
+
+			await connection.execute(`DROP TABLE "${this.fullTableName}"`);
+		} catch (error) {
+			throw new GeneralError(this.CLASS_NAME, "clearTableFailed", {}, error);
+		} finally {
+			await this.closeConnection(connection);
+		}
 	}
 
 	/**

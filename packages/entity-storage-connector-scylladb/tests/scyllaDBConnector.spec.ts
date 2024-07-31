@@ -64,7 +64,7 @@ class TestType {
 	 * Value3.
 	 */
 	@property({ type: "object", itemTypeRef: "SubType" })
-	public value3!: SubType;
+	public value3!: SubType | undefined;
 }
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
@@ -97,7 +97,13 @@ describe("ScyllaDBTableConnector", () => {
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
 	});
 
-	afterAll(async () => {});
+	afterAll(async () => {
+		const entityStorage = new ScyllaDBTableConnector({
+			entitySchema: nameof<TestType>(),
+			config: localConfig
+		});
+		await entityStorage.clearTable({ partitionId: TEST_PARTITION_ID });
+	});
 
 	test("can fail to construct when there is no options", async () => {
 		expect(
@@ -267,44 +273,40 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: 35, value3: { field1: new Date() } },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const entityId = "1";
+		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
+		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
 
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
-		console.log(logs);
+		const result = await entityStorage.get(entityId, undefined, { partitionId: TEST_PARTITION_ID });
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
-	/*
+
 	test("can set an item to update it", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const entityId = "1";
+		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
+		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
 
-		await entityStorage.set(
-			{ id: "1", value1: "ccc", value2: "ddd" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		objectSet.value1 = "ccc";
+		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
 
-		const file = await readFile(TEST_STORE_NAME, "utf8");
-		const store = JSON.parse(file);
-		expect(store).toBeDefined();
-		expect(store.length).toEqual(1);
-		expect(store[0]).toBeDefined();
-		expect(store[0].id).toEqual("1");
-		expect(store[0].value1).toEqual("ccc");
-		expect(store[0].value2).toEqual("ddd");
+		const result = await entityStorage.get(entityId, undefined, { partitionId: TEST_PARTITION_ID });
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
 	test("can fail to get an item with no id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		await expect(
 			entityStorage.get(undefined as unknown as string, undefined, {
@@ -321,54 +323,50 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can not get an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get("2", undefined, { partitionId: TEST_PARTITION_ID });
+		const item = await entityStorage.get("20000", undefined, { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeUndefined();
 	});
 
 	test("can get an item", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ id: "2", value1: "vvv", value2: 35, value3: undefined },
 			{ partitionId: TEST_PARTITION_ID }
 		);
-		const item = await entityStorage.get("1", undefined, { partitionId: TEST_PARTITION_ID });
+		const item = await entityStorage.get("2", undefined, { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("1");
-		expect(item?.value1).toEqual("aaa");
-		expect(item?.value2).toEqual("bbb");
-		expect(item?.partitionId).toBeUndefined();
+		expect(item?.id).toEqual("2");
+		expect(item?.value1).toEqual("vvv");
+		expect(item?.value2).toEqual(35);
+		expect(item?.value3).toBeUndefined();
 	});
 
 	test("can get an item by secondary index", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
+			{ id: "300", value1: "zzz", value2: 55, value3: undefined },
 			{ partitionId: TEST_PARTITION_ID }
 		);
-		const item = await entityStorage.get("aaa", "value1", { partitionId: TEST_PARTITION_ID });
+		const item = await entityStorage.get("zzz", "value1", { partitionId: TEST_PARTITION_ID });
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("1");
-		expect(item?.value1).toEqual("aaa");
-		expect(item?.value2).toEqual("bbb");
+		expect(item?.id).toEqual("300");
+		expect(item?.value1).toEqual("zzz");
+		expect(item?.value2).toEqual(55);
 	});
-
+	/*
 	test("can get an item using wildcard partition id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
