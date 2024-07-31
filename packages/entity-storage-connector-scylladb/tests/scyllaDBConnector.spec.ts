@@ -462,9 +462,6 @@ describe("ScyllaDBTableConnector", () => {
 			undefined,
 			{ partitionId: TEST_PARTITION_ID2 }
 		);
-
-		console.log(result);
-
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -519,18 +516,17 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.entities.length).toEqual(entityStorage.pageSize());
 		expect(result.totalEntities).toEqual(80);
 		expect(result.pageSize).toEqual(entityStorage.pageSize());
-		// expect(result.cursor).toEqual();
 	});
-	/*
+
 	test("can query items with multiple entries and cursor", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
-		for (let i = 0; i < 30; i++) {
+		for (let i = 0; i < 50; i++) {
 			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
+				{ id: (i + 1).toString(), value1: "aaa", value2: 5555, value3: undefined },
+				{ partitionId: TEST_PARTITION_ID2 }
 			);
 		}
 		const result = await entityStorage.query(
@@ -539,7 +535,7 @@ describe("ScyllaDBTableConnector", () => {
 			undefined,
 			undefined,
 			undefined,
-			{ partitionId: TEST_PARTITION_ID }
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
 		const result2 = await entityStorage.query(
 			undefined,
@@ -547,26 +543,27 @@ describe("ScyllaDBTableConnector", () => {
 			undefined,
 			result.cursor,
 			undefined,
-			{ partitionId: TEST_PARTITION_ID }
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
-		expect(result2.totalEntities).toEqual(30);
-		expect(result2.pageSize).toEqual(20);
+		expect(result2.totalEntities).toEqual(50);
+		expect(result2.pageSize).toEqual(entityStorage.pageSize());
 		expect(result2.cursor).toBeUndefined();
 	});
 
 	test("can query items with multiple entries and apply conditions", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
+				{ id: (i + 1).toString(), value1: "aaa", value2: 7777, value3: { field1: new Date() } },
+				{ partitionId: TEST_PARTITION_ID2 }
 			);
 		}
+
 		const result = await entityStorage.query(
 			{
 				property: "id",
@@ -577,15 +574,17 @@ describe("ScyllaDBTableConnector", () => {
 			undefined,
 			undefined,
 			undefined,
-			{ partitionId: TEST_PARTITION_ID }
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
+
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
+		expect(result.totalEntities).toEqual(1);
+		expect(result.pageSize).toEqual(entityStorage.pageSize());
 		expect(result.cursor).toBeUndefined();
 	});
 
+/*
 	test("can query items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),

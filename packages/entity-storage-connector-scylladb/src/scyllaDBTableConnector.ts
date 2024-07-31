@@ -231,7 +231,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "sql",
-					data: sql
+					data: { sql }
 				},
 				requestContext
 			);

@@ -281,6 +281,9 @@ export abstract class AbstractScyllaDBConnector<T> {
 				returnSize
 			);
 
+			console.log(sql);
+			console.log(countQuery);
+
 			// Only supported one sort property at the moment. This code would need to be revised in a follow-up
 			if (Is.array(sortProperties) && sortProperties.length >= 1) {
 				const sortKey = sortProperties[0].property ?? this._primaryKey.property;
