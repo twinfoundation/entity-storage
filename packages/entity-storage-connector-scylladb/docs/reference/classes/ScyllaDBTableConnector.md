@@ -250,7 +250,7 @@ Get the default page size of the entity storage.
 
 `number`
 
-The entitty storage page size.
+The entity storage page size.
 
 ***
 
@@ -294,7 +294,7 @@ Context Request.
 
 > `private` **toDbField**(`logicalField`): `string`
 
-Transform a logically descripted field into a DB field.
+Transform a logical description of a field into a DB field.
 
 #### Parameters
 

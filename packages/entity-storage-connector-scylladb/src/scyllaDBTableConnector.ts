@@ -86,7 +86,7 @@ export class ScyllaDBTableConnector<T = unknown>
 								source: this.CLASS_NAME,
 								ts: Date.now(),
 								message: "sql",
-								data: sql
+								data: { sql }
 							},
 							{ partitionId: systemPartitionId }
 						);
@@ -135,7 +135,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "sql",
-					data: sql
+					data: { sql }
 				},
 				{ partitionId: systemPartitionId }
 			);
@@ -292,7 +292,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "entityStorage.sqlRemove",
-					data: sql
+					data: { sql }
 				},
 				requestContext
 			);
