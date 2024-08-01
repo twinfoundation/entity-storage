@@ -51,7 +51,7 @@ class TestType {
 	/**
 	 * Value1.
 	 */
-	@property({ type: "string" })
+	@property({ type: "string", isSecondary: true })
 	public value1!: string;
 
 	/**
@@ -307,7 +307,7 @@ describe("ScyllaDBTableConnector", () => {
 		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
 		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
 
-		objectSet.value1 = "ccc";
+		objectSet.value2 = 99;
 		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
 
 		const result = await entityStorage.get(entityId, undefined, { partitionId: TEST_PARTITION_ID });
@@ -584,48 +584,55 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-/*
 	test("can query items with multiple entries and apply custom sort", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
+				{ id: (30 - i).toString(), value1: (30 - i).toString(), value2: 7777, value3: undefined },
+				{ partitionId: TEST_PARTITION_ID2 }
 			);
 		}
 		const result = await entityStorage.query(
-			undefined,
+			{
+				conditions: [
+					{
+						property: "id",
+						value: ["26", "20"],
+						operator: ComparisonOperator.In
+					}
+				]
+			},
 			[
 				{
-					property: "id",
+					property: "value1",
 					sortDirection: SortDirection.Ascending
 				}
 			],
 			undefined,
 			undefined,
 			undefined,
-			{ partitionId: TEST_PARTITION_ID }
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toEqual("20");
+		expect(result.entities.length).toEqual(2);
+		expect(result.entities[0].value1).toEqual("20");
+		expect(result.totalEntities).toEqual(2);
+		// Order by disables pagination
+		expect(result.pageSize).toEqual(0);
 	});
 
 	test("can query items and get a reduced data set", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
+			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
+				{ id: (i + 1).toString(), value1: "aaa", value2: 7777, value3: undefined },
+				{ partitionId: TEST_PARTITION_ID2 }
 			);
 		}
 		const result = await entityStorage.query(
@@ -634,48 +641,11 @@ describe("ScyllaDBTableConnector", () => {
 			["id", "value1"],
 			undefined,
 			undefined,
-			{ partitionId: TEST_PARTITION_ID }
+			{ partitionId: TEST_PARTITION_ID2 }
 		);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.entities[0].value1).toEqual("aaa");
+		expect(result.entities.length).toEqual(30);
 		expect(result.entities[0].value2).toBeUndefined();
+		expect(result.entities[0].value3).toBeUndefined();
 	});
-
-	test("can query items with wildcard partition id", async () => {
-		try {
-			await rm(TEST_DIRECTORY_ROOT, { recursive: true });
-		} catch {}
-
-		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
-		});
-		await entityStorage.bootstrap(TEST_PARTITION_ID);
-		for (let i = 0; i < 5; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
-		}
-		for (let i = 0; i < 5; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
-		}
-		const result = await entityStorage.query();
-		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(10);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.entities[0].value1).toEqual("aaa");
-		expect(result.entities[0].value2).toEqual("bbb");
-		expect(result.entities[0].partitionId).toEqual(TEST_PARTITION_ID);
-		expect(result.entities[5].id).toEqual("1");
-		expect(result.entities[5].value1).toEqual("aaa");
-		expect(result.entities[5].value2).toEqual("bbb");
-		expect(result.entities[5].partitionId).toEqual(TEST_PARTITION_ID2);
-	});
-*/
 });

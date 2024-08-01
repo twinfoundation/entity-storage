@@ -14,7 +14,8 @@
 			"getFailed": "Getting item with \"{id}\" failed",
 			"dropTableFailed": " \"{table}\" cannot be dropped",
 			"truncateTableFailed": " \"{table}\" cannot be dropped",
-			"removeFailed": "Removing item with \"{id}\" failed"
+			"removeFailed": "Removing item with \"{id}\" failed",
+			"findFailed": "Error while querying data on  \"{table}\""
 		}
 	}
 }

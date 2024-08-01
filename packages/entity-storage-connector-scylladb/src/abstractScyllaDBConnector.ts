@@ -3,15 +3,16 @@
 
 import { GeneralError, Guards, Is, StringHelper } from "@gtsc/core";
 import {
+	SortDirection,
 	type IEntitySchemaProperty,
 	type IEntitySchema,
 	EntitySchemaFactory,
 	EntitySchemaHelper,
 	type EntityCondition,
-	type SortDirection,
 	type IComparator,
 	ComparisonOperator,
-	LogicalOperator
+	LogicalOperator,
+	type IComparatorGroup
 } from "@gtsc/entity";
 import { type ILoggingConnector, LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
@@ -205,60 +206,79 @@ export abstract class AbstractScyllaDBConnector<T> {
 				requestContext?.partitionId
 			);
 
-			const returnSize = pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE;
+			let returnSize = pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE;
 			let sql = `SELECT * FROM "${this.fullTableName}"`;
+
+			if (Is.array(properties)) {
+				const fields: string[] = [];
+
+				for (const property of properties) {
+					fields.push(property.toString());
+				}
+
+				const selectFields = fields.join(",");
+				sql = sql.replace("*", selectFields);
+			}
 
 			const conds: string[] = [];
 			let conditionQuery = "";
 			// The params to be used to execute the query
 			const params: unknown[] = [];
 
-			if (Is.arrayValue(conditions)) {
-				for (const cond of conditions) {
-					const condition = cond as IComparator;
-					const descriptor = this._entitySchema.properties?.find(
-						p => p.property === condition.property
-					);
-					if (
-						condition.operator === ComparisonOperator.Includes ||
-						condition.operator === ComparisonOperator.NotIncludes
-					) {
-						const propValue = `'%${condition.value}%'`;
-						if (condition.operator === ComparisonOperator.Includes) {
-							conds.push(`"${condition.property}" LIKE ${propValue}`);
-						} else if (condition.operator === ComparisonOperator.NotIncludes) {
-							conds.push(`"${condition.property}" NOT LIKE ${propValue}`);
-						}
-					} else if (condition.operator === ComparisonOperator.In) {
-						let value: unknown[] = [];
-						if (!Is.arrayValue(condition.value)) {
-							value.push(this.propertyToDbValue(condition.value, descriptor));
-						} else {
-							value = condition.value.map(v => this.propertyToDbValue(v, descriptor));
-						}
-						params.push(value);
-						conds.push(`"${condition.property}" IN ?`);
-					} else {
-						const propValue = condition.value;
-						params.push(propValue);
-						if (condition.operator === ComparisonOperator.Equals) {
-							conds.push(`"${condition.property}" = ?`);
-						} else if (condition.operator === ComparisonOperator.NotEquals) {
-							conds.push(`"${condition.property}" <> ?`);
-						} else if (condition.operator === ComparisonOperator.GreaterThan) {
-							conds.push(`"${condition.property}" > ?`);
-						} else if (condition.operator === ComparisonOperator.LessThan) {
-							conds.push(`"${condition.property}" < ?`);
-						} else if (condition.operator === ComparisonOperator.GreaterThanOrEqual) {
-							conds.push(`"${condition.property}" >= ?`);
-						} else if (condition.operator === ComparisonOperator.LessThanOrEqual) {
-							conds.push(`"${condition.property}" <= ?`);
-						}
-					}
-
-					const operator = condition.operator ?? LogicalOperator.And;
-					conditionQuery = `${conds.join(` ${operator} `)}`;
+			let theConditions: EntityCondition<T>[] = [];
+			if (!Is.undefined(conditions)) {
+				if ("conditions" in conditions) {
+					theConditions = (conditions as IComparatorGroup).conditions;
+				} else {
+					theConditions.push(conditions as EntityCondition<T>);
 				}
+			}
+
+			// This code needs refactoring to support recursive conditions. TO BE DONE.
+			for (const cond of theConditions) {
+				const condition = cond as IComparator;
+				const descriptor = this._entitySchema.properties?.find(
+					p => p.property === condition.property
+				);
+				if (
+					condition.operator === ComparisonOperator.Includes ||
+					condition.operator === ComparisonOperator.NotIncludes
+				) {
+					const propValue = `'%${condition.value}%'`;
+					if (condition.operator === ComparisonOperator.Includes) {
+						conds.push(`"${condition.property}" LIKE ${propValue}`);
+					} else if (condition.operator === ComparisonOperator.NotIncludes) {
+						conds.push(`"${condition.property}" NOT LIKE ${propValue}`);
+					}
+				} else if (condition.operator === ComparisonOperator.In) {
+					let value: unknown[] = [];
+					if (!Is.arrayValue(condition.value)) {
+						value.push(this.propertyToDbValue(condition.value, descriptor));
+					} else {
+						value = condition.value.map(v => this.propertyToDbValue(v, descriptor));
+					}
+					params.push(value);
+					conds.push(`"${condition.property}" IN ?`);
+				} else {
+					const propValue = condition.value;
+					params.push(propValue);
+					if (condition.operator === ComparisonOperator.Equals) {
+						conds.push(`"${condition.property}" = ?`);
+					} else if (condition.operator === ComparisonOperator.NotEquals) {
+						conds.push(`"${condition.property}" <> ?`);
+					} else if (condition.operator === ComparisonOperator.GreaterThan) {
+						conds.push(`"${condition.property}" > ?`);
+					} else if (condition.operator === ComparisonOperator.LessThan) {
+						conds.push(`"${condition.property}" < ?`);
+					} else if (condition.operator === ComparisonOperator.GreaterThanOrEqual) {
+						conds.push(`"${condition.property}" >= ?`);
+					} else if (condition.operator === ComparisonOperator.LessThanOrEqual) {
+						conds.push(`"${condition.property}" <= ?`);
+					}
+				}
+
+				const operator = (conditions as IComparatorGroup).logicalOperator ?? LogicalOperator.And;
+				conditionQuery = `${conds.join(` ${operator} `)}`;
 			}
 
 			if (conds.length > 0) {
@@ -273,6 +293,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 			// eslint-disable-next-line @typescript-eslint/quotes
 			const countQueryFragment = `SELECT COUNT(*) AS "totalEntities"`;
 			const countQuery = sql.replace("SELECT *", countQueryFragment);
+
 			const countResults = await this.queryDB(
 				connection,
 				countQuery,
@@ -281,18 +302,21 @@ export abstract class AbstractScyllaDBConnector<T> {
 				returnSize
 			);
 
-			console.log(sql);
-			console.log(countQuery);
-
 			// Only supported one sort property at the moment. This code would need to be revised in a follow-up
 			if (Is.array(sortProperties) && sortProperties.length >= 1) {
 				const sortKey = sortProperties[0].property ?? this._primaryKey.property;
 				const sortDir =
 					sortProperties[0].sortDirection ??
-					this._entitySchema.properties?.find(e => e.property === sortKey)?.sortDirection ??
-					"asc";
+					this._entitySchema.properties?.find(e => e.property === sortKey)?.sortDirection;
 
-				sql += ` ORDER BY "${String(sortKey)}" ${sortDir.toUpperCase()}`;
+				let sqlSortDir = "asc";
+				if (sortDir === SortDirection.Descending) {
+					sqlSortDir = "desc";
+				}
+
+				sql += ` ORDER BY "${String(sortKey)}" ${sqlSortDir.toUpperCase()}`;
+				// Disabling paging in order by situations
+				returnSize = 0;
 			}
 
 			await this._logging?.log(
@@ -325,7 +349,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 				totalEntities: Number(countResults.rows[0].totalEntities)
 			};
 		} catch (error) {
-			throw new GeneralError(this.CLASS_NAME, "entityStorage.findFailed", undefined, error);
+			throw new GeneralError(this.CLASS_NAME, "findFailed", { table: this.fullTableName }, error);
 		} finally {
 			await this.closeConnection(connection);
 		}
