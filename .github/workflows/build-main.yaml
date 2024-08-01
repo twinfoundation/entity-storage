@@ -12,6 +12,12 @@ jobs:
     env:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
 
+    services:
+      scylladb:
+        image: scylladb/scylla:4.5.0
+        ports:
+          - 9042:9042
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +33,14 @@ jobs:
         with:
           path: node_modules
           key: node-modules-${{ hashFiles('package-lock.json') }}
+      
+      - name: Wait for ScyllaDB
+        run: |
+            until nc -z localhost 9042
+            do
+              echo "Waiting for ... ScyllaDB"
+              sleep 1
+            done
 
       - name: Install dependencies
         run: npm ci
