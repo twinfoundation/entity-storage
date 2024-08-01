@@ -29,7 +29,7 @@
 	},
 	"dependencies": {
 		"@gtsc/core": "next",
-		"@gtsc/entity": "0.0.4-next.60",
+		"@gtsc/entity": "next",
 		"@gtsc/entity-storage-models": "0.0.3-next.20",
 		"@gtsc/logging-models": "next",
 		"@gtsc/nameof": "next",
