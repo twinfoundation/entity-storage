@@ -442,7 +442,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	}
 
 	/**
-	 * Create keyspace if it doesnt exist.
+	 * Create keyspace if it doesn't exist.
 	 * @param connection The connection to perform the query with.
 	 * @param keyspaceName The name of the keyspace to create.
 	 * @internal

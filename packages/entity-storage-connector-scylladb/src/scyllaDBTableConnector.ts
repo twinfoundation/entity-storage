@@ -319,7 +319,7 @@ export class ScyllaDBTableConnector<T = unknown>
 
 	/**
 	 * Get the default page size of the entity storage.
-	 * @returns The entitty storage page size.
+	 * @returns The entity storage page size.
 	 */
 	public pageSize(): number {
 		return ScyllaDBTableConnector._PAGE_SIZE;
@@ -390,7 +390,7 @@ export class ScyllaDBTableConnector<T = unknown>
 	}
 
 	/**
-	 * Transform a logically descripted field into a DB field.
+	 * Transform a logical description of a field into a DB field.
 	 * @param logicalField The logical field description.
 	 * @returns The DB type.
 	 * @throws GeneralException if no mapping found.

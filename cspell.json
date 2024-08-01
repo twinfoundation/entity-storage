@@ -17,6 +17,6 @@
 		".eslintrc.cjs",
 		"**/wordlists/**"
 	],
-	"words": ["gtsc", "nameof", "Stiftung"],
+	"words": ["conds", "gtsc", "nameof", "scylladb", "Stiftung", "TINYINT"],
 	"ignoreRegExpList": ["/from\\s+(['\"]).*\\1/", "/eslint-disable.*/"]
 }
