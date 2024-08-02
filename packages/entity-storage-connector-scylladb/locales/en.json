@@ -1,0 +1,21 @@
+{
+	"info": {
+		"scyllaDBTableConnector": {
+			"tableCreating": "Creating table \"{table}\"",
+			"tableCreated": "Created table \"{table}\"",
+			"tableExists": "Skipping create table \"{table}\" as it already exists",
+			"typeCreated": "Created type \"{typeName}\"",
+			"sql": "SQL: \"{sql}\""
+		}
+	},
+	"error": {
+		"scyllaDBTableConnector": {
+			"tableCreateFailed": "Creating table \"{table}\" failed",
+			"getFailed": "Getting item with \"{id}\" failed",
+			"dropTableFailed": " \"{table}\" cannot be dropped",
+			"truncateTableFailed": " \"{table}\" cannot be dropped",
+			"removeFailed": "Removing item with \"{id}\" failed",
+			"findFailed": "Error while querying data on  \"{table}\""
+		}
+	}
+}
