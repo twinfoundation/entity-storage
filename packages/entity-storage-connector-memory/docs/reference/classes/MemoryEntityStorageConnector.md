@@ -1,7 +1,3 @@
-[**@gtsc/entity-storage-connector-memory**](../overview.md) • **Docs**
-
-***
-
 # Class: MemoryEntityStorageConnector\<T\>
 
 Class for performing entity storage operations in-memory.

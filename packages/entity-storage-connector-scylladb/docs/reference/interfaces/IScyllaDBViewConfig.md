@@ -1,7 +1,3 @@
-[**@gtsc/entity-storage-connector-scylladb**](../overview.md) • **Docs**
-
-***
-
 # Interface: IScyllaDBViewConfig
 
 Definition of MySQL DB configuration.

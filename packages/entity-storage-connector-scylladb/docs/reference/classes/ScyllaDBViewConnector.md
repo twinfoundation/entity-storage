@@ -1,7 +1,3 @@
-[**@gtsc/entity-storage-connector-scylladb**](../overview.md) • **Docs**
-
-***
-
 # Class: ScyllaDBViewConnector\<T, U\>
 
 Manage entities using ScyllaDB Views.

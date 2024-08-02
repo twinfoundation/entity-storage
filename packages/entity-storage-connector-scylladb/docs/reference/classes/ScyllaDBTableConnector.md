@@ -1,7 +1,3 @@
-[**@gtsc/entity-storage-connector-scylladb**](../overview.md) • **Docs**
-
-***
-
 # Class: ScyllaDBTableConnector\<T\>
 
 Store entities using ScyllaDB.
