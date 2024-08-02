@@ -12,7 +12,12 @@ jobs:
       max-parallel: 1
       matrix:
         package:
-          [entity-storage-models, entity-storage-connector-memory, entity-storage-connector-file]
+          [
+            entity-storage-models,
+            entity-storage-connector-memory,
+            entity-storage-connector-file,
+            entity-storage-connector-scylladb
+          ]
 
     steps:
       - name: Checkout

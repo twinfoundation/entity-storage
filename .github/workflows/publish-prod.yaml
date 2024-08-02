@@ -11,6 +11,7 @@ on:
           - entity-storage-models
           - entity-storage-connector-memory
           - entity-storage-connector-file
+          - entity-storage-connector-scylladb
 jobs:
   publish:
     runs-on: ubuntu-latest
