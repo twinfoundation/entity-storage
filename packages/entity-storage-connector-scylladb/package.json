@@ -1,6 +1,6 @@
 {
 	"name": "@gtsc/entity-storage-connector-scylladb",
-	"version": "0.0.1",
+	"version": "0.0.5-next.1",
 	"description": "Entity Storage connector implementation using ScyllaDB",
 	"repository": {
 		"type": "git",

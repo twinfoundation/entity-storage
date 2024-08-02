@@ -8,6 +8,15 @@ jobs:
 
     if: github.ref != 'refs/heads/main'
 
+    env:
+      TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
+
+    services:
+      scylladb:
+        image: scylladb/scylla:5.4.9
+        ports:
+          - 9042:9042
+
     strategy:
       max-parallel: 1
       matrix:
