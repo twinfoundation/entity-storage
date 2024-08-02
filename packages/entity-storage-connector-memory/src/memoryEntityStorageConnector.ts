@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Coerce, Guards, Is, ObjectHelper } from "@gtsc/core";
+import { Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
 	EntitySchemaFactory,
@@ -13,7 +13,6 @@ import {
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { nameof } from "@gtsc/nameof";
-import type { IServiceRequestContext } from "@gtsc/services";
 
 /**
  * Class for performing entity storage operations in-memory.
@@ -46,7 +45,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * The storage for the in-memory items.
 	 * @internal
 	 */
-	private readonly _store: { [partitionId: string]: T[] };
+	private readonly _store: T[];
 
 	/**
 	 * Create a new instance of MemoryEntityStorageConnector.
@@ -58,94 +57,52 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
-		this._store = {};
+		this._store = [];
 	}
 
 	/**
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @param requestContext The context for the request.
-	 * @returns The object if it can be found or undefined, if non partitioned request then partitionId is included in items.
+	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(
-		id: string,
-		secondaryIndex?: keyof T,
-		requestContext?: IServiceRequestContext
-	): Promise<(T & { partitionId?: string }) | undefined> {
+	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
-		const partitionId = requestContext?.partitionId;
-		const isPartitioned = Is.stringValue(partitionId);
-
-		const partitionsToSearch: string[] = isPartitioned ? [partitionId] : Object.keys(this._store);
-
-		for (const partition of partitionsToSearch) {
-			const store = this._store[partition];
-			const found = store?.find(entity => entity[lookupKey] === id);
-
-			if (found) {
-				const result: T & { partitionId?: string } = {
-					...found
-				};
-				if (!isPartitioned) {
-					result.partitionId = partition;
-				}
-				return result;
-			}
-		}
-
-		return undefined;
+		return this._store.find(entity => entity[lookupKey] === id);
 	}
 
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
-	 * @param requestContext The context for the request.
 	 * @returns The id of the entity.
 	 */
-	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
+	public async set(entity: T): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
-		this._store[requestContext.partitionId] ??= [];
-
-		const existingIndex = this._store[requestContext.partitionId].findIndex(
+		const existingIndex = this._store.findIndex(
 			e => e[this._primaryKey.property] === entity[this._primaryKey.property]
 		);
 		if (existingIndex >= 0) {
-			this._store[requestContext.partitionId][existingIndex] = entity;
+			this._store[existingIndex] = entity;
 		} else {
-			this._store[requestContext.partitionId].push(entity);
+			this._store.push(entity);
 		}
 	}
 
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
-	 * @param requestContext The context for the request.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
+	public async remove(id: string): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
-		const index =
-			this._store[requestContext.partitionId]?.findIndex(
-				e => e[this._primaryKey.property] === id
-			) ?? -1;
+		const index = this._store.findIndex(e => e[this._primaryKey.property] === id) ?? -1;
 		if (index >= 0) {
-			this._store[requestContext.partitionId].splice(index, 1);
+			this._store.splice(index, 1);
 		}
 	}
 
@@ -156,7 +113,6 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
-	 * @param requestContext The context for the request.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -168,14 +124,12 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		}[],
 		properties?: (keyof T)[],
 		cursor?: string,
-		pageSize?: number,
-		requestContext?: IServiceRequestContext
+		pageSize?: number
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
-		 * If non partitioned request then partitionId is included in items.
 		 */
-		entities: Partial<T & { partitionId?: string }>[];
+		entities: Partial<T>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -189,19 +143,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		 */
 		totalEntities: number;
 	}> {
-		const partitionId = requestContext?.partitionId;
-		const isPartitioned = Is.stringValue(partitionId);
-
-		let allEntities: (T & { partitionId?: string })[] = [];
-		if (isPartitioned) {
-			allEntities = (this._store[partitionId] as (T & { partitionId?: string })[]) ?? [];
-		} else {
-			for (const partition of Object.keys(this._store)) {
-				allEntities = allEntities.concat(
-					this._store[partition].map(e => ({ ...e, partitionId: partition }))
-				);
-			}
-		}
+		let allEntities = this._store.slice();
 
 		const entities = [];
 		const finalPageSize = pageSize ?? MemoryEntityStorageConnector._DEFAULT_PAGE_SIZE;
@@ -240,11 +182,10 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	}
 
 	/**
-	 * Get the memory store for the specified partition.
-	 * @param partitionId The partition id.
+	 * Get the memory store.
 	 * @returns The store.
 	 */
-	public getStore(partitionId: string): T[] | undefined {
-		return this._store[partitionId];
+	public getStore(): T[] | undefined {
+		return this._store;
 	}
 }

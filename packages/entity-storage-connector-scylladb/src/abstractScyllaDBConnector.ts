@@ -16,7 +16,6 @@ import {
 } from "@gtsc/entity";
 import { LoggingConnectorFactory, type ILoggingConnector } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-import type { IServiceRequestContext } from "@gtsc/services";
 import { types as CassandraTypes, Client } from "cassandra-driver";
 import type { IScyllaDBConfig } from "./models/IScyllaDBConfig";
 import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
@@ -30,12 +29,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @internal
 	 */
 	protected static readonly PAGE_SIZE: number = 40;
-
-	/**
-	 * The partition key name.
-	 * @internal
-	 */
-	protected static readonly PARTITION_KEY: string = "partitionKey";
 
 	/**
 	 * Runtime name for the class.
@@ -68,7 +61,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	protected readonly _entitySchema: IEntitySchema<T>;
 
 	/**
-	 * The partition key.
+	 * The primary key.
 	 * @internal
 	 */
 	protected readonly _primaryKey: IEntitySchemaProperty<T>;
@@ -116,50 +109,32 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * Get an entity.
 	 * @param id The id of the entity to get.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @param requestContext The context for the request.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(
-		id: string,
-		secondaryIndex?: keyof T,
-		requestContext?: IServiceRequestContext
-	): Promise<(T & { partitionId?: string }) | undefined> {
+	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
 		let connection;
 		try {
 			const indexField = secondaryIndex ?? this._primaryKey?.property;
 
-			const conditions = [
-				`"${AbstractScyllaDBConnector.PARTITION_KEY}"=?`,
-				`"${String(indexField)}"=?`
-			];
-
-			let sql = `SELECT * FROM "${this._fullTableName}" WHERE ${conditions.join(" AND ")}`;
+			let sql = `SELECT * FROM "${this._fullTableName}" WHERE "${String(indexField)}"=?`;
 
 			if (secondaryIndex) {
 				sql += "ALLOW FILTERING";
 			}
 
-			await this._logging?.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "sql",
-					data: { sql }
-				},
-				requestContext
-			);
+			await this._logging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "sql",
+				data: { sql }
+			});
 
 			connection = await this.openConnection();
 
-			const result = await this.queryDB(connection, sql, [requestContext.partitionId, id]);
+			const result = await this.queryDB(connection, sql, [id]);
 
 			if (result.rows.length === 1) {
 				return this.convertRowToObject(result.rows[0]);
@@ -185,7 +160,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
-	 * @param requestContext The context for the request.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -197,14 +171,12 @@ export abstract class AbstractScyllaDBConnector<T> {
 		}[],
 		properties?: (keyof T)[],
 		cursor?: string,
-		pageSize?: number,
-		requestContext?: IServiceRequestContext
+		pageSize?: number
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
-		 * If non partitioned request then partitionId is included in items.
 		 */
-		entities: Partial<T & { partitionId?: string }>[];
+		entities: Partial<T>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -220,9 +192,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 	}> {
 		let connection;
 		try {
-			const partitionId = requestContext?.partitionId;
-			const isPartitioned = Is.stringValue(partitionId);
-
 			let returnSize = pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE;
 			let sql = `SELECT * FROM "${this._fullTableName}"`;
 
@@ -298,13 +267,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 				conditionQuery = `${conds.join(` ${operator} `)}`;
 			}
 
-			if (isPartitioned) {
-				const partitionQuery = `"${AbstractScyllaDBConnector.PARTITION_KEY}" = ?`;
-				params.unshift(partitionId);
-				conditionQuery =
-					conditionQuery.length > 0 ? `${partitionQuery} AND (${conditionQuery})` : partitionQuery;
-			}
-
 			if (conditionQuery.length > 0) {
 				sql += ` WHERE ${conditionQuery}`;
 			}
@@ -317,7 +279,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 
 			const countResults = await this.queryDB(
 				connection,
-				`${countQuery} ALLOW FILTERING`,
+				countQuery,
 				params,
 				undefined,
 				returnSize
@@ -340,33 +302,21 @@ export abstract class AbstractScyllaDBConnector<T> {
 				returnSize = 0;
 			}
 
-			await this._logging?.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "sql",
-					data: { sql }
-				},
-				requestContext
-			);
+			await this._logging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "sql",
+				data: { sql }
+			});
 
 			// We just use the cursor
-			const result = await this.queryDB(
-				connection,
-				`${sql} ALLOW FILTERING`,
-				params,
-				cursor,
-				returnSize
-			);
+			const result = await this.queryDB(connection, sql, params, cursor, returnSize);
 
-			const entities: Partial<T & { partitionId?: string }>[] = [];
+			const entities: Partial<T>[] = [];
 
 			for (const row of result.rows) {
-				entities.push({
-					...(this.convertRowToObject(row) as T),
-					partitionId: requestContext?.partitionId
-				});
+				entities.push(this.convertRowToObject(row));
 			}
 
 			return {
@@ -551,7 +501,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @returns The row as an object.
 	 * @internal
 	 */
-	protected convertRowToObject(row: { [id: string]: unknown }): T & { partitionId?: string } {
+	protected convertRowToObject(row: { [id: string]: unknown }): T {
 		const obj: { [id: string]: unknown } = {};
 
 		for (const field of this._entitySchema.properties ?? []) {
@@ -561,7 +511,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 			}
 		}
 
-		return obj as T & { partitionId?: string };
+		return obj as T;
 	}
 
 	/**

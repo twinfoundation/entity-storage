@@ -19,9 +19,8 @@ import {
 	type LogEntry,
 	initSchema
 } from "@gtsc/logging-connector-entity-storage";
-import { LoggingConnectorFactory, SystemLoggingConnector } from "@gtsc/logging-models";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
 import { ScyllaDBTableConnector } from "../src/scyllaDBTableConnector";
 
@@ -69,9 +68,6 @@ class TestType {
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 
-const TEST_PARTITION_ID = "test-partition";
-const TEST_PARTITION_ID2 = "test-partition2";
-
 const TABLE_NAME = "test-table";
 
 const localConfig: IScyllaDBTableConfig = {
@@ -97,11 +93,7 @@ describe("ScyllaDBTableConnector", () => {
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
 
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
-		const systemLoggingConnector = new SystemLoggingConnector({
-			loggingConnectorType: "logging",
-			systemPartitionId: TEST_PARTITION_ID
-		});
-		LoggingConnectorFactory.register("system-logging", () => systemLoggingConnector);
+		LoggingConnectorFactory.register("system-logging", () => new EntityStorageLoggingConnector());
 	});
 
 	afterEach(async () => {
@@ -110,8 +102,7 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		try {
-			await entityStorage.truncateTable({ partitionId: TEST_PARTITION_ID });
-			await entityStorage.truncateTable({ partitionId: TEST_PARTITION_ID2 });
+			await entityStorage.truncateTable();
 		} catch {}
 	});
 
@@ -120,8 +111,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.dropTable({ partitionId: TEST_PARTITION_ID });
-		await entityStorage.dropTable({ partitionId: TEST_PARTITION_ID2 });
+		await entityStorage.dropTable();
 	});
 
 	test("can fail to construct when there is no options", async () => {
@@ -227,7 +217,7 @@ describe("ScyllaDBTableConnector", () => {
 			}
 		});
 		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("tableCreating");
@@ -243,7 +233,7 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(5);
 		expect(logs?.[0].message).toEqual("tableCreating");
@@ -271,23 +261,6 @@ describe("ScyllaDBTableConnector", () => {
 		});
 	});
 
-	test("can fail to set an item with no partition id", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: localConfig
-		});
-		await expect(
-			entityStorage.set({ id: "1", value1: "aaa", value2: 35, value3: { field1: new Date() } })
-		).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.partitionId",
-				value: "undefined"
-			}
-		});
-	});
-
 	test("can set an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
@@ -296,9 +269,9 @@ describe("ScyllaDBTableConnector", () => {
 		await entityStorage.bootstrap();
 		const entityId = "1";
 		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
-		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set(objectSet);
 
-		const result = await entityStorage.get(entityId, undefined, { partitionId: TEST_PARTITION_ID });
+		const result = await entityStorage.get(entityId);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
@@ -312,12 +285,12 @@ describe("ScyllaDBTableConnector", () => {
 		});
 		const entityId = "1";
 		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
-		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set(objectSet);
 
 		objectSet.value2 = 99;
-		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set(objectSet);
 
-		const result = await entityStorage.get(entityId, undefined, { partitionId: TEST_PARTITION_ID });
+		const result = await entityStorage.get(entityId);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
@@ -329,11 +302,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await expect(
-			entityStorage.get(undefined as unknown as string, undefined, {
-				partitionId: TEST_PARTITION_ID
-			})
-		).rejects.toMatchObject({
+		await expect(entityStorage.get(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
 			properties: {
@@ -348,7 +317,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		const item = await entityStorage.get("20000", undefined, { partitionId: TEST_PARTITION_ID });
+		const item = await entityStorage.get("20000");
 
 		expect(item).toBeUndefined();
 	});
@@ -358,11 +327,8 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "2", value1: "vvv", value2: 35, value3: undefined },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get("2", undefined, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
+		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("2");
@@ -377,13 +343,8 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		const secondaryValue = "zzz";
-		await entityStorage.set(
-			{ id: "300", value1: secondaryValue, value2: 55, value3: undefined },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get(secondaryValue, "value1", {
-			partitionId: TEST_PARTITION_ID
-		});
+		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
+		const item = await entityStorage.get(secondaryValue, "value1");
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("300");
@@ -396,28 +357,11 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await expect(
-			entityStorage.remove(undefined as unknown as string, { partitionId: TEST_PARTITION_ID })
-		).rejects.toMatchObject({
+		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
 			properties: {
 				property: "id",
-				value: "undefined"
-			}
-		});
-	});
-
-	test("can fail to remove an item with no partition id", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: localConfig
-		});
-		await expect(entityStorage.remove("2")).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.partitionId",
 				value: "undefined"
 			}
 		});
@@ -428,13 +372,10 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "10001", value1: "aaa", value2: 5555, value3: undefined },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
 
 		const idToRemove = "1000999";
-		await entityStorage.remove(idToRemove, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.remove(idToRemove);
 		// No exception should be thrown
 	});
 
@@ -444,15 +385,10 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		const idToRemove = "65432";
-		await entityStorage.set(
-			{ id: idToRemove, value1: "aaa", value2: 99, value3: undefined },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		await entityStorage.remove(idToRemove, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove(idToRemove);
 
-		const result = await entityStorage.get(idToRemove, undefined, {
-			partitionId: TEST_PARTITION_ID
-		});
+		const result = await entityStorage.get(idToRemove);
 		expect(result).toBeUndefined();
 	});
 
@@ -461,14 +397,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -481,18 +410,8 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: 95, value3: undefined },
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
@@ -506,19 +425,14 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		for (let i = 0; i < 80; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: 999, value3: undefined },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 999,
+				value3: undefined
+			});
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(entityStorage.pageSize());
 		expect(result.totalEntities).toEqual(80);
@@ -531,27 +445,15 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		for (let i = 0; i < 50; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: 5555, value3: undefined },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 5555,
+				value3: undefined
+			});
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
-		const result2 = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			result.cursor,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		const result = await entityStorage.query();
+		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
 		expect(result2.totalEntities).toEqual(50);
@@ -565,24 +467,19 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: 7777, value3: { field1: new Date() } },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: { field1: new Date() }
+			});
 		}
 
-		const result = await entityStorage.query(
-			{
-				property: "id",
-				value: "20",
-				operator: ComparisonOperator.Equals
-			},
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		const result = await entityStorage.query({
+			property: "id",
+			value: "20",
+			operator: ComparisonOperator.Equals
+		});
 
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
@@ -597,10 +494,12 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (30 - i).toString(), value1: (30 - i).toString(), value2: 7777, value3: undefined },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
+			await entityStorage.set({
+				id: (30 - i).toString(),
+				value1: (30 - i).toString(),
+				value2: 7777,
+				value3: undefined
+			});
 		}
 		const result = await entityStorage.query(
 			{
@@ -617,11 +516,7 @@ describe("ScyllaDBTableConnector", () => {
 					property: "value1",
 					sortDirection: SortDirection.Ascending
 				}
-			],
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
+			]
 		);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(2);
@@ -637,19 +532,14 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: 7777, value3: undefined },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined
+			});
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			["id", "value1"],
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
+		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(30);
 		expect(result.entities[0].value2).toBeUndefined();

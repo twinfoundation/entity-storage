@@ -10,7 +10,6 @@ import {
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-import type { IServiceRequestContext } from "@gtsc/services";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
 import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
 
@@ -103,8 +102,8 @@ export class ScyllaDBTableConnector<T = unknown>
 				}
 			}
 
-			const fields: string[] = [`"${AbstractScyllaDBConnector.PARTITION_KEY}" TEXT`];
-			const primaryKeys: string[] = [`"${AbstractScyllaDBConnector.PARTITION_KEY}"`];
+			const fields: string[] = [];
+			const primaryKeys: string[] = [];
 			const secondaryKeys: string[] = [];
 
 			for (const field of this._entitySchema.properties ?? []) {
@@ -167,26 +166,16 @@ export class ScyllaDBTableConnector<T = unknown>
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
-	 * @param requestContext The context for the request.
 	 */
-	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
+	public async set(entity: T): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
 		let connection;
 		const id = entity[this._primaryKey?.property];
 		try {
 			const propNames = this._entitySchema.properties?.map(f => `"${String(f.property)}"`) ?? [];
 			const propValues: unknown[] = [];
-			const preparedValues: string[] = ["?"];
-
-			// Always add the partition into the data
-			propNames.unshift(`"${AbstractScyllaDBConnector.PARTITION_KEY}"`);
-			propValues.push(this.propertyToDbValue(requestContext.partitionId, { type: "string" }));
+			const preparedValues: string[] = [];
 
 			const entityAsKeyValues = entity as unknown as { [key: string]: unknown };
 
@@ -200,16 +189,13 @@ export class ScyllaDBTableConnector<T = unknown>
 				","
 			)})`;
 
-			await this._logging?.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "sql",
-					data: { sql }
-				},
-				requestContext
-			);
+			await this._logging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "sql",
+				data: { sql }
+			});
 
 			connection = await this.openConnection();
 
@@ -231,40 +217,27 @@ export class ScyllaDBTableConnector<T = unknown>
 	/**
 	 * Delete the entity.
 	 * @param id The id of the entity to remove.
-	 * @param requestContext The context for the request.
 	 */
-	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
+	public async remove(id: string): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
 		let connection;
 		const primaryFieldValue = this.propertyToDbValue(id, this._primaryKey);
 
 		try {
-			const conditions = [
-				`"${AbstractScyllaDBConnector.PARTITION_KEY}"=?`,
-				`"${String(this._primaryKey?.property)}"=?`
-			];
-			const sql = `DELETE FROM "${this._fullTableName}" WHERE ${conditions.join(" AND ")}`;
+			const sql = `DELETE FROM "${this._fullTableName}" WHERE "${String(this._primaryKey?.property)}"=?`;
 
-			await this._logging?.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "entityStorage.sqlRemove",
-					data: { sql }
-				},
-				requestContext
-			);
+			await this._logging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "entityStorage.sqlRemove",
+				data: { sql }
+			});
 
 			connection = await this.openConnection();
 
-			await this.execute(connection, sql, [requestContext.partitionId, primaryFieldValue]);
+			await this.execute(connection, sql, [primaryFieldValue]);
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
@@ -289,16 +262,9 @@ export class ScyllaDBTableConnector<T = unknown>
 
 	/**
 	 * Drops table.
-	 * @param requestContext Context Request.
 	 */
-	public async dropTable(requestContext: IServiceRequestContext): Promise<void> {
+	public async dropTable(): Promise<void> {
 		let connection;
-
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
 		try {
 			connection = await this.openConnection();
@@ -318,16 +284,9 @@ export class ScyllaDBTableConnector<T = unknown>
 
 	/**
 	 * Truncates (clear) table.
-	 * @param requestContext Context Request.
 	 */
-	public async truncateTable(requestContext: IServiceRequestContext): Promise<void> {
+	public async truncateTable(): Promise<void> {
 		let connection;
-
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
 		try {
 			connection = await this.openConnection();

@@ -5,7 +5,6 @@ import { EntitySchemaHelper, type IEntitySchema } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-import type { IServiceRequestContext } from "@gtsc/services";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
 import type { IScyllaDBViewConfig } from "./models/IScyllaDBViewConfig";
 
@@ -134,18 +133,16 @@ export class ScyllaDBViewConnector<T>
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
-	 * @param requestContext The context for the request.
 	 */
-	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
+	public async set(entity: T): Promise<void> {
 		throw new GeneralError(this.CLASS_NAME, "entityStorage.setReadonlyView", {});
 	}
 
 	/**
 	 * Delete the entity.
 	 * @param id The id of the entity to remove.
-	 * @param requestContext The context for the request.
 	 */
-	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
+	public async remove(id: string): Promise<void> {
 		throw new GeneralError(this.CLASS_NAME, "entityStorage.removeReadonlyView", {});
 	}
 }

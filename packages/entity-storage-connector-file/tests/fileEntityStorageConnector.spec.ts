@@ -17,7 +17,7 @@ import {
 	type LogEntry,
 	initSchema
 } from "@gtsc/logging-connector-entity-storage";
-import { LoggingConnectorFactory, SystemLoggingConnector } from "@gtsc/logging-models";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
 import type { IFileEntityStorageConnectorConfig } from "../src/models/IFileEntityStorageConnectorConfig";
@@ -50,9 +50,7 @@ let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 
 const TEST_DIRECTORY_ROOT = "./.tmp/";
 const TEST_DIRECTORY = `${TEST_DIRECTORY_ROOT}test-data-${Converter.bytesToHex(RandomHelper.generate(8))}`;
-const TEST_PARTITION_ID = "test-partition";
-const TEST_PARTITION_ID2 = "test-partition2";
-const TEST_STORE_NAME = `${TEST_DIRECTORY}/${TEST_PARTITION_ID}.json`;
+const TEST_STORE_NAME = `${TEST_DIRECTORY}/store.json`;
 
 describe("FileEntityStorageConnector", () => {
 	beforeAll(async () => {
@@ -69,11 +67,7 @@ describe("FileEntityStorageConnector", () => {
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
 
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
-		const systemLoggingConnector = new SystemLoggingConnector({
-			loggingConnectorType: "logging",
-			systemPartitionId: TEST_PARTITION_ID
-		});
-		LoggingConnectorFactory.register("system-logging", () => systemLoggingConnector);
+		LoggingConnectorFactory.register("system-logging", () => new EntityStorageLoggingConnector());
 	});
 
 	afterEach(async () => {
@@ -184,7 +178,7 @@ describe("FileEntityStorageConnector", () => {
 			}
 		});
 		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
@@ -201,7 +195,7 @@ describe("FileEntityStorageConnector", () => {
 			}
 		});
 		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("directoryCreating");
@@ -219,7 +213,7 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
+		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(3);
 		expect(logs?.[2].message).toEqual("directoryExists");
@@ -241,35 +235,13 @@ describe("FileEntityStorageConnector", () => {
 		});
 	});
 
-	test("can fail to set an item with no partition id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: {
-				directory: TEST_DIRECTORY
-			}
-		});
-		await expect(
-			entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" })
-		).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.partitionId",
-				value: "undefined"
-			}
-		});
-	});
-
 	test("can set an item", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
 
 		const file = await readFile(TEST_STORE_NAME, "utf8");
 		const store = JSON.parse(file);
@@ -287,15 +259,9 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
 
-		await entityStorage.set(
-			{ id: "1", value1: "ccc", value2: "ddd" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "1", value1: "ccc", value2: "ddd" });
 
 		const file = await readFile(TEST_STORE_NAME, "utf8");
 		const store = JSON.parse(file);
@@ -313,9 +279,7 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await expect(
-			entityStorage.get(undefined as unknown as string, undefined, {
-				partitionId: TEST_PARTITION_ID
-			})
+			entityStorage.get(undefined as unknown as string, undefined)
 		).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -332,11 +296,8 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get("2", undefined, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		const item = await entityStorage.get("2");
 
 		expect(item).toBeUndefined();
 	});
@@ -347,17 +308,13 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get("1", undefined, { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		const item = await entityStorage.get("1");
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("1");
 		expect(item?.value1).toEqual("aaa");
 		expect(item?.value2).toEqual("bbb");
-		expect(item?.partitionId).toBeUndefined();
 	});
 
 	test("can get an item by secondary index", async () => {
@@ -366,11 +323,8 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const item = await entityStorage.get("aaa", "value1", { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		const item = await entityStorage.get("aaa", "value1");
 
 		expect(item).toBeDefined();
 		expect(item?.id).toEqual("1");
@@ -378,56 +332,16 @@ describe("FileEntityStorageConnector", () => {
 		expect(item?.value2).toEqual("bbb");
 	});
 
-	test("can get an item using wildcard partition id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
-		});
-		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		await entityStorage.set(
-			{ id: "2", value1: "ccc", value2: "ddd" },
-			{ partitionId: TEST_PARTITION_ID2 }
-		);
-		const item = await entityStorage.get("2");
-
-		expect(item).toBeDefined();
-		expect(item?.id).toEqual("2");
-		expect(item?.value1).toEqual("ccc");
-		expect(item?.value2).toEqual("ddd");
-		expect(item?.partitionId).toEqual(TEST_PARTITION_ID2);
-	});
-
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: { directory: TEST_DIRECTORY }
 		});
-		await expect(
-			entityStorage.remove(undefined as unknown as string, { partitionId: TEST_PARTITION_ID })
-		).rejects.toMatchObject({
+		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
 			properties: {
 				property: "id",
-				value: "undefined"
-			}
-		});
-	});
-
-	test("can fail to remove an item with no partition id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
-		});
-		await expect(entityStorage.remove("2")).rejects.toMatchObject({
-			name: "GuardError",
-			message: "guard.string",
-			properties: {
-				property: "requestContext.partitionId",
 				value: "undefined"
 			}
 		});
@@ -439,12 +353,9 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
 
-		await entityStorage.remove("2", { partitionId: TEST_PARTITION_ID });
+		await entityStorage.remove("2");
 
 		const file = await readFile(TEST_STORE_NAME, "utf8");
 		const store = JSON.parse(file);
@@ -458,11 +369,8 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		await entityStorage.remove("1", { partitionId: TEST_PARTITION_ID });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		await entityStorage.remove("1");
 
 		const file = await readFile(TEST_STORE_NAME, "utf8");
 		const store = JSON.parse(file);
@@ -476,14 +384,7 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
@@ -497,18 +398,8 @@ describe("FileEntityStorageConnector", () => {
 			config: { directory: TEST_DIRECTORY }
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set(
-			{ id: "1", value1: "aaa", value2: "bbb" },
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
@@ -523,19 +414,9 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
+			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.totalEntities).toEqual(30);
@@ -550,27 +431,10 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
+			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
-		const result2 = await entityStorage.query(
-			undefined,
-			undefined,
-			undefined,
-			result.cursor,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query();
+		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
 		expect(result2.totalEntities).toEqual(30);
@@ -585,23 +449,17 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 100; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: i % 3 === 0 ? "ccc" : "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: i % 3 === 0 ? "ccc" : "bbb"
+			});
 		}
-		const result = await entityStorage.query(
-			{
-				property: "value2",
-				value: "ccc",
-				operator: ComparisonOperator.Equals
-			},
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query({
+			property: "value2",
+			value: "ccc",
+			operator: ComparisonOperator.Equals
+		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.totalEntities).toEqual(34);
@@ -616,24 +474,14 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (30 - i).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
+			await entityStorage.set({ id: (30 - i).toString(), value1: "aaa", value2: "bbb" });
 		}
-		const result = await entityStorage.query(
-			undefined,
-			[
-				{
-					property: "id",
-					sortDirection: SortDirection.Ascending
-				}
-			],
-			undefined,
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query(undefined, [
+			{
+				property: "id",
+				sortDirection: SortDirection.Ascending
+			}
+		]);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.entities[0].id).toEqual("1");
@@ -649,54 +497,13 @@ describe("FileEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
+			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
 		}
-		const result = await entityStorage.query(
-			undefined,
-			undefined,
-			["id", "value1"],
-			undefined,
-			undefined,
-			{ partitionId: TEST_PARTITION_ID }
-		);
+		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.entities[0].id).toEqual("1");
 		expect(result.entities[0].value1).toEqual("aaa");
 		expect(result.entities[0].value2).toBeUndefined();
-	});
-
-	test("can query items with wildcard partition id", async () => {
-		const entityStorage = new FileEntityStorageConnector<TestType>({
-			entitySchema: nameof<TestType>(),
-			config: { directory: TEST_DIRECTORY }
-		});
-		await entityStorage.bootstrap();
-		for (let i = 0; i < 5; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID }
-			);
-		}
-		for (let i = 0; i < 5; i++) {
-			await entityStorage.set(
-				{ id: (i + 1).toString(), value1: "aaa", value2: "bbb" },
-				{ partitionId: TEST_PARTITION_ID2 }
-			);
-		}
-		const result = await entityStorage.query();
-		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(10);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.entities[0].value1).toEqual("aaa");
-		expect(result.entities[0].value2).toEqual("bbb");
-		expect(result.entities[0].partitionId).toEqual(TEST_PARTITION_ID);
-		expect(result.entities[5].id).toEqual("1");
-		expect(result.entities[5].value1).toEqual("aaa");
-		expect(result.entities[5].value2).toEqual("bbb");
-		expect(result.entities[5].partitionId).toEqual(TEST_PARTITION_ID2);
 	});
 });

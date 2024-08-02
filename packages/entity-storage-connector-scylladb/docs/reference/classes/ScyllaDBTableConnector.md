@@ -52,7 +52,7 @@ The configuration for the connector.
 
 ### get()
 
-> **get**(`id`, `secondaryIndex`?, `requestContext`?): `Promise`\<`undefined` \| `T` & `object`\>
+> **get**(`id`, `secondaryIndex`?): `Promise`\<`undefined` \| `T`\>
 
 Get an entity.
 
@@ -66,13 +66,9 @@ The id of the entity to get.
 
 Get the item using a secondary index.
 
-• **requestContext?**: `IServiceRequestContext`
-
-The context for the request.
-
 #### Returns
 
-`Promise`\<`undefined` \| `T` & `object`\>
+`Promise`\<`undefined` \| `T`\>
 
 The object if it can be found or undefined.
 
@@ -88,7 +84,7 @@ The object if it can be found or undefined.
 
 ### query()
 
-> **query**(`conditions`?, `sortProperties`?, `properties`?, `cursor`?, `pageSize`?, `requestContext`?): `Promise`\<`object`\>
+> **query**(`conditions`?, `sortProperties`?, `properties`?, `cursor`?, `pageSize`?): `Promise`\<`object`\>
 
 Find all the entities which match the conditions.
 
@@ -114,10 +110,6 @@ The cursor to request the next page of entities.
 
 The maximum number of entities in a page.
 
-• **requestContext?**: `IServiceRequestContext`
-
-The context for the request.
-
 #### Returns
 
 `Promise`\<`object`\>
@@ -127,10 +119,9 @@ and a cursor which can be used to request more entities.
 
 ##### entities
 
-> **entities**: `Partial`\<`T` & `object`\>[]
+> **entities**: `Partial`\<`T`\>[]
 
 The entities, which can be partial if a limited keys list was provided.
-If non partitioned request then partitionId is included in items.
 
 ##### cursor?
 
@@ -186,7 +177,7 @@ The response of the bootstrapping as log entries.
 
 ### set()
 
-> **set**(`entity`, `requestContext`?): `Promise`\<`void`\>
+> **set**(`entity`): `Promise`\<`void`\>
 
 Set an entity.
 
@@ -195,10 +186,6 @@ Set an entity.
 • **entity**: `T`
 
 The entity to set.
-
-• **requestContext?**: `IServiceRequestContext`
-
-The context for the request.
 
 #### Returns
 
@@ -212,7 +199,7 @@ The context for the request.
 
 ### remove()
 
-> **remove**(`id`, `requestContext`?): `Promise`\<`void`\>
+> **remove**(`id`): `Promise`\<`void`\>
 
 Delete the entity.
 
@@ -221,10 +208,6 @@ Delete the entity.
 • **id**: `string`
 
 The id of the entity to remove.
-
-• **requestContext?**: `IServiceRequestContext`
-
-The context for the request.
 
 #### Returns
 
@@ -252,15 +235,9 @@ The entity storage page size.
 
 ### dropTable()
 
-> **dropTable**(`requestContext`): `Promise`\<`void`\>
+> **dropTable**(): `Promise`\<`void`\>
 
 Drops table.
-
-#### Parameters
-
-• **requestContext**: `IServiceRequestContext`
-
-Context Request.
 
 #### Returns
 
@@ -270,15 +247,9 @@ Context Request.
 
 ### truncateTable()
 
-> **truncateTable**(`requestContext`): `Promise`\<`void`\>
+> **truncateTable**(): `Promise`\<`void`\>
 
 Truncates (clear) table.
-
-#### Parameters
-
-• **requestContext**: `IServiceRequestContext`
-
-Context Request.
 
 #### Returns
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BaseError, Coerce, GeneralError, Guards, Is, ObjectHelper } from "@gtsc/core";
+import { BaseError, Coerce, Guards, ObjectHelper } from "@gtsc/core";
 import {
 	EntityConditions,
 	EntitySchemaFactory,
@@ -16,7 +16,6 @@ import {
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-import type { IServiceRequestContext } from "@gtsc/services";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
 
 /**
@@ -99,8 +98,6 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 						directory: this._directory
 					}
 				});
-
-				await this.writePartitionIndex([]);
 			} catch (err) {
 				await systemLogging?.log({
 					level: "error",
@@ -128,42 +125,19 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
-	 * @param requestContext The context for the request.
-	 * @returns The object if it can be found or undefined, if non partitioned request then partitionId is included in items.
+	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(
-		id: string,
-		secondaryIndex?: keyof T,
-		requestContext?: IServiceRequestContext
-	): Promise<(T & { partitionId?: string }) | undefined> {
+	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-
-		const partitionsToSearch: string[] = [];
-
-		const partitionId = requestContext?.partitionId;
-		const isPartitioned = Is.stringValue(partitionId);
-		if (isPartitioned) {
-			partitionsToSearch.push(partitionId);
-		} else {
-			partitionsToSearch.push(...(await this.readPartitionIndex()));
-		}
 
 		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
-		for (const partition of partitionsToSearch) {
-			const store = await this.readPartitionStore(partition);
+		const store = await this.readStore();
 
-			const found = store?.find(entity => entity[lookupKey] === id);
+		const found = store?.find(entity => entity[lookupKey] === id);
 
-			if (found) {
-				const result: T & { partitionId?: string } = {
-					...found
-				};
-				if (!isPartitioned) {
-					result.partitionId = partition;
-				}
-				return result;
-			}
+		if (found) {
+			return found;
 		}
 
 		return undefined;
@@ -172,20 +146,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
-	 * @param requestContext The context for the request.
 	 * @returns The id of the entity.
 	 */
-	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
+	public async set(entity: T): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
-		const partitionIndex = await this.readPartitionIndex();
-
-		const store = await this.readPartitionStore(requestContext.partitionId);
+		const store = await this.readStore();
 
 		const existingIndex = store.findIndex(
 			e => e[this._primaryKey.property] === entity[this._primaryKey.property]
@@ -196,44 +162,25 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			store.push(entity);
 		}
 
-		await this.writePartitionStore(requestContext.partitionId, store);
-
-		if (!partitionIndex.includes(requestContext.partitionId)) {
-			partitionIndex.push(requestContext.partitionId);
-			await this.writePartitionIndex(partitionIndex);
-		}
+		await this.writeStore(store);
 	}
 
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
-	 * @param requestContext The context for the request.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string, requestContext?: IServiceRequestContext): Promise<void> {
+	public async remove(id: string): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-		Guards.stringValue(
-			this.CLASS_NAME,
-			nameof(requestContext?.partitionId),
-			requestContext?.partitionId
-		);
 
-		const partitionIndex = await this.readPartitionIndex();
-
-		const store = await this.readPartitionStore(requestContext.partitionId);
+		const store = await this.readStore();
 
 		const index = store.findIndex(e => e[this._primaryKey.property] === id);
 		if (index >= 0) {
 			store.splice(index, 1);
 		}
 
-		await this.writePartitionStore(requestContext.partitionId, store);
-
-		const partitionIdx = partitionIndex.indexOf(requestContext.partitionId);
-		if (partitionIdx >= 0 && store.length === 0) {
-			partitionIndex.splice(partitionIdx, 1);
-			await this.writePartitionIndex(partitionIndex);
-		}
+		await this.writeStore(store);
 	}
 
 	/**
@@ -243,7 +190,6 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The maximum number of entities in a page.
-	 * @param requestContext The context for the request.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -255,14 +201,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		}[],
 		properties?: (keyof T)[],
 		cursor?: string,
-		pageSize?: number,
-		requestContext?: IServiceRequestContext
+		pageSize?: number
 	): Promise<{
 		/**
 		 * The entities, which can be partial if a limited keys list was provided.
-		 * If non partitioned request then partitionId is included in items.
 		 */
-		entities: Partial<T & { partitionId?: string }>[];
+		entities: Partial<T>[];
 		/**
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
@@ -276,21 +220,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		 */
 		totalEntities: number;
 	}> {
-		const partitionId = requestContext?.partitionId;
-		const isPartitioned = Is.stringValue(partitionId);
-
-		let allEntities: (T & { partitionId?: string })[] = [];
-		if (isPartitioned) {
-			allEntities = (await this.readPartitionStore(partitionId)) as (T & {
-				partitionId?: string;
-			})[];
-		} else {
-			const partitionIndex = await this.readPartitionIndex();
-			for (const partition of partitionIndex) {
-				const store = await this.readPartitionStore(partition);
-				allEntities = allEntities.concat(store.map(e => ({ ...e, partitionId: partition })));
-			}
-		}
+		let allEntities = await this.readStore();
 
 		const entities = [];
 		const finalPageSize = pageSize ?? FileEntityStorageConnector._DEFAULT_PAGE_SIZE;
@@ -329,37 +259,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	}
 
 	/**
-	 * Read the partition index from file.
-	 * @returns The partition index.
-	 */
-	private async readPartitionIndex(): Promise<string[]> {
-		const filename = path.join(this._directory, "partition-index.json");
-		try {
-			const store = await readFile(filename, "utf8");
-			return JSON.parse(store) as string[];
-		} catch {
-			throw new GeneralError(this.CLASS_NAME, "notBootstrapped", { filename });
-		}
-	}
-
-	/**
-	 * Write the partition index to the file.
-	 * @param partitionIds The partition ids to write in the index.
-	 * @returns Nothing.
-	 */
-	private async writePartitionIndex(partitionIds: string[]): Promise<void> {
-		const filename = path.join(this._directory, "partition-index.json");
-		await writeFile(filename, JSON.stringify(partitionIds, undefined, "\t"), "utf8");
-	}
-
-	/**
 	 * Read the store from file.
-	 * @param partitionId The partition id to read the store for.
-	 * @returns The store for the partition.
+	 * @returns The store.
 	 */
-	private async readPartitionStore(partitionId: string): Promise<T[]> {
+	private async readStore(): Promise<T[]> {
 		try {
-			const filename = path.join(this._directory, `${partitionId}.json`);
+			const filename = path.join(this._directory, "store.json");
 			const store = await readFile(filename, "utf8");
 			return JSON.parse(store) as T[];
 		} catch {
@@ -369,13 +274,12 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Write the store to the file.
-	 * @param partitionId The partition id to write the store for.
 	 * @param store The store to write.
 	 * @returns Nothing.
 	 */
-	private async writePartitionStore(partitionId: string, store: T[]): Promise<void> {
+	private async writeStore(store: T[]): Promise<void> {
 		try {
-			const filename = path.join(this._directory, `${partitionId}.json`);
+			const filename = path.join(this._directory, "store.json");
 			await writeFile(filename, JSON.stringify(store, undefined, "\t"), "utf8");
 		} catch {}
 	}
