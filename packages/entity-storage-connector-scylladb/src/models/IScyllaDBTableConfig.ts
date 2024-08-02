@@ -8,6 +8,7 @@ import type { IScyllaDBConfig } from "./IScyllaDBConfig";
 export interface IScyllaDBTableConfig extends IScyllaDBConfig {
 	/**
 	 * The name of the table for the storage.
+	 * @default To the camel case of the entity name.
 	 */
-	tableName: string;
+	tableName?: string;
 }

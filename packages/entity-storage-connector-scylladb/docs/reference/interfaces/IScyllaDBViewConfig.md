@@ -32,9 +32,9 @@ The local data center.
 
 ***
 
-### keyspace?
+### keyspace
 
-> `optional` **keyspace**: `string`
+> **keyspace**: `string`
 
 The keyspace to use.
 
@@ -44,11 +44,17 @@ The keyspace to use.
 
 ***
 
-### tableName
+### tableName?
 
-> **tableName**: `string`
+> `optional` **tableName**: `string`
 
 The name of the table for the storage.
+
+#### Default
+
+```ts
+To the camel case of the entity name.
+```
 
 #### Inherited from
 
@@ -56,8 +62,14 @@ The name of the table for the storage.
 
 ***
 
-### viewName
+### viewName?
 
-> **viewName**: `string`
+> `optional` **viewName**: `string`
 
 The name of view.
+
+#### Default
+
+```ts
+To the camel case of the entity name with View appended.
+```

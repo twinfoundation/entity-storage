@@ -1,8 +1,9 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BaseError, GeneralError, type IError } from "@gtsc/core";
+import { BaseError, GeneralError, Is, StringHelper, type IError } from "@gtsc/core";
 import { EntitySchemaHelper, type IEntitySchema } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
@@ -11,23 +12,23 @@ import type { IScyllaDBViewConfig } from "./models/IScyllaDBViewConfig";
 /**
  * Manage entities using ScyllaDB Views.
  */
-export class ScyllaDBViewConnector<T, U>
-	extends AbstractScyllaDBConnector<U>
-	implements IEntityStorageConnector<U>
+export class ScyllaDBViewConnector<T>
+	extends AbstractScyllaDBConnector<T>
+	implements IEntityStorageConnector<T>
 {
-	/**
-	 * Runtime name for the class.
-	 * @internal
-	 */
-	public override readonly CLASS_NAME: string = nameof<ScyllaDBViewConnector<T, U>>();
-
 	/**
 	 * The view descriptor.
 	 */
-	private readonly _viewSchema: IEntitySchema<U>;
+	private readonly _viewSchema: IEntitySchema<T>;
 
 	/**
-	 * Create a new instance of ScyllaDBEntityStorage.
+	 * The name of the database table.
+	 * @internal
+	 */
+	private readonly _originalFullTableName: string;
+
+	/**
+	 * Create a new instance of ScyllaDBViewConnector.
 	 * @param options The options for the connector.
 	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
 	 * @param options.entitySchema The name of the entity schema.
@@ -41,39 +42,48 @@ export class ScyllaDBViewConnector<T, U>
 		config: IScyllaDBViewConfig;
 	}) {
 		// We need this conversion so that types can match in the superclass and reuse the get method
-		super({
-			loggingConnectorType: options.loggingConnectorType,
-			entitySchema: options.viewSchema,
-			config: options.config
-		});
+		super(
+			{
+				loggingConnectorType: options.loggingConnectorType,
+				entitySchema: options.viewSchema,
+				config: options.config
+			},
+			nameof(ScyllaDBViewConnector)
+		);
 
-		this._viewSchema = EntitySchemaHelper.getSchema<U>(options.viewSchema);
+		this._viewSchema = EntitySchemaHelper.getSchema<T>(options.viewSchema);
 
-		// Ensuring queries are made over view
-		this.fullTableName = options.config.viewName;
+		// We need the underlying class to use the view name for lookups
+		// so substitute the view name for the entity name
+		// but store the original table name to use when bootstrapping the view
+		this._originalFullTableName = this._fullTableName;
+		this._fullTableName = StringHelper.camelCase(
+			Is.stringValue(options.config.viewName) ? options.config.viewName : options.entitySchema
+		);
 	}
 
 	/**
-	 * Bootstrap the service by creating and initializing any resources it needs.
-	 * @param systemPartitionId The system partition ID.
+	 * Bootstrap the connector by creating and initializing any resources it needs.
+	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemPartitionId: string): Promise<void> {
-		this._logging.log({
+	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
+		const systemLogging = LoggingConnectorFactory.getIfExists(
+			systemLoggingConnectorType ?? "system-logging"
+		);
+
+		systemLogging?.log({
 			level: "info",
 			source: this.CLASS_NAME,
 			ts: Date.now(),
 			message: "viewCreating",
-			data: { view: this.fullTableName }
+			data: { view: this._fullTableName }
 		});
 
 		try {
-			const tenantId = systemPartitionId;
-			const config: IScyllaDBViewConfig = this._config as IScyllaDBViewConfig;
+			const dbConnection = await this.openConnection(true);
 
-			const dbConnection = await this.openConnection(this._config, tenantId);
-
-			await this.createKeyspace(dbConnection, tenantId);
+			await this.createKeyspace(dbConnection, this._config.keyspace);
 
 			const fields: string[] = [];
 			const primaryKeys: string[] = [];
@@ -86,36 +96,36 @@ export class ScyllaDBViewConnector<T, U>
 			}
 			fields.push(`PRIMARY KEY (${primaryKeys.join(",")})`);
 
-			const sql = `CREATE MATERIALIZED VIEW IF NOT EXISTS ${tenantId}.${config.viewName}
-            AS SELECT * FROM ${tenantId}.${this._config.tableName} WHERE
-            ${this.fullTableName} (${fields.join(" AND ")})`;
+			const sql = `CREATE MATERIALIZED VIEW IF NOT EXISTS ${this._config.keyspace}.${this._fullTableName}
+            AS SELECT * FROM ${this._config.keyspace}.${this._originalFullTableName} WHERE
+            ${this._fullTableName} (${fields.join(" AND ")})`;
 
 			await this.execute(dbConnection, sql);
 
-			this._logging.log({
+			systemLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
 				message: "viewCreated",
-				data: { view: this.fullTableName }
+				data: { view: this._fullTableName }
 			});
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-				this._logging.log({
+				systemLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "viewExists",
-					data: { view: this.fullTableName }
+					data: { view: this._fullTableName }
 				});
 			} else {
-				this._logging.log({
+				systemLogging?.log({
 					level: "error",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
 					message: "viewCreateFailed",
 					error: err as IError,
-					data: { view: this.fullTableName }
+					data: { view: this._fullTableName }
 				});
 			}
 		}
@@ -126,7 +136,7 @@ export class ScyllaDBViewConnector<T, U>
 	 * @param entity The entity to set.
 	 * @param requestContext The context for the request.
 	 */
-	public async set(entity: U, requestContext?: IServiceRequestContext): Promise<void> {
+	public async set(entity: T, requestContext?: IServiceRequestContext): Promise<void> {
 		throw new GeneralError(this.CLASS_NAME, "entityStorage.setReadonlyView", {});
 	}
 

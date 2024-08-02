@@ -20,7 +20,7 @@ Store entities using ScyllaDB.
 
 > **new ScyllaDBTableConnector**\<`T`\>(`options`): [`ScyllaDBTableConnector`](ScyllaDBTableConnector.md)\<`T`\>
 
-Create a new instance of FileEntityStorageConnector.
+Create a new instance of ScyllaDBTableConnector.
 
 #### Parameters
 
@@ -44,7 +44,7 @@ The configuration for the connector.
 
 [`ScyllaDBTableConnector`](ScyllaDBTableConnector.md)\<`T`\>
 
-#### Inherited from
+#### Overrides
 
 `AbstractScyllaDBConnector<T>.constructor`
 
@@ -162,15 +162,15 @@ Total entities length.
 
 ### bootstrap()
 
-> **bootstrap**(`systemPartitionId`): `Promise`\<`void`\>
+> **bootstrap**(`systemLoggingConnectorType`?): `Promise`\<`void`\>
 
-Bootstrap the service by creating and initializing any resources it needs.
+Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 
-• **systemPartitionId**: `string`
+• **systemLoggingConnectorType?**: `string`
 
-The System Partition ID.
+The system logging connector type, defaults to "system-logging".
 
 #### Returns
 

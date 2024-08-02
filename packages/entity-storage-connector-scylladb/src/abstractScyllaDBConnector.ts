@@ -3,21 +3,21 @@
 
 import { GeneralError, Guards, Is, StringHelper } from "@gtsc/core";
 import {
-	SortDirection,
-	type IEntitySchemaProperty,
-	type IEntitySchema,
+	ComparisonOperator,
 	EntitySchemaFactory,
 	EntitySchemaHelper,
+	LogicalOperator,
+	SortDirection,
 	type EntityCondition,
 	type IComparator,
-	ComparisonOperator,
-	LogicalOperator,
-	type IComparatorGroup
+	type IComparatorGroup,
+	type IEntitySchema,
+	type IEntitySchemaProperty
 } from "@gtsc/entity";
-import { type ILoggingConnector, LoggingConnectorFactory } from "@gtsc/logging-models";
+import { LoggingConnectorFactory, type ILoggingConnector } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
-import { Client, types as CassandraTypes } from "cassandra-driver";
+import { types as CassandraTypes, Client } from "cassandra-driver";
 import type { IScyllaDBConfig } from "./models/IScyllaDBConfig";
 import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
 
@@ -29,30 +29,37 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * Limit the number of entities when finding.
 	 * @internal
 	 */
-	public static readonly PAGE_SIZE: number = 40;
+	protected static readonly PAGE_SIZE: number = 40;
 
 	/**
-	 * Class name.
+	 * The partition key name.
+	 * @internal
 	 */
-	protected CLASS_NAME: string = "";
+	protected static readonly PARTITION_KEY: string = "partitionKey";
+
+	/**
+	 * Runtime name for the class.
+	 * @internal
+	 */
+	public readonly CLASS_NAME: string;
 
 	/**
 	 * The name of the database table.
 	 * @internal
 	 */
-	protected fullTableName: string;
+	protected _fullTableName: string;
 
 	/**
 	 * Configuration to connection to ScyllaDB.
 	 * @internal
 	 */
-	protected readonly _config: IScyllaDBTableConfig;
+	protected readonly _config: IScyllaDBConfig;
 
 	/**
 	 * The logging connector.
 	 * @internal
 	 */
-	protected readonly _logging: ILoggingConnector;
+	protected readonly _logging?: ILoggingConnector;
 
 	/**
 	 * The schema for the entity.
@@ -67,28 +74,42 @@ export abstract class AbstractScyllaDBConnector<T> {
 	protected readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
-	 * Create a new instance of FileEntityStorageConnector.
+	 * Create a new instance of AbstractScyllaDBConnector.
 	 * @param options The options for the connector.
 	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
 	 * @param options.entitySchema The name of the entity schema.
 	 * @param options.config The configuration for the connector.
+	 * @param className The name of the derived class.
 	 */
-	constructor(options: {
-		loggingConnectorType?: string;
-		entitySchema: string;
-		config: IScyllaDBTableConfig;
-	}) {
+	constructor(
+		options: {
+			loggingConnectorType?: string;
+			entitySchema: string;
+			config: IScyllaDBTableConfig;
+		},
+		className: string
+	) {
+		this.CLASS_NAME = className;
+
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
-		Guards.object<IScyllaDBTableConfig>(this.CLASS_NAME, nameof(options.config), options.config);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.tableName), options.config.tableName);
+		Guards.object<IScyllaDBConfig>(this.CLASS_NAME, nameof(options.config), options.config);
+		Guards.arrayValue(this.CLASS_NAME, nameof(options.config.hosts), options.config.hosts);
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(options.config.localDataCenter),
+			options.config.localDataCenter
+		);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.config.keyspace), options.config.keyspace);
 
-		this._logging = LoggingConnectorFactory.get(options.loggingConnectorType ?? "logging");
+		this._logging = LoggingConnectorFactory.getIfExists(options.loggingConnectorType ?? "logging");
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
 		this._config = options.config;
-		this.fullTableName = StringHelper.camelCase(`${options.config.tableName}`);
+		this._fullTableName = StringHelper.camelCase(
+			Is.stringValue(options.config.tableName) ? options.config.tableName : options.entitySchema
+		);
 	}
 
 	/**
@@ -114,7 +135,12 @@ export abstract class AbstractScyllaDBConnector<T> {
 		try {
 			const indexField = secondaryIndex ?? this._primaryKey?.property;
 
-			let sql = `SELECT * FROM "${this.fullTableName}" WHERE "${String(indexField)}"= ?`;
+			const conditions = [
+				`"${AbstractScyllaDBConnector.PARTITION_KEY}"=?`,
+				`"${String(indexField)}"=?`
+			];
+
+			let sql = `SELECT * FROM "${this._fullTableName}" WHERE ${conditions.join(" AND ")}`;
 
 			if (secondaryIndex) {
 				sql += "ALLOW FILTERING";
@@ -131,18 +157,12 @@ export abstract class AbstractScyllaDBConnector<T> {
 				requestContext
 			);
 
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext?.partitionId)
-			);
+			connection = await this.openConnection();
 
-			const result = await this.queryDB(connection, sql, [id]);
+			const result = await this.queryDB(connection, sql, [requestContext.partitionId, id]);
 
 			if (result.rows.length === 1) {
-				return {
-					...(this.convertRowToObject(result.rows[0]) as T),
-					partitionId: requestContext?.partitionId
-				};
+				return this.convertRowToObject(result.rows[0]);
 			}
 		} catch (error) {
 			throw new GeneralError(
@@ -200,14 +220,11 @@ export abstract class AbstractScyllaDBConnector<T> {
 	}> {
 		let connection;
 		try {
-			Guards.stringValue(
-				this.CLASS_NAME,
-				nameof(requestContext?.partitionId),
-				requestContext?.partitionId
-			);
+			const partitionId = requestContext?.partitionId;
+			const isPartitioned = Is.stringValue(partitionId);
 
 			let returnSize = pageSize ?? AbstractScyllaDBConnector.PAGE_SIZE;
-			let sql = `SELECT * FROM "${this.fullTableName}"`;
+			let sql = `SELECT * FROM "${this._fullTableName}"`;
 
 			if (Is.array(properties)) {
 				const fields: string[] = [];
@@ -234,7 +251,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 				}
 			}
 
-			// This code needs refactoring to support recursive conditions. TO BE DONE.
+			// TODO: This code needs refactoring to support recursive conditions.
 			for (const cond of theConditions) {
 				const condition = cond as IComparator;
 				const descriptor = this._entitySchema.properties?.find(
@@ -281,14 +298,18 @@ export abstract class AbstractScyllaDBConnector<T> {
 				conditionQuery = `${conds.join(` ${operator} `)}`;
 			}
 
-			if (conds.length > 0) {
+			if (isPartitioned) {
+				const partitionQuery = `"${AbstractScyllaDBConnector.PARTITION_KEY}" = ?`;
+				params.unshift(partitionId);
+				conditionQuery =
+					conditionQuery.length > 0 ? `${partitionQuery} AND (${conditionQuery})` : partitionQuery;
+			}
+
+			if (conditionQuery.length > 0) {
 				sql += ` WHERE ${conditionQuery}`;
 			}
 
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext?.partitionId)
-			);
+			connection = await this.openConnection();
 
 			// eslint-disable-next-line @typescript-eslint/quotes
 			const countQueryFragment = `SELECT COUNT(*) AS "totalEntities"`;
@@ -296,7 +317,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 
 			const countResults = await this.queryDB(
 				connection,
-				countQuery,
+				`${countQuery} ALLOW FILTERING`,
 				params,
 				undefined,
 				returnSize
@@ -331,7 +352,13 @@ export abstract class AbstractScyllaDBConnector<T> {
 			);
 
 			// We just use the cursor
-			const result = await this.queryDB(connection, sql, params, cursor, returnSize);
+			const result = await this.queryDB(
+				connection,
+				`${sql} ALLOW FILTERING`,
+				params,
+				cursor,
+				returnSize
+			);
 
 			const entities: Partial<T & { partitionId?: string }>[] = [];
 
@@ -349,7 +376,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 				totalEntities: Number(countResults.rows[0].totalEntities)
 			};
 		} catch (error) {
-			throw new GeneralError(this.CLASS_NAME, "findFailed", { table: this.fullTableName }, error);
+			throw new GeneralError(this.CLASS_NAME, "findFailed", { table: this._fullTableName }, error);
 		} finally {
 			await this.closeConnection(connection);
 		}
@@ -358,14 +385,15 @@ export abstract class AbstractScyllaDBConnector<T> {
 	/**
 	 * Open a new database connection.
 	 * @param config The config for the connection.
+	 * @param skipKeySpace Don't include the keyspace in the connection.
 	 * @returns The new connection.
 	 * @internal
 	 */
-	protected async openConnection(config: IScyllaDBConfig, keyspace?: string): Promise<Client> {
+	protected async openConnection(skipKeySpace: boolean = false): Promise<Client> {
 		const client = new Client({
-			contactPoints: config.hosts,
-			localDataCenter: config.localDataCenter,
-			keyspace
+			contactPoints: this._config.hosts,
+			localDataCenter: this._config.localDataCenter,
+			keyspace: skipKeySpace ? undefined : this._config.keyspace
 		});
 		await client.connect();
 
@@ -499,7 +527,10 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @returns The value after conversion.
 	 * @internal
 	 */
-	protected propertyToDbValue(value: unknown, fieldDescriptor?: IEntitySchemaProperty<T>): unknown {
+	protected propertyToDbValue(
+		value: unknown,
+		fieldDescriptor?: Pick<IEntitySchemaProperty<T>, "type" | "format">
+	): unknown {
 		if (fieldDescriptor) {
 			// eslint-disable-next-line no-constant-condition
 			if (fieldDescriptor.type === "string" && fieldDescriptor.format === "json") {
@@ -520,7 +551,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @returns The row as an object.
 	 * @internal
 	 */
-	protected convertRowToObject(row: { [id: string]: unknown }): unknown {
+	protected convertRowToObject(row: { [id: string]: unknown }): T & { partitionId?: string } {
 		const obj: { [id: string]: unknown } = {};
 
 		for (const field of this._entitySchema.properties ?? []) {
@@ -530,7 +561,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 			}
 		}
 
-		return obj;
+		return obj as T & { partitionId?: string };
 	}
 
 	/**

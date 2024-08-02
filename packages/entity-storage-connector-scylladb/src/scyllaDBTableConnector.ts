@@ -1,16 +1,18 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 
-import { BaseError, GeneralError, Guards, type IError, Is, StringHelper } from "@gtsc/core";
+import { BaseError, GeneralError, Guards, type IError, Is } from "@gtsc/core";
 import {
 	EntitySchemaFactory,
 	EntitySchemaPropertyType,
 	type IEntitySchemaProperty
 } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
+import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 import type { IServiceRequestContext } from "@gtsc/services";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
+import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
 
 /**
  * Store entities using ScyllaDB.
@@ -20,45 +22,45 @@ export class ScyllaDBTableConnector<T = unknown>
 	implements IEntityStorageConnector<T>
 {
 	/**
-	 * Limit the number of entities when finding.
-	 * @internal
+	 * Create a new instance of ScyllaDBTableConnector.
+	 * @param options The options for the connector.
+	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
+	 * @param options.entitySchema The name of the entity schema.
+	 * @param options.config The configuration for the connector.
 	 */
-	private static readonly _PAGE_SIZE: number = 40;
+	constructor(options: {
+		loggingConnectorType?: string;
+		entitySchema: string;
+		config: IScyllaDBTableConfig;
+	}) {
+		super(options, nameof(ScyllaDBTableConnector));
+	}
 
 	/**
-	 * Runtime name for the class.
-	 * @internal
-	 */
-	public override readonly CLASS_NAME: string = nameof<ScyllaDBTableConnector>();
-
-	/**
-	 * Bootstrap the service by creating and initializing any resources it needs.
-	 * @param systemPartitionId The System Partition ID.
+	 * Bootstrap the connector by creating and initializing any resources it needs.
+	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemPartitionId: string): Promise<void> {
-		this._logging.log(
-			{
-				level: "info",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "tableCreating",
-				data: { table: this.fullTableName }
-			},
-			{ partitionId: systemPartitionId }
+	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
+		const systemLogging = LoggingConnectorFactory.getIfExists(
+			systemLoggingConnectorType ?? "system-logging"
 		);
+		systemLogging?.log({
+			level: "info",
+			source: this.CLASS_NAME,
+			ts: Date.now(),
+			message: "tableCreating",
+			data: { table: this._fullTableName }
+		});
 
 		try {
-			let dbConnection = await this.openConnection(this._config);
+			let dbConnection = await this.openConnection(true);
 
-			await this.createKeyspace(dbConnection, StringHelper.camelCase(systemPartitionId));
+			await this.createKeyspace(dbConnection, this._config.keyspace);
 
 			// Connection has to be closed and now open a new one with our keyspace
 			await this.closeConnection(dbConnection);
-			dbConnection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(systemPartitionId)
-			);
+			dbConnection = await this.openConnection();
 
 			// Need to find structured properties (declared as type: object)
 			const structuredProperties = this._entitySchema.properties?.filter(
@@ -80,35 +82,29 @@ export class ScyllaDBTableConnector<T = unknown>
 						const sql = `CREATE TYPE IF NOT EXISTS
 																		"${subTypeSchemaRef}" (${typeFields.join(",")})`;
 
-						await this._logging.log(
-							{
-								level: "info",
-								source: this.CLASS_NAME,
-								ts: Date.now(),
-								message: "sql",
-								data: { sql }
-							},
-							{ partitionId: systemPartitionId }
-						);
+						await systemLogging?.log({
+							level: "info",
+							source: this.CLASS_NAME,
+							ts: Date.now(),
+							message: "sql",
+							data: { sql }
+						});
 
 						await this.execute(dbConnection, sql);
 
-						await this._logging.log(
-							{
-								level: "info",
-								source: this.CLASS_NAME,
-								ts: Date.now(),
-								message: "typeCreated",
-								data: { typeName: subTypeSchemaRef }
-							},
-							{ partitionId: systemPartitionId }
-						);
+						await systemLogging?.log({
+							level: "info",
+							source: this.CLASS_NAME,
+							ts: Date.now(),
+							message: "typeCreated",
+							data: { typeName: subTypeSchemaRef }
+						});
 					}
 				}
 			}
 
-			const fields: string[] = [];
-			const primaryKeys: string[] = [];
+			const fields: string[] = [`"${AbstractScyllaDBConnector.PARTITION_KEY}" TEXT`];
+			const primaryKeys: string[] = [`"${AbstractScyllaDBConnector.PARTITION_KEY}"`];
 			const secondaryKeys: string[] = [];
 
 			for (const field of this._entitySchema.properties ?? []) {
@@ -120,62 +116,50 @@ export class ScyllaDBTableConnector<T = unknown>
 					secondaryKeys.push(`"${field.property as string}"`);
 				}
 			}
-			fields.push(`PRIMARY KEY ( (${primaryKeys.join(",")})`);
+			fields.push(`PRIMARY KEY ((${primaryKeys.join(",")})`);
 			if (secondaryKeys.length > 0) {
 				fields.push(`${secondaryKeys.join(",")})`);
 			} else {
 				fields[fields.length - 1] += ")";
 			}
 
-			const sql = `CREATE TABLE IF NOT EXISTS "${this.fullTableName}" (${fields.join(",")})`;
+			const sql = `CREATE TABLE IF NOT EXISTS "${this._fullTableName}" (${fields.join(", ")})`;
 
-			await this._logging.log(
-				{
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "sql",
-					data: { sql }
-				},
-				{ partitionId: systemPartitionId }
-			);
+			await systemLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "sql",
+				data: { sql }
+			});
 
 			await this.execute(dbConnection, sql);
 
-			await this._logging.log(
-				{
+			await systemLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "tableCreated",
+				data: { table: this._fullTableName }
+			});
+		} catch (err) {
+			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
+				await systemLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
-					message: "tableCreated",
-					data: { table: this.fullTableName }
-				},
-				{ partitionId: systemPartitionId }
-			);
-		} catch (err) {
-			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-				await this._logging.log(
-					{
-						level: "info",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "tableExists",
-						data: { table: this.fullTableName }
-					},
-					{ partitionId: systemPartitionId }
-				);
+					message: "tableExists",
+					data: { table: this._fullTableName }
+				});
 			} else {
-				await this._logging.log(
-					{
-						level: "error",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "tableCreateFailed",
-						error: err as IError,
-						data: { table: this.fullTableName }
-					},
-					{ partitionId: systemPartitionId }
-				);
+				await systemLogging?.log({
+					level: "error",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "tableCreateFailed",
+					error: err as IError,
+					data: { table: this._fullTableName }
+				});
 			}
 		}
 	}
@@ -198,7 +182,11 @@ export class ScyllaDBTableConnector<T = unknown>
 		try {
 			const propNames = this._entitySchema.properties?.map(f => `"${String(f.property)}"`) ?? [];
 			const propValues: unknown[] = [];
-			const preparedValues: string[] = [];
+			const preparedValues: string[] = ["?"];
+
+			// Always add the partition into the data
+			propNames.unshift(`"${AbstractScyllaDBConnector.PARTITION_KEY}"`);
+			propValues.push(this.propertyToDbValue(requestContext.partitionId, { type: "string" }));
 
 			const entityAsKeyValues = entity as unknown as { [key: string]: unknown };
 
@@ -208,24 +196,11 @@ export class ScyllaDBTableConnector<T = unknown>
 				preparedValues.push("?");
 			}
 
-			if (propNames.length === 0) {
-				await this._logging.log(
-					{
-						level: "warn",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "noProperties"
-					},
-					requestContext
-				);
-				return;
-			}
-
-			const sql = `INSERT INTO "${this.fullTableName}" (${propNames.join(",")}) VALUES (${preparedValues.join(
+			const sql = `INSERT INTO "${this._fullTableName}" (${propNames.join(",")}) VALUES (${preparedValues.join(
 				","
 			)})`;
 
-			await this._logging.log(
+			await this._logging?.log(
 				{
 					level: "info",
 					source: this.CLASS_NAME,
@@ -236,24 +211,10 @@ export class ScyllaDBTableConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext?.partitionId)
-			);
+			connection = await this.openConnection();
 
 			await this.execute(connection, sql, propValues);
 		} catch (error) {
-			await this._logging.log(
-				{
-					level: "error",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "setFailed",
-					error: error as IError
-				},
-				requestContext
-			);
-
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"entityStorage.setFailed",
@@ -284,9 +245,13 @@ export class ScyllaDBTableConnector<T = unknown>
 		const primaryFieldValue = this.propertyToDbValue(id, this._primaryKey);
 
 		try {
-			const sql = `DELETE FROM "${this.fullTableName}" WHERE "${String(this._primaryKey?.property)}"=?`;
+			const conditions = [
+				`"${AbstractScyllaDBConnector.PARTITION_KEY}"=?`,
+				`"${String(this._primaryKey?.property)}"=?`
+			];
+			const sql = `DELETE FROM "${this._fullTableName}" WHERE ${conditions.join(" AND ")}`;
 
-			await this._logging.log(
+			await this._logging?.log(
 				{
 					level: "info",
 					source: this.CLASS_NAME,
@@ -297,12 +262,9 @@ export class ScyllaDBTableConnector<T = unknown>
 				requestContext
 			);
 
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext?.partitionId)
-			);
+			connection = await this.openConnection();
 
-			await this.execute(connection, sql, [primaryFieldValue]);
+			await this.execute(connection, sql, [requestContext.partitionId, primaryFieldValue]);
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
@@ -322,7 +284,7 @@ export class ScyllaDBTableConnector<T = unknown>
 	 * @returns The entity storage page size.
 	 */
 	public pageSize(): number {
-		return ScyllaDBTableConnector._PAGE_SIZE;
+		return ScyllaDBTableConnector.PAGE_SIZE;
 	}
 
 	/**
@@ -339,17 +301,14 @@ export class ScyllaDBTableConnector<T = unknown>
 		);
 
 		try {
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext.partitionId)
-			);
+			connection = await this.openConnection();
 
-			await connection.execute(`DROP TABLE IF EXISTS "${this.fullTableName}"`);
+			await connection.execute(`DROP TABLE IF EXISTS "${this._fullTableName}"`);
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"dropTableFailed",
-				{ table: this.fullTableName },
+				{ table: this._fullTableName },
 				error
 			);
 		} finally {
@@ -371,17 +330,14 @@ export class ScyllaDBTableConnector<T = unknown>
 		);
 
 		try {
-			connection = await this.openConnection(
-				this._config,
-				StringHelper.camelCase(requestContext.partitionId)
-			);
+			connection = await this.openConnection();
 
-			await connection.execute(`TRUNCATE TABLE "${this.fullTableName}"`);
+			await connection.execute(`TRUNCATE TABLE "${this._fullTableName}"`);
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"truncateTableFailed",
-				{ table: this.fullTableName },
+				{ table: this._fullTableName },
 				error
 			);
 		} finally {
@@ -450,7 +406,7 @@ export class ScyllaDBTableConnector<T = unknown>
 				if (!logicalField.itemTypeRef) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
-						table: this.fullTableName
+						table: this._fullTableName
 					});
 				}
 				dbType = `frozen<"${logicalField.itemTypeRef}">`;
@@ -459,7 +415,7 @@ export class ScyllaDBTableConnector<T = unknown>
 				if (!logicalField.itemType && !logicalField.itemTypeRef) {
 					throw new GeneralError(this.CLASS_NAME, "itemTypeNotDefined", {
 						type: logicalField.type,
-						table: this.fullTableName
+						table: this._fullTableName
 					});
 				}
 				if (logicalField.itemType) {

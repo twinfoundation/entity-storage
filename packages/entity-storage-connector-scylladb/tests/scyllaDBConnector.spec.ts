@@ -19,7 +19,7 @@ import {
 	type LogEntry,
 	initSchema
 } from "@gtsc/logging-connector-entity-storage";
-import { LoggingConnectorFactory } from "@gtsc/logging-models";
+import { LoggingConnectorFactory, SystemLoggingConnector } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
 
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
@@ -77,7 +77,8 @@ const TABLE_NAME = "test-table";
 const localConfig: IScyllaDBTableConfig = {
 	tableName: TABLE_NAME,
 	hosts: ["localhost"],
-	localDataCenter: "datacenter1"
+	localDataCenter: "datacenter1",
+	keyspace: "test_keyspace"
 };
 
 describe("ScyllaDBTableConnector", () => {
@@ -94,7 +95,13 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<LogEntry>()
 		});
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
+
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
+		const systemLoggingConnector = new SystemLoggingConnector({
+			loggingConnectorType: "logging",
+			systemPartitionId: TEST_PARTITION_ID
+		});
+		LoggingConnectorFactory.register("system-logging", () => systemLoggingConnector);
 	});
 
 	afterEach(async () => {
@@ -181,7 +188,7 @@ describe("ScyllaDBTableConnector", () => {
 		);
 	});
 
-	test("can fail to construct when there is no config", async () => {
+	test("can fail to construct when config is empty", async () => {
 		expect(
 			() =>
 				new ScyllaDBTableConnector({ entitySchema: "test", config: {} } as unknown as {
@@ -192,9 +199,9 @@ describe("ScyllaDBTableConnector", () => {
 		).toThrow(
 			expect.objectContaining({
 				name: "GuardError",
-				message: "guard.string",
+				message: "guard.array",
 				properties: {
-					property: "options.config.tableName",
+					property: "options.config.hosts",
 					value: "undefined"
 				}
 			})
@@ -215,10 +222,11 @@ describe("ScyllaDBTableConnector", () => {
 			config: {
 				hosts: ["example.org"],
 				tableName: "test1",
-				localDataCenter: "datacenter1"
+				localDataCenter: "datacenter1",
+				keyspace: "test_keyspace"
 			}
 		});
-		await entityStorage.bootstrap(TEST_PARTITION_ID);
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
@@ -234,9 +242,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
-		await entityStorage.bootstrap(TEST_PARTITION_ID);
-		// This is done to have the table also available in another partition
-		await entityStorage.bootstrap(TEST_PARTITION_ID2);
+		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore(TEST_PARTITION_ID);
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(5);
@@ -287,6 +293,7 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config: localConfig
 		});
+		await entityStorage.bootstrap();
 		const entityId = "1";
 		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
 		await entityStorage.set(objectSet, { partitionId: TEST_PARTITION_ID });

@@ -36,9 +36,9 @@ The local data center.
 
 ***
 
-### keyspace?
+### keyspace
 
-> `optional` **keyspace**: `string`
+> **keyspace**: `string`
 
 The keyspace to use.
 
@@ -48,8 +48,14 @@ The keyspace to use.
 
 ***
 
-### tableName
+### tableName?
 
-> **tableName**: `string`
+> `optional` **tableName**: `string`
 
 The name of the table for the storage.
+
+#### Default
+
+```ts
+To the camel case of the entity name.
+```

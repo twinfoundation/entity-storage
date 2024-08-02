@@ -1,28 +1,26 @@
-# Class: ScyllaDBViewConnector\<T, U\>
+# Class: ScyllaDBViewConnector\<T\>
 
 Manage entities using ScyllaDB Views.
 
 ## Extends
 
-- `AbstractScyllaDBConnector`\<`U`\>
+- `AbstractScyllaDBConnector`\<`T`\>
 
 ## Type parameters
 
 • **T**
 
-• **U**
-
 ## Implements
 
-- `IEntityStorageConnector`\<`U`\>
+- `IEntityStorageConnector`\<`T`\>
 
 ## Constructors
 
 ### new ScyllaDBViewConnector()
 
-> **new ScyllaDBViewConnector**\<`T`, `U`\>(`options`): [`ScyllaDBViewConnector`](ScyllaDBViewConnector.md)\<`T`, `U`\>
+> **new ScyllaDBViewConnector**\<`T`\>(`options`): [`ScyllaDBViewConnector`](ScyllaDBViewConnector.md)\<`T`\>
 
-Create a new instance of ScyllaDBEntityStorage.
+Create a new instance of ScyllaDBViewConnector.
 
 #### Parameters
 
@@ -48,17 +46,17 @@ The configuration for the connector.
 
 #### Returns
 
-[`ScyllaDBViewConnector`](ScyllaDBViewConnector.md)\<`T`, `U`\>
+[`ScyllaDBViewConnector`](ScyllaDBViewConnector.md)\<`T`\>
 
 #### Overrides
 
-`AbstractScyllaDBConnector<U>.constructor`
+`AbstractScyllaDBConnector<T>.constructor`
 
 ## Properties
 
 ### \_viewSchema
 
-> `private` `readonly` **\_viewSchema**: `IEntitySchema`\<`U`\>
+> `private` `readonly` **\_viewSchema**: `IEntitySchema`\<`T`\>
 
 The view descriptor.
 
@@ -66,7 +64,7 @@ The view descriptor.
 
 ### get()
 
-> **get**(`id`, `secondaryIndex`?, `requestContext`?): `Promise`\<`undefined` \| `U` & `object`\>
+> **get**(`id`, `secondaryIndex`?, `requestContext`?): `Promise`\<`undefined` \| `T` & `object`\>
 
 Get an entity.
 
@@ -76,7 +74,7 @@ Get an entity.
 
 The id of the entity to get.
 
-• **secondaryIndex?**: keyof `U`
+• **secondaryIndex?**: keyof `T`
 
 Get the item using a secondary index.
 
@@ -86,7 +84,7 @@ The context for the request.
 
 #### Returns
 
-`Promise`\<`undefined` \| `U` & `object`\>
+`Promise`\<`undefined` \| `T` & `object`\>
 
 The object if it can be found or undefined.
 
@@ -108,7 +106,7 @@ Find all the entities which match the conditions.
 
 #### Parameters
 
-• **conditions?**: `EntityCondition`\<`U`\>
+• **conditions?**: `EntityCondition`\<`T`\>
 
 The conditions to match for the entities.
 
@@ -116,7 +114,7 @@ The conditions to match for the entities.
 
 The optional sort order.
 
-• **properties?**: keyof `U`[]
+• **properties?**: keyof `T`[]
 
 The optional properties to return, defaults to all.
 
@@ -141,7 +139,7 @@ and a cursor which can be used to request more entities.
 
 ##### entities
 
-> **entities**: `Partial`\<`U` & `object`\>[]
+> **entities**: `Partial`\<`T` & `object`\>[]
 
 The entities, which can be partial if a limited keys list was provided.
 If non partitioned request then partitionId is included in items.
@@ -176,15 +174,15 @@ Total entities length.
 
 ### bootstrap()
 
-> **bootstrap**(`systemPartitionId`): `Promise`\<`void`\>
+> **bootstrap**(`systemLoggingConnectorType`?): `Promise`\<`void`\>
 
-Bootstrap the service by creating and initializing any resources it needs.
+Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 
-• **systemPartitionId**: `string`
+• **systemLoggingConnectorType?**: `string`
 
-The system partition ID.
+The system logging connector type, defaults to "system-logging".
 
 #### Returns
 
@@ -206,7 +204,7 @@ Set an entity.
 
 #### Parameters
 
-• **entity**: `U`
+• **entity**: `T`
 
 The entity to set.
 
