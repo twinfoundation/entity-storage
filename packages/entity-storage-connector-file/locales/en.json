@@ -8,8 +8,7 @@
 	},
 	"error": {
 		"fileEntityStorageConnector": {
-			"directoryCreateFailed": "Creating directory \"{directory}\" failed",
-			"notBootstrapped": "The partition index file \"{filename}\" does not exist, has the connector been bootstrapped?"
+			"directoryCreateFailed": "Creating directory \"{directory}\" failed"
 		}
 	}
 }
