@@ -42,7 +42,8 @@
 		"packages/entity-storage-models",
 		"packages/entity-storage-connector-memory",
 		"packages/entity-storage-connector-file",
-		"packages/entity-storage-connector-scylladb"
+		"packages/entity-storage-connector-scylladb",
+		"packages/entity-storage-connector-dynamodb"
 	],
 	"type": "module"
 }

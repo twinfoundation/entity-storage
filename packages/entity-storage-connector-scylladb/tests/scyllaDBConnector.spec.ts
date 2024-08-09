@@ -33,7 +33,7 @@ class SubType {
 	 * Field1.
 	 */
 	@property({ type: "string", format: "date-time" })
-	public field1!: Date;
+	public field1!: string;
 }
 
 /**
@@ -268,7 +268,12 @@ describe("ScyllaDBTableConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
-		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
@@ -284,7 +289,12 @@ describe("ScyllaDBTableConnector", () => {
 			config: localConfig
 		});
 		const entityId = "1";
-		const objectSet = { id: entityId, value1: "aaa", value2: 35, value3: { field1: new Date() } };
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
 		await entityStorage.set(objectSet);
 
 		objectSet.value2 = 99;
@@ -401,7 +411,7 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
-		expect(result.pageSize).toEqual(entityStorage.pageSize());
+		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -415,7 +425,7 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(entityStorage.pageSize());
+		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -434,9 +444,9 @@ describe("ScyllaDBTableConnector", () => {
 		}
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(entityStorage.pageSize());
+		expect(result.entities.length).toEqual(40);
 		expect(result.totalEntities).toEqual(80);
-		expect(result.pageSize).toEqual(entityStorage.pageSize());
+		expect(result.pageSize).toEqual(40);
 	});
 
 	test("can query items with multiple entries and cursor", async () => {
@@ -457,7 +467,7 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
 		expect(result2.totalEntities).toEqual(50);
-		expect(result2.pageSize).toEqual(entityStorage.pageSize());
+		expect(result2.pageSize).toEqual(40);
 		expect(result2.cursor).toBeUndefined();
 	});
 
@@ -471,7 +481,7 @@ describe("ScyllaDBTableConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: { field1: new Date() }
+				value3: { field1: new Date().toISOString() }
 			});
 		}
 
@@ -484,7 +494,7 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(entityStorage.pageSize());
+		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 

@@ -1,0 +1,22 @@
+{
+	"info": {
+		"dynamoDbEntityStorageConnector": {
+			"tableCreating": "Creating table \"{tableName}\"",
+			"tableCreated": "Created table \"{tableName}\"",
+			"tableExists": "Skipping create table \"{tableName}\" as it already exists"
+		}
+	},
+	"error": {
+		"dynamoDbEntityStorageConnector": {
+			"tableCreateFailed": "Creating table \"{tableName}\" failed",
+			"tableDoesNotExist": "Table \"{tableName}\" does not exist",
+			"setFailed": "Unable to set entity \"{id}\"",
+			"getFailed": "Unable to get entity \"{id}\"",
+			"removeFailed": "Unable to remove entity \"{id}\"",
+			"queryFailed": "The query failed when issuing the following command \"{sql}\"",
+			"comparisonNotSupported": "Comparison operator \"{operator}\" is not supported",
+			"conditionalNotSupported": "Conditional operator \"{operator}\" is not supported",
+			"sortNotIndexed": "The property \"{property}\" is not indexed and cannot be used for sorting"
+		}
+	}
+}
