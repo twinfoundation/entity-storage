@@ -1,5 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
+/* eslint-disable max-classes-per-file */
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -10,6 +11,18 @@ import {
 } from "@gtsc/entity";
 import { nameof } from "@gtsc/nameof";
 import { MemoryEntityStorageConnector } from "../src/memoryEntityStorageConnector";
+
+/**
+ * Test SubType Definition.
+ */
+@entity()
+class SubType {
+	/**
+	 * Field1.
+	 */
+	@property({ type: "string", format: "date-time" })
+	public field1!: string;
+}
 
 /**
  * Test Type Definition.
@@ -25,14 +38,39 @@ class TestType {
 	/**
 	 * Value1.
 	 */
-	@property({ type: "string" })
+	@property({ type: "string", isSecondary: true })
 	public value1!: string;
 
 	/**
 	 * Value2.
 	 */
-	@property({ type: "string" })
-	public value2!: string;
+	@property({ type: "number", format: "uint8" })
+	public value2!: number;
+
+	/**
+	 * Value3.
+	 */
+	@property({ type: "object", itemTypeRef: "SubType", optional: true })
+	public value3?: SubType;
+
+	/**
+	 * Value4.
+	 */
+	@property({ type: "object" })
+	public valueObject?: {
+		[id: string]: {
+			value: string;
+		};
+	};
+
+	/**
+	 * Value5.
+	 */
+	@property({ type: "array" })
+	public valueArray?: {
+		field: string;
+		value: string;
+	}[];
 }
 
 describe("MemoryEntityStorageConnector", () => {
@@ -103,31 +141,44 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
-		const store = entityStorage.getStore();
-		expect(store).toBeDefined();
-		expect(store?.length).toEqual(1);
-		expect(store?.[0]).toBeDefined();
-		expect(store?.[0].id).toEqual("1");
-		expect(store?.[0].value1).toEqual("aaa");
-		expect(store?.[0].value2).toEqual("bbb");
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+		await entityStorage.set(objectSet);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
 	test("can set an item to update it", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
 
-		await entityStorage.set({ id: "1", value1: "ccc", value2: "ddd" });
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+		await entityStorage.set(objectSet);
 
-		const store = entityStorage.getStore();
-		expect(store).toBeDefined();
-		expect(store?.length).toEqual(1);
-		expect(store?.[0]).toBeDefined();
-		expect(store?.[0].id).toEqual("1");
-		expect(store?.[0].value1).toEqual("ccc");
-		expect(store?.[0].value2).toEqual("ddd");
+		objectSet.value2 = 99;
+		await entityStorage.set(objectSet);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
 	test("can fail to get an item with no id", async () => {
@@ -148,8 +199,8 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
-		const item = await entityStorage.get("2");
+
+		const item = await entityStorage.get("20000");
 
 		expect(item).toBeUndefined();
 	});
@@ -158,26 +209,28 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
-		const item = await entityStorage.get("1");
+		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
+		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("1");
-		expect(item?.value1).toEqual("aaa");
-		expect(item?.value2).toEqual("bbb");
+		expect(item?.id).toEqual("2");
+		expect(item?.value1).toEqual("vvv");
+		expect(item?.value2).toEqual(35);
+		expect(item?.value3).toBeUndefined();
 	});
 
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
-		const item = await entityStorage.get("aaa", "value1");
+		const secondaryValue = "zzz";
+		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
+		const item = await entityStorage.get(secondaryValue, "value1");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("1");
-		expect(item?.value1).toEqual("aaa");
-		expect(item?.value2).toEqual("bbb");
+		expect(item?.id).toEqual("300");
+		expect(item?.value1).toEqual("zzz");
+		expect(item?.value2).toEqual(55);
 	});
 
 	test("can fail to remove an item with no id", async () => {
@@ -198,25 +251,24 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
 
-		await entityStorage.remove("2");
+		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
 
-		const store = entityStorage.getStore();
-		expect(store).toBeDefined();
-		expect(store?.length).toEqual(1);
+		const idToRemove = "1000999";
+		await entityStorage.remove(idToRemove);
+		// No exception should be thrown
 	});
 
 	test("can remove an item", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
-		await entityStorage.remove("1");
+		const idToRemove = "65432";
+		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove(idToRemove);
 
-		const store = entityStorage.getStore();
-		expect(store).toBeDefined();
-		expect(store?.length).toEqual(0);
+		const result = await entityStorage.get(idToRemove);
+		expect(result).toBeUndefined();
 	});
 
 	test("can find items with empty store", async () => {
@@ -227,7 +279,7 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
 		expect(result.totalEntities).toEqual(0);
-		expect(result.pageSize).toEqual(20);
+		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -235,12 +287,12 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
 		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(20);
+		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -248,30 +300,39 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		for (let i = 0; i < 30; i++) {
-			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
+		for (let i = 0; i < 80; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 999,
+				value3: undefined
+			});
 		}
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toEqual("20");
+		expect(result.entities.length).toEqual(40);
+		expect(result.totalEntities).toEqual(80);
+		expect(result.pageSize).toEqual(40);
 	});
 
 	test("can find items with multiple entries and cursor", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		for (let i = 0; i < 30; i++) {
-			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
+		for (let i = 0; i < 50; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 5555,
+				value3: undefined
+			});
 		}
 		const result = await entityStorage.query();
 		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
-		expect(result2.totalEntities).toEqual(30);
-		expect(result2.pageSize).toEqual(20);
+		expect(result2.totalEntities).toEqual(50);
+		expect(result2.pageSize).toEqual(40);
 		expect(result2.cursor).toBeUndefined();
 	});
 
@@ -279,23 +340,26 @@ describe("MemoryEntityStorageConnector", () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
 		});
-		for (let i = 0; i < 100; i++) {
+		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
 				id: (i + 1).toString(),
 				value1: "aaa",
-				value2: i % 3 === 0 ? "ccc" : "bbb"
+				value2: 7777,
+				value3: { field1: new Date().toISOString() }
 			});
 		}
+
 		const result = await entityStorage.query({
-			property: "value2",
-			value: "ccc",
+			property: "id",
+			value: "20",
 			operator: ComparisonOperator.Equals
 		});
+
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.totalEntities).toEqual(34);
-		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toEqual("58");
+		expect(result.entities.length).toEqual(1);
+		expect(result.totalEntities).toEqual(1);
+		expect(result.pageSize).toEqual(40);
+		expect(result.cursor).toBeUndefined();
 	});
 
 	test("can find items with multiple entries and apply custom sort", async () => {
@@ -303,20 +367,35 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set({ id: (30 - i).toString(), value1: "aaa", value2: "bbb" });
+			await entityStorage.set({
+				id: (30 - i).toString(),
+				value1: (30 - i).toString(),
+				value2: 7777,
+				value3: undefined
+			});
 		}
-		const result = await entityStorage.query(undefined, [
+		const result = await entityStorage.query(
 			{
-				property: "id",
-				sortDirection: SortDirection.Ascending
-			}
-		]);
+				conditions: [
+					{
+						property: "value1",
+						value: ["26", "20"],
+						operator: ComparisonOperator.In
+					}
+				]
+			},
+			[
+				{
+					property: "id",
+					sortDirection: SortDirection.Ascending
+				}
+			]
+		);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
-		expect(result.cursor).toEqual("20");
+		expect(result.entities.length).toEqual(2);
+		expect(result.entities[0].value1).toEqual("20");
+		expect(result.entities[1].value1).toEqual("26");
+		expect(result.totalEntities).toEqual(2);
 	});
 
 	test("can query items and get a reduced data set", async () => {
@@ -324,13 +403,59 @@ describe("MemoryEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>()
 		});
 		for (let i = 0; i < 30; i++) {
-			await entityStorage.set({ id: (i + 1).toString(), value1: "aaa", value2: "bbb" });
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined
+			});
 		}
 		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(20);
-		expect(result.entities[0].id).toEqual("1");
-		expect(result.entities[0].value1).toEqual("aaa");
+		expect(result.entities.length).toEqual(30);
 		expect(result.entities[0].value2).toBeUndefined();
+		expect(result.entities[0].value3).toBeUndefined();
+	});
+
+	test("can query sub items in array", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
+			});
+		}
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 10).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueArray: [
+					{
+						field: "name",
+						value: "fred"
+					}
+				]
+			});
+		}
+		const result = await entityStorage.query({
+			conditions: [
+				{ property: "valueArray", value: { field: "name", value: "bob" }, operator: "Includes" }
+			]
+		});
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(5);
 	});
 });

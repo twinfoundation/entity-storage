@@ -22,7 +22,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * Default Page Size for cursor.
 	 * @internal
 	 */
-	private static readonly _DEFAULT_PAGE_SIZE: number = 20;
+	private static readonly _DEFAULT_PAGE_SIZE: number = 40;
 
 	/**
 	 * Runtime name for the class.

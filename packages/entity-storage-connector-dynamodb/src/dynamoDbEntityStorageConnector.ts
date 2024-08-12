@@ -663,19 +663,6 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		}
 
 		const schemaProp = this._entitySchema.properties?.find(p => p.property === condition.property);
-		if ("condition" in condition) {
-			let subObjectPath = objectPath;
-			if (objectPath.length > 0) {
-				objectPath += ".";
-			}
-			subObjectPath += condition.property as string;
-			return this.buildQueryParameters(
-				subObjectPath,
-				condition.condition,
-				attributeNames,
-				attributeValues
-			);
-		}
 
 		// It's a single value so just create the property comparison for the condition
 		const comparison = this.mapComparisonOperator(
@@ -704,7 +691,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 */
 	private mapComparisonOperator(
 		objectPath: string,
-		comparator: IComparator<T>,
+		comparator: IComparator,
 		type: EntitySchemaPropertyType | undefined,
 		attributeNames: { [id: string]: string },
 		attributeValues: { [id: string]: AttributeValue }

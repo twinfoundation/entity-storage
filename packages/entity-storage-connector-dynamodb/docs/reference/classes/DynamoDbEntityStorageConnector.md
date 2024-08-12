@@ -285,7 +285,7 @@ Map the framework comparison operators to those in DynamoDB.
 
 The prefix to use for the condition.
 
-• **comparator**: `IComparator`\<`T`\>
+• **comparator**: `IComparator`
 
 The operator to map.
 

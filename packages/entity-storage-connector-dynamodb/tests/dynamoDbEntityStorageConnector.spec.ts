@@ -543,8 +543,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 			});
 		}
 		const result = await entityStorage.query({
-			property: "valueObject",
-			condition: { conditions: [{ property: "name.value", value: "bob", operator: "Equals" }] }
+			conditions: [{ property: "valueObject.name.value", value: "bob", operator: "Equals" }]
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);
