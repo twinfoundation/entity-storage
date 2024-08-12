@@ -219,20 +219,6 @@ The id of the entity to remove.
 
 ***
 
-### pageSize()
-
-> **pageSize**(): `number`
-
-Get the default page size of the entity storage.
-
-#### Returns
-
-`number`
-
-The entity storage page size.
-
-***
-
 ### dropTable()
 
 > **dropTable**(): `Promise`\<`void`\>

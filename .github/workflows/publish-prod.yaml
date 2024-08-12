@@ -12,6 +12,7 @@ on:
           - entity-storage-connector-memory
           - entity-storage-connector-file
           - entity-storage-connector-scylladb
+          - entity-storage-connector-dynamodb
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -26,6 +27,11 @@ jobs:
         image: scylladb/scylla:5.4.9
         ports:
           - 9042:9042
+
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
 
     steps:
       - name: Checkout

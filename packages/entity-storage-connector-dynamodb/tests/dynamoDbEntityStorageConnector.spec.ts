@@ -3,8 +3,10 @@
 /* eslint-disable max-classes-per-file */
 import { I18n } from "@gtsc/core";
 import {
+	ComparisonOperator,
 	EntitySchemaFactory,
 	EntitySchemaHelper,
+	SortDirection,
 	entity,
 	property
 } from "@gtsc/entity";
@@ -347,206 +349,206 @@ describe("DynamoDbEntityStorageConnector", () => {
 		expect(result).toBeUndefined();
 	});
 
-	// test("can find items with empty store", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	const result = await entityStorage.query();
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(0);
-	// 	expect(result.totalEntities).toEqual(0);
-	// 	expect(result.pageSize).toEqual(40);
-	// 	expect(result.cursor).toBeUndefined();
-	// });
+	test("can find items with empty store", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const result = await entityStorage.query();
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(0);
+		expect(result.totalEntities).toEqual(0);
+		expect(result.pageSize).toEqual(40);
+		expect(result.cursor).toBeUndefined();
+	});
 
-	// test("can find items with single entry", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
-	// 	const result = await entityStorage.query();
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(1);
-	// 	expect(result.totalEntities).toEqual(1);
-	// 	expect(result.pageSize).toEqual(40);
-	// 	expect(result.cursor).toBeUndefined();
-	// });
+	test("can find items with single entry", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
+		const result = await entityStorage.query();
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.totalEntities).toEqual(1);
+		expect(result.pageSize).toEqual(40);
+		expect(result.cursor).toBeUndefined();
+	});
 
-	// test("can find items with multiple entries", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 80; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 1).toString(),
-	// 			value1: "aaa",
-	// 			value2: 999,
-	// 			value3: undefined
-	// 		});
-	// 	}
-	// 	const result = await entityStorage.query();
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(40);
-	// 	expect(result.totalEntities).toEqual(80);
-	// 	expect(result.pageSize).toEqual(40);
-	// });
+	test("can find items with multiple entries", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 80; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 999,
+				value3: undefined
+			});
+		}
+		const result = await entityStorage.query();
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(40);
+		expect(result.totalEntities).toEqual(80);
+		expect(result.pageSize).toEqual(40);
+	});
 
-	// test("can find items with multiple entries and cursor", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 50; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 1).toString(),
-	// 			value1: "aaa",
-	// 			value2: 5555,
-	// 			value3: undefined
-	// 		});
-	// 	}
-	// 	const result = await entityStorage.query();
-	// 	const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
-	// 	expect(result2).toBeDefined();
-	// 	expect(result2.entities.length).toEqual(10);
-	// 	expect(result2.totalEntities).toEqual(50);
-	// 	expect(result2.pageSize).toEqual(40);
-	// 	expect(result2.cursor).toBeUndefined();
-	// });
+	test("can find items with multiple entries and cursor", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 50; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 5555,
+				value3: undefined
+			});
+		}
+		const result = await entityStorage.query();
+		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
+		expect(result2).toBeDefined();
+		expect(result2.entities.length).toEqual(10);
+		expect(result2.totalEntities).toEqual(50);
+		expect(result2.pageSize).toEqual(40);
+		expect(result2.cursor).toBeUndefined();
+	});
 
-	// test("can find items with multiple entries and apply conditions", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 30; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 1).toString(),
-	// 			value1: "aaa",
-	// 			value2: 7777,
-	// 			value3: { field1: new Date().toISOString() }
-	// 		});
-	// 	}
+	test("can find items with multiple entries and apply conditions", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: { field1: new Date().toISOString() }
+			});
+		}
 
-	// 	const result = await entityStorage.query({
-	// 		property: "id",
-	// 		value: "20",
-	// 		operator: ComparisonOperator.Equals
-	// 	});
+		const result = await entityStorage.query({
+			property: "id",
+			value: "20",
+			operator: ComparisonOperator.Equals
+		});
 
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(1);
-	// 	expect(result.totalEntities).toEqual(1);
-	// 	expect(result.pageSize).toEqual(40);
-	// 	expect(result.cursor).toBeUndefined();
-	// });
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.totalEntities).toEqual(1);
+		expect(result.pageSize).toEqual(40);
+		expect(result.cursor).toBeUndefined();
+	});
 
-	// test("can find items with multiple entries and apply custom sort", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 30; i++) {
-	// 		await entityStorage.set({
-	// 			id: (30 - i).toString(),
-	// 			value1: (30 - i).toString(),
-	// 			value2: 7777,
-	// 			value3: undefined
-	// 		});
-	// 	}
-	// 	const result = await entityStorage.query(
-	// 		{
-	// 			conditions: [
-	// 				{
-	// 					property: "id",
-	// 					value: ["26", "20"],
-	// 					operator: ComparisonOperator.In
-	// 				}
-	// 			]
-	// 		},
-	// 		[
-	// 			{
-	// 				property: "value1",
-	// 				sortDirection: SortDirection.Ascending
-	// 			}
-	// 		]
-	// 	);
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(2);
-	// 	expect(result.entities[0].value1).toEqual("20");
-	// 	expect(result.entities[1].value1).toEqual("26");
-	// 	expect(result.totalEntities).toEqual(2);
-	// 	expect(result.pageSize).toEqual(40);
-	// });
+	test("can find items with multiple entries and apply custom sort", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set({
+				id: (30 - i).toString(),
+				value1: (30 - i).toString(),
+				value2: 7777,
+				value3: undefined
+			});
+		}
+		const result = await entityStorage.query(
+			{
+				conditions: [
+					{
+						property: "value1",
+						value: ["26", "20"],
+						operator: ComparisonOperator.In
+					}
+				]
+			},
+			[
+				{
+					property: "id",
+					sortDirection: SortDirection.Ascending
+				}
+			]
+		);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(2);
+		expect(result.entities[0].value1).toEqual("20");
+		expect(result.entities[1].value1).toEqual("26");
+		expect(result.totalEntities).toEqual(2);
+		expect(result.pageSize).toEqual(40);
+	});
 
-	// test("can query items and get a reduced data set", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 30; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 1).toString(),
-	// 			value1: "aaa",
-	// 			value2: 7777,
-	// 			value3: undefined
-	// 		});
-	// 	}
-	// 	const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(30);
-	// 	expect(result.entities[0].value2).toBeUndefined();
-	// 	expect(result.entities[0].value3).toBeUndefined();
-	// });
+	test("can query items and get a reduced data set", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined
+			});
+		}
+		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(30);
+		expect(result.entities[0].value2).toBeUndefined();
+		expect(result.entities[0].value3).toBeUndefined();
+	});
 
-	// test("can query sub items in object", async () => {
-	// 	const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
-	// 		entitySchema: nameof<TestType>(),
-	// 		config
-	// 	});
-	// 	await entityStorage.bootstrap();
-	// 	for (let i = 0; i < 5; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 1).toString(),
-	// 			value1: "aaa",
-	// 			value2: 7777,
-	// 			value3: undefined,
-	// 			valueObject: {
-	// 				name: {
-	// 					value: "bob"
-	// 				}
-	// 			}
-	// 		});
-	// 	}
-	// 	for (let i = 0; i < 5; i++) {
-	// 		await entityStorage.set({
-	// 			id: (i + 10).toString(),
-	// 			value1: "aaa",
-	// 			value2: 7777,
-	// 			value3: undefined,
-	// 			valueObject: {
-	// 				name: {
-	// 					value: "fred"
-	// 				}
-	// 			}
-	// 		});
-	// 	}
-	// 	const result = await entityStorage.query({
-	// 		property: "valueObject",
-	// 		condition: { conditions: [{ property: "name.value", value: "bob", operator: "Equals" }] }
-	// 	});
-	// 	expect(result).toBeDefined();
-	// 	expect(result.entities.length).toEqual(5);
-	// });
+	test("can query sub items in object", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueObject: {
+					name: {
+						value: "bob"
+					}
+				}
+			});
+		}
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 10).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueObject: {
+					name: {
+						value: "fred"
+					}
+				}
+			});
+		}
+		const result = await entityStorage.query({
+			property: "valueObject",
+			condition: { conditions: [{ property: "name.value", value: "bob", operator: "Equals" }] }
+		});
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(5);
+	});
 
 	test("can query sub items in array", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
@@ -583,8 +585,9 @@ describe("DynamoDbEntityStorageConnector", () => {
 			});
 		}
 		const result = await entityStorage.query({
-			property: "valueArray",
-			condition: { conditions: [{ property: "name.value", value: "bob", operator: "Equals" }] }
+			conditions: [
+				{ property: "valueArray", value: { field: "name", value: "bob" }, operator: "Includes" }
+			]
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);

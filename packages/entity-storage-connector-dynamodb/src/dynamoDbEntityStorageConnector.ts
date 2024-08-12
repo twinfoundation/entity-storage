@@ -1,6 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import {
+	type AttributeValue,
 	ConditionalOperator,
 	type CreateTableCommandInput,
 	DynamoDB,
@@ -15,7 +16,7 @@ import {
 	PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { BaseError, Converter, GeneralError, Guards, Is } from "@gtsc/core";
+import { BaseError, Coerce, Converter, GeneralError, Guards, Is } from "@gtsc/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -184,13 +185,15 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 								KeyType: "RANGE"
 							});
 						} else if (Is.stringValue(prop.sortDirection) || prop.isSecondary) {
+							// You can only query and sort items if you have a secondary index
+							// defined for the property
 							tableParams.AttributeDefinitions?.push({
 								AttributeName: prop.property as string,
 								AttributeType: prop.type === "integer" || prop.type === "number" ? "N" : "S"
 							});
 
 							gsi.push({
-								IndexName: `${prop.property as string}-index`,
+								IndexName: `${prop.property as string}Index`,
 								KeySchema: [
 									{
 										AttributeName: DynamoDbEntityStorageConnector._PARTITION_ID_NAME,
@@ -305,7 +308,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 			}
 
 			const secIndex = secondaryIndex.toString();
-			const globalSecondaryIndex = `${secIndex}-index`;
+			const globalSecondaryIndex = `${secIndex}Index`;
 
 			const queryCommand = new QueryCommand({
 				TableName: this._config.tableName,
@@ -483,108 +486,70 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		try {
 			const returnSize = pageSize ?? DynamoDbEntityStorageConnector._PAGE_SIZE;
 
-			// const sortSql: string[] = [];
-			// const indexName = "";
+			let indexName: string | undefined;
 
-			// // If we have a sortable property defined in the descriptor then we must use
-			// // its secondary index to lookup the value using PartiQL
-			// if (Is.arrayValue(sortProperties)) {
-			// 	for (const sortProperty of sortProperties) {
-			// 		const propertySchema = this._entitySchema.properties?.find(
-			// 			e => e.property === sortProperty.property
-			// 		);
-			// 		if (
-			// 			Is.undefined(propertySchema) ||
-			// 			(!propertySchema.isPrimary && !propertySchema.isSecondary)
-			// 		) {
-			// 			throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
-			// 				property: sortProperty.property
-			// 			});
-			// 		}
+			// If we have a sortable property defined in the descriptor then we must use
+			// the secondary index for the query
+			if (Is.arrayValue(sortProperties)) {
+				if (sortProperties.length > 1) {
+					throw new GeneralError(this.CLASS_NAME, "sortSingle");
+				}
 
-			// 		if (propertySchema.isSecondary) {
-			// 			indexName = `."${sortProperty.property as string}-index"`;
-			// 		}
+				for (const sortProperty of sortProperties) {
+					const propertySchema = this._entitySchema.properties?.find(
+						e => e.property === sortProperty.property
+					);
+					if (
+						Is.undefined(propertySchema) ||
+						(!propertySchema.isPrimary &&
+							!propertySchema.isSecondary &&
+							Is.empty(propertySchema.sortDirection))
+					) {
+						throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
+							property: sortProperty.property
+						});
+					}
 
-			// 		const sortDir =
-			// 			sortProperty.sortDirection ?? propertySchema?.sortDirection ?? SortDirection.Ascending;
+					indexName = propertySchema.isPrimary
+						? undefined
+						: `${sortProperty.property as string}Index`;
+				}
+			}
 
-			// 		sortSql.push(
-			// 			`"${sortProperty.property as string}" ${sortDir === SortDirection.Ascending ? "ASC" : "DESC"}`
-			// 		);
-			// 	}
-			// }
+			const attributeNames: { [id: string]: string } = { "#partitionId": "partitionId" };
+			const attributeValues: { [id: string]: AttributeValue } = {
+				[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
+					S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
+				}
+			};
 
-			// let fields = "*";
+			const expressions = this.buildQueryParameters(
+				"",
+				conditions,
+				attributeNames,
+				attributeValues
+			);
 
-			// if (Is.arrayValue(properties)) {
-			// 	fields = properties.map(p => `"${p as string}"`).join(",");
-			// }
-
-			// sql = `SELECT ${fields} FROM "${this._config.tableName}"${indexName}`;
-
-			// const conditionSql = this.createSQLCondition("", conditions);
-			// if (conditionSql.length > 0) {
-			// 	sql += ` WHERE "${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}" = '${DynamoDbEntityStorageConnector._PARTITION_ID_VALUE}' AND ${conditionSql.trim()}`;
-			// }
-
-			// if (sortSql.length > 0) {
-			// 	sql += ` ORDER BY ${sortSql.join(",")}`;
-			// }
-
-			// const query = new QueryCommand({
-			// 	TableName: this._config.tableName,
-			// 	KeyConditionExpression: "#partitionId = :partitionId",
-			// 	FilterExpression: "#valueObject.#name.#value = :valueObjectNameValue",
-			// 	ExpressionAttributeNames: {
-			// 		"#partitionId": "partitionId",
-			// 		"#valueObject": "valueObject",
-			// 		"#name": "name",
-			// 		"#value": "value"
-			// 	},
-			// 	ExpressionAttributeValues: {
-			// 		[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
-			// 			S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
-			// 		},
-			// 		":valueObjectNameValue": {
-			// 			S: "fred"
-			// 		}
-			// 	}
-			// });
+			let keyExpression = "#partitionId = :partitionId";
+			if (expressions.keyCondition.length > 0) {
+				keyExpression += ` AND ${expressions.keyCondition}`;
+			}
 
 			const query = new QueryCommand({
 				TableName: this._config.tableName,
-				KeyConditionExpression: "#partitionId = :partitionId",
-				FilterExpression: "contains(#valueArray, :valueArrayProp)",
-				ExpressionAttributeNames: {
-					"#partitionId": "partitionId",
-					"#valueArray": "valueArray"
-				},
-				ExpressionAttributeValues: {
-					[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
-						S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
-					},
-					":valueArrayProp": {
-						M: {
-							field: { S: "name" }
-						}
-					}
-				}
+				IndexName: indexName,
+				KeyConditionExpression: keyExpression,
+				FilterExpression: Is.stringValue(expressions.filterCondition)
+					? expressions.filterCondition
+					: undefined,
+				ExpressionAttributeNames: attributeNames,
+				ExpressionAttributeValues: attributeValues,
+				ProjectionExpression: properties?.map(p => p as string).join(", ")
 			});
 
-			// console.log(sql);
-
 			const connection = this.createDocClient();
-			console.log(JSON.stringify(query, undefined, 2));
 
 			const results = await connection.send(query);
-			console.log(JSON.stringify(results.Items, undefined, 2));
-
-			// // Always get page size + 1 and discard the final entry if it is over page size
-			// // this allows us to calculate if we should return a cursor to the next chunk
-			// const results = await connection.executeStatement({
-			// 	Statement: sql
-			// });
 
 			const entities: T[] = [];
 
@@ -653,78 +618,162 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 	/**
 	 * Create an SQL condition clause.
-	 * @param prefix The prefix to use for the condition.
+	 * @param objectPath The path for the nested object.
 	 * @param condition The conditions to create the query from.
+	 * @param attributeNames The attribute names to use in the query.
+	 * @param attributeValues The attribute values to use in the query.
 	 * @returns The condition clause.
 	 */
-	private createSQLCondition(prefix: string, condition?: EntityCondition<T>): string {
+	private buildQueryParameters(
+		objectPath: string,
+		condition: EntityCondition<T> | undefined,
+		attributeNames: { [id: string]: string },
+		attributeValues: { [id: string]: AttributeValue }
+	): {
+		keyCondition: string;
+		filterCondition: string;
+	} {
 		// If no conditions are defined then return empty string
 		if (Is.undefined(condition)) {
-			return "";
+			return {
+				keyCondition: "",
+				filterCondition: ""
+			};
 		}
 
 		if ("conditions" in condition) {
 			// It's a group of comparisons, so check the individual items and combine with the logical operator
-			const joinConditions: string[] = condition.conditions.map(c =>
-				this.createSQLCondition(prefix, c)
+			const joinConditions: {
+				keyCondition: string;
+				filterCondition: string;
+			}[] = condition.conditions.map(c =>
+				this.buildQueryParameters(objectPath, c, attributeNames, attributeValues)
 			);
 
-			const joined = joinConditions.join(
-				` ${this.mapConditionalOperator(condition.logicalOperator)} `
-			);
-			return ` (${joined}) `;
+			const logicalOperator = this.mapConditionalOperator(condition.logicalOperator);
+			const keyCondition = joinConditions.map(j => j.keyCondition).join(` ${logicalOperator} `);
+			const filterCondition = joinConditions
+				.map(j => j.filterCondition)
+				.join(` ${logicalOperator} `);
+
+			return {
+				keyCondition: Is.stringValue(keyCondition) ? ` (${keyCondition}) ` : "",
+				filterCondition: Is.stringValue(filterCondition) ? ` (${filterCondition}) ` : ""
+			};
 		}
 
 		const schemaProp = this._entitySchema.properties?.find(p => p.property === condition.property);
 		if ("condition" in condition) {
-			return this.createSQLCondition(`${condition.property as string}`, condition.condition);
+			let subObjectPath = objectPath;
+			if (objectPath.length > 0) {
+				objectPath += ".";
+			}
+			subObjectPath += condition.property as string;
+			return this.buildQueryParameters(
+				subObjectPath,
+				condition.condition,
+				attributeNames,
+				attributeValues
+			);
 		}
 
 		// It's a single value so just create the property comparison for the condition
-		return this.mapComparisonOperator(prefix, condition, schemaProp?.type);
+		const comparison = this.mapComparisonOperator(
+			objectPath,
+			condition,
+			schemaProp?.type,
+			attributeNames,
+			attributeValues
+		);
+
+		return {
+			keyCondition: schemaProp?.isPrimary ? comparison : "",
+			filterCondition: schemaProp?.isPrimary ? "" : comparison
+		};
 	}
 
 	/**
 	 * Map the framework comparison operators to those in DynamoDB.
-	 * @param prefix The prefix to use for the condition.
+	 * @param objectPath The prefix to use for the condition.
 	 * @param comparator The operator to map.
 	 * @param type The type of the property.
-	 * @returns The comparison operator.
+	 * @param attributeNames The attribute names to use in the query.
+	 * @param attributeValues The attribute values to use in the query.
+	 * @returns The comparison expression.
 	 * @throws GeneralError if the comparison operator is not supported.
 	 */
 	private mapComparisonOperator(
-		prefix: string,
+		objectPath: string,
 		comparator: IComparator<T>,
-		type?: EntitySchemaPropertyType
+		type: EntitySchemaPropertyType | undefined,
+		attributeNames: { [id: string]: string },
+		attributeValues: { [id: string]: AttributeValue }
 	): string {
-		const dbValue = this.propertyToDbValue(comparator.value, type);
+		let prop = objectPath;
+		if (prop.length > 0) {
+			prop += ".";
+		}
+		prop += comparator.property as string;
 
-		let prop = `${comparator.property as string}`;
-		if (prefix.length > 0) {
-			prop = `${prefix}.${prop}`;
+		let attributeName = this.populateAttributeNames(prop, attributeNames);
+		let propName = `:${attributeName.replace(/\./g, "").replace(/#/g, "")}`;
+
+		if (Is.array(comparator.value)) {
+			const dbValues = comparator.value.map(v => this.propertyToDbValue(v, type));
+			const arrAttributeNames = [];
+			for (let i = 0; i < dbValues.length; i++) {
+				const arrAttributeName = `${propName}${i}`;
+				attributeValues[arrAttributeName] = dbValues[i];
+				arrAttributeNames.push(arrAttributeName);
+			}
+			propName = attributeName;
+			attributeName = `(${arrAttributeNames.join(", ")})`;
+		} else {
+			attributeValues[propName] = this.propertyToDbValue(comparator.value, type);
 		}
 
 		if (comparator.operator === ComparisonOperator.Equals) {
-			return `"${prop}" = ${dbValue}`;
+			return `${attributeName} = ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.NotEquals) {
-			return `"${prop}" <> ${dbValue}`;
+			return `${attributeName} <> ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.GreaterThan) {
-			return `"${prop}" > ${dbValue}`;
+			return `${attributeName} > ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.LessThan) {
-			return `"${prop}" < ${dbValue}`;
+			return `${attributeName} < ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.GreaterThanOrEqual) {
-			return `"${prop}" >= ${dbValue}`;
+			return `${attributeName} >= ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.LessThanOrEqual) {
-			return `"${prop}" <= ${dbValue}`;
+			return `${attributeName} <= ${propName}`;
 		} else if (comparator.operator === ComparisonOperator.Includes) {
-			return `"${prop}" CONTAINS ${dbValue}`;
+			return `contains(${attributeName}, ${propName})`;
 		} else if (comparator.operator === ComparisonOperator.NotIncludes) {
-			return `"${prop}" NOT_CONTAINS ${dbValue}`;
+			return `notContains(${attributeName}, ${propName})`;
 		} else if (comparator.operator === ComparisonOperator.In) {
-			return `"${prop}" IN ${dbValue}`;
+			return `${propName} IN ${attributeName}`;
 		}
 
 		throw new GeneralError(this.CLASS_NAME, "comparisonNotSupported", { operator: comparator });
+	}
+
+	/**
+	 * Create a unique name for the attribute.
+	 * @param name The name to create a unique name for.
+	 * @param attributeNames The attribute names to use in the query.
+	 * @returns The unique name.
+	 */
+	private populateAttributeNames(name: string, attributeNames: { [id: string]: string }): string {
+		const parts = name.split(".");
+		const attributeNameParts: string[] = [];
+
+		for (const part of parts) {
+			const hashPart = `#${part}`;
+			if (Is.empty(attributeNames[hashPart])) {
+				attributeNames[hashPart] = part;
+			}
+			attributeNameParts.push(hashPart);
+		}
+
+		return attributeNameParts.join(".");
 	}
 
 	/**
@@ -750,18 +799,24 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @returns The value after conversion.
 	 * @internal
 	 */
-	private propertyToDbValue(value: unknown, type?: EntitySchemaPropertyType): string {
-		if (Is.array(value)) {
-			return `[${value.map(v => this.propertyToDbValue(v, type)).join(",")}]`;
+	private propertyToDbValue(value: unknown, type?: EntitySchemaPropertyType): AttributeValue {
+		if (Is.object(value)) {
+			const map: { [id: string]: AttributeValue } = {};
+			for (const key in value) {
+				map[key] = this.propertyToDbValue(value[key]);
+			}
+			return {
+				M: map
+			};
 		}
 
 		if (type === "integer" || type === "number") {
-			return value === undefined ? "null" : `${value}`;
+			return { N: Coerce.string(value) ?? "" };
 		} else if (type === "boolean") {
-			return value ? "true" : "false";
+			return { BOOL: Coerce.boolean(value) ?? false };
 		}
 
-		return `'${value}'`;
+		return { S: Coerce.string(value) ?? "" };
 	}
 
 	/**

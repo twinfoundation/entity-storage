@@ -33,7 +33,7 @@ class SubType {
 	 * Field1.
 	 */
 	@property({ type: "string", format: "date-time" })
-	public field1!: string;
+	public field1!: Date;
 }
 
 /**
@@ -272,15 +272,16 @@ describe("ScyllaDBTableConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date() }
 		};
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
+		console.log(typeof objectSet.value3.field1, typeof result?.value3?.field1);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result?.value3?.field1).toEqual(objectSet.value3?.field1);
 	});
 
 	test("can set an item to update it", async () => {
@@ -293,7 +294,7 @@ describe("ScyllaDBTableConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date() }
 		};
 		await entityStorage.set(objectSet);
 
@@ -481,7 +482,7 @@ describe("ScyllaDBTableConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: { field1: new Date().toISOString() }
+				value3: { field1: new Date() }
 			});
 		}
 
