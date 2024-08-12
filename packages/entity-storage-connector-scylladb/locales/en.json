@@ -6,6 +6,13 @@
 			"tableExists": "Skipping create table \"{table}\" as it already exists",
 			"typeCreated": "Created type \"{typeName}\"",
 			"sql": "SQL: \"{sql}\""
+		},
+		"scyllaDBViewConnector": {
+			"viewCreating": "Creating view \"{view}\"",
+			"viewCreated": "Created view \"{view}\"",
+			"viewExists": "Skipping create view \"{view}\" as it already exists",
+			"typeCreated": "Created type \"{typeName}\"",
+			"sql": "SQL: \"{sql}\""
 		}
 	},
 	"error": {

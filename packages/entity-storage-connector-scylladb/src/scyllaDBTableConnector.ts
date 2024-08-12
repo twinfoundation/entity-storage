@@ -21,6 +21,11 @@ export class ScyllaDBTableConnector<T = unknown>
 	implements IEntityStorageConnector<T>
 {
 	/**
+	 * Runtime name for the class.
+	 */
+	public readonly CLASS_NAME: string = nameof<ScyllaDBTableConnector>();
+
+	/**
 	 * Create a new instance of ScyllaDBTableConnector.
 	 * @param options The options for the connector.
 	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".

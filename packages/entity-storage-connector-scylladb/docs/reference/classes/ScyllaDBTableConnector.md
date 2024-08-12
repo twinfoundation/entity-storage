@@ -48,6 +48,22 @@ The configuration for the connector.
 
 `AbstractScyllaDBConnector<T>.constructor`
 
+## Properties
+
+### CLASS\_NAME
+
+> `readonly` **CLASS\_NAME**: `string`
+
+Runtime name for the class.
+
+#### Implementation of
+
+`IEntityStorageConnector.CLASS_NAME`
+
+#### Overrides
+
+`AbstractScyllaDBConnector.CLASS_NAME`
+
 ## Methods
 
 ### get()

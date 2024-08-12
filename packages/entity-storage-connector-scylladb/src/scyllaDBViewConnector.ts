@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BaseError, GeneralError, Is, StringHelper, type IError } from "@gtsc/core";
+import { BaseError, Is, NotSupportedError, StringHelper, type IError } from "@gtsc/core";
 import { EntitySchemaHelper, type IEntitySchema } from "@gtsc/entity";
 import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
@@ -15,6 +15,11 @@ export class ScyllaDBViewConnector<T>
 	extends AbstractScyllaDBConnector<T>
 	implements IEntityStorageConnector<T>
 {
+	/**
+	 * Runtime name for the class.
+	 */
+	public readonly CLASS_NAME: string = nameof<ScyllaDBViewConnector<T>>();
+
 	/**
 	 * The view descriptor.
 	 */
@@ -135,7 +140,7 @@ export class ScyllaDBViewConnector<T>
 	 * @param entity The entity to set.
 	 */
 	public async set(entity: T): Promise<void> {
-		throw new GeneralError(this.CLASS_NAME, "entityStorage.setReadonlyView", {});
+		throw new NotSupportedError(this.CLASS_NAME, "set", {});
 	}
 
 	/**
@@ -143,6 +148,6 @@ export class ScyllaDBViewConnector<T>
 	 * @param id The id of the entity to remove.
 	 */
 	public async remove(id: string): Promise<void> {
-		throw new GeneralError(this.CLASS_NAME, "entityStorage.removeReadonlyView", {});
+		throw new NotSupportedError(this.CLASS_NAME, "remove", {});
 	}
 }

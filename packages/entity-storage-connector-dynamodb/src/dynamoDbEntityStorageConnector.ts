@@ -26,7 +26,6 @@ import {
 	type IComparator,
 	type IEntitySchema,
 	type IEntitySchemaProperty,
-	type IEntitySort,
 	LogicalOperator,
 	type SortDirection
 } from "@gtsc/entity";
@@ -75,12 +74,6 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	private readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
-	 * Properties that can be used for sorting.
-	 * @internal
-	 */
-	private readonly _sortProperties: IEntitySort<T>[];
-
-	/**
 	 * The configuration for the connector.
 	 * @internal
 	 */
@@ -121,7 +114,6 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
-		this._sortProperties = EntitySchemaHelper.getSortProperties(this._entitySchema) ?? [];
 
 		this._config = options.config;
 	}
