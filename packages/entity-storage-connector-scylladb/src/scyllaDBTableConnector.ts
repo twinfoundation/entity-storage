@@ -253,14 +253,6 @@ export class ScyllaDBTableConnector<T = unknown>
 	}
 
 	/**
-	 * Get the default page size of the entity storage.
-	 * @returns The entity storage page size.
-	 */
-	public pageSize(): number {
-		return ScyllaDBTableConnector.PAGE_SIZE;
-	}
-
-	/**
 	 * Drops table.
 	 */
 	public async dropTable(): Promise<void> {

@@ -1,8 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-/* eslint-disable jsdoc/require-jsdoc */
-
 import { I18n } from "@gtsc/core";
 import {
 	ComparisonOperator,
@@ -21,8 +19,8 @@ import {
 } from "@gtsc/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@gtsc/logging-models";
 import { nameof } from "@gtsc/nameof";
-import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
-import { ScyllaDBTableConnector } from "../src/scyllaDBTableConnector";
+import { DynamoDbEntityStorageConnector } from "../src/dynamoDbEntityStorageConnector";
+import type { IDynamoDbEntityStorageConnectorConfig } from "../src/models/IDynamoDbEntityStorageConnectorConfig";
 
 /**
  * Test SubType Definition.
@@ -33,7 +31,7 @@ class SubType {
 	 * Field1.
 	 */
 	@property({ type: "string", format: "date-time" })
-	public field1!: Date;
+	public field1!: string;
 }
 
 /**
@@ -63,26 +61,44 @@ class TestType {
 	 * Value3.
 	 */
 	@property({ type: "object", itemTypeRef: "SubType", optional: true })
-	public value3!: SubType | undefined;
+	public value3?: SubType;
+
+	/**
+	 * Value4.
+	 */
+	@property({ type: "object" })
+	public valueObject?: {
+		[id: string]: {
+			value: string;
+		};
+	};
+
+	/**
+	 * Value5.
+	 */
+	@property({ type: "array" })
+	public valueArray?: {
+		field: string;
+		value: string;
+	}[];
 }
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
-
-const TABLE_NAME = "test-table";
-
-const localConfig: IScyllaDBTableConfig = {
-	tableName: TABLE_NAME,
-	hosts: ["localhost"],
-	localDataCenter: "datacenter1",
-	keyspace: "test_keyspace"
+const config: IDynamoDbEntityStorageConnectorConfig = {
+	region: "region",
+	accessKeyId: "accessKeyId",
+	secretAccessKey: "secretAccessKey",
+	tableName: "tableName",
+	endpoint: "http://localhost:8000"
 };
 
-describe("ScyllaDBTableConnector", () => {
+describe("DynamoDbEntityStorageConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
 		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
 		EntitySchemaFactory.register(nameof<SubType>(), () => EntitySchemaHelper.getSchema(SubType));
+
 		initSchema();
 	});
 
@@ -91,37 +107,27 @@ describe("ScyllaDBTableConnector", () => {
 			entitySchema: nameof<LogEntry>()
 		});
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
-
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
 		LoggingConnectorFactory.register("system-logging", () => new EntityStorageLoggingConnector());
 	});
 
 	afterEach(async () => {
-		const entityStorage = new ScyllaDBTableConnector({
+		const entityStorage = new DynamoDbEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
 		try {
-			await entityStorage.truncateTable();
+			await entityStorage.tableDelete();
 		} catch {}
 	});
 
-	afterAll(async () => {
-		const entityStorage = new ScyllaDBTableConnector({
-			entitySchema: nameof<TestType>(),
-			config: localConfig
-		});
-		await entityStorage.dropTable();
-	});
-
-	test("can fail to construct when there is no options", async () => {
+	test("can fail to construct when there are no options", async () => {
 		expect(
 			() =>
-				new ScyllaDBTableConnector(
+				new DynamoDbEntityStorageConnector(
 					undefined as unknown as {
-						loggingConnectorType?: string;
 						entitySchema: string;
-						config: IScyllaDBTableConfig;
+						config: IDynamoDbEntityStorageConnectorConfig;
 					}
 				)
 		).toThrow(
@@ -139,11 +145,10 @@ describe("ScyllaDBTableConnector", () => {
 	test("can fail to construct when there is no schema", async () => {
 		expect(
 			() =>
-				new ScyllaDBTableConnector(
+				new DynamoDbEntityStorageConnector(
 					{} as unknown as {
-						loggingConnectorType?: string;
 						entitySchema: string;
-						config: IScyllaDBTableConfig;
+						config: IDynamoDbEntityStorageConnectorConfig;
 					}
 				)
 		).toThrow(
@@ -158,62 +163,15 @@ describe("ScyllaDBTableConnector", () => {
 		);
 	});
 
-	test("can fail to construct when there is no config", async () => {
-		expect(
-			() =>
-				new ScyllaDBTableConnector({ entitySchema: "test" } as unknown as {
-					loggingConnectorType?: string;
-					entitySchema: string;
-					config: IScyllaDBTableConfig;
-				})
-		).toThrow(
-			expect.objectContaining({
-				name: "GuardError",
-				message: "guard.objectUndefined",
-				properties: {
-					property: "options.config",
-					value: "undefined"
-				}
-			})
-		);
-	});
-
-	test("can fail to construct when config is empty", async () => {
-		expect(
-			() =>
-				new ScyllaDBTableConnector({ entitySchema: "test", config: {} } as unknown as {
-					loggingConnectorType?: string;
-					entitySchema: string;
-					config: IScyllaDBTableConfig;
-				})
-		).toThrow(
-			expect.objectContaining({
-				name: "GuardError",
-				message: "guard.array",
-				properties: {
-					property: "options.config.hosts",
-					value: "undefined"
-				}
-			})
-		);
-	});
-
-	test("can construct", async () => {
-		const entityStorage = new ScyllaDBTableConnector({
-			entitySchema: nameof<TestType>(),
-			config: localConfig
-		});
-		expect(entityStorage).toBeDefined();
-	});
-
-	test.skip("can fail to bootstrap with invalid host", async () => {
-		const entityStorage = new ScyllaDBTableConnector({
+	test("can construct and bootstrap", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
 			config: {
-				hosts: ["example.org"],
-				tableName: "test1",
-				localDataCenter: "datacenter1",
-				keyspace: "test_keyspace"
+				region: "region",
+				accessKeyId: "accessKeyId",
+				secretAccessKey: "secretAccessKey",
+				tableName: "tableName",
+				endpoint: "http://localhost:8000"
 			}
 		});
 		await entityStorage.bootstrap();
@@ -221,35 +179,16 @@ describe("ScyllaDBTableConnector", () => {
 		expect(logs).toBeDefined();
 		expect(logs?.length).toEqual(2);
 		expect(logs?.[0].message).toEqual("tableCreating");
-		expect(logs?.[1].message).toEqual("tableCreateFailed");
+		expect(logs?.[1].message).toEqual("tableCreated");
 
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.tableCreating")).toEqual(true);
-		expect(I18n.hasMessage("error.scyllaDBTableConnector.tableCreateFailed")).toEqual(true);
-	});
-
-	test("can bootstrap and create table", async () => {
-		const entityStorage = new ScyllaDBTableConnector({
-			entitySchema: nameof<TestType>(),
-			config: localConfig
-		});
-		await entityStorage.bootstrap();
-		const logs = memoryEntityStorage.getStore();
-		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(5);
-		expect(logs?.[0].message).toEqual("tableCreating");
-		expect(logs?.[1].message).toEqual("sql");
-		expect(logs?.[2].message).toEqual("typeCreated");
-		expect(logs?.[3].message).toEqual("sql");
-		expect(logs?.[4].message).toEqual("tableCreated");
-
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.typeCreated")).toEqual(true);
-		expect(I18n.hasMessage("info.scyllaDBTableConnector.sql")).toEqual(true);
+		expect(I18n.hasMessage("info.dynamoDbEntityStorageConnector.tableCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.dynamoDbEntityStorageConnector.tableCreated")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -262,9 +201,9 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can set an item", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
@@ -272,29 +211,30 @@ describe("ScyllaDBTableConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date() }
+			value3: { field1: new Date().toISOString() }
 		};
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
-		console.log(typeof objectSet.value3.field1, typeof result?.value3?.field1);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3?.field1).toEqual(objectSet.value3?.field1);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
 	test("can set an item to update it", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
+
 		const entityId = "1";
 		const objectSet = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date() }
+			value3: { field1: new Date().toISOString() }
 		};
 		await entityStorage.set(objectSet);
 
@@ -309,9 +249,9 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can fail to get an item with no id", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
 		await expect(entityStorage.get(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
@@ -324,20 +264,22 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can not get an item", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		const item = await entityStorage.get("20000");
 
 		expect(item).toBeUndefined();
 	});
 
 	test("can get an item", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
 		const item = await entityStorage.get("2");
 
@@ -349,10 +291,11 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can get an item by secondary index", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		const secondaryValue = "zzz";
 		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
 		const item = await entityStorage.get(secondaryValue, "value1");
@@ -364,10 +307,11 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can fail to remove an item with no id", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
 			message: "guard.string",
@@ -379,10 +323,11 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can not remove an item", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
 
 		const idToRemove = "1000999";
@@ -391,10 +336,11 @@ describe("ScyllaDBTableConnector", () => {
 	});
 
 	test("can remove an item", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		const idToRemove = "65432";
 		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
 		await entityStorage.remove(idToRemove);
@@ -403,11 +349,12 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeUndefined();
 	});
 
-	test("can query items with empty store", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with empty store", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
@@ -416,11 +363,12 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can query items with single entry", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with single entry", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
@@ -430,11 +378,12 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can query items with multiple entries", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with multiple entries", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 80; i++) {
 			await entityStorage.set({
 				id: (i + 1).toString(),
@@ -450,11 +399,12 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.pageSize).toEqual(40);
 	});
 
-	test("can query items with multiple entries and cursor", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with multiple entries and cursor", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 50; i++) {
 			await entityStorage.set({
 				id: (i + 1).toString(),
@@ -472,17 +422,18 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result2.cursor).toBeUndefined();
 	});
 
-	test("can query items with multiple entries and apply conditions", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with multiple entries and apply conditions", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: { field1: new Date() }
+				value3: { field1: new Date().toISOString() }
 			});
 		}
 
@@ -499,11 +450,12 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
-	test("can query items with multiple entries and apply custom sort", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+	test("can find items with multiple entries and apply custom sort", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
 				id: (30 - i).toString(),
@@ -516,7 +468,7 @@ describe("ScyllaDBTableConnector", () => {
 			{
 				conditions: [
 					{
-						property: "id",
+						property: "value1",
 						value: ["26", "20"],
 						operator: ComparisonOperator.In
 					}
@@ -524,7 +476,7 @@ describe("ScyllaDBTableConnector", () => {
 			},
 			[
 				{
-					property: "value1",
+					property: "id",
 					sortDirection: SortDirection.Ascending
 				}
 			]
@@ -532,16 +484,17 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(2);
 		expect(result.entities[0].value1).toEqual("20");
+		expect(result.entities[1].value1).toEqual("26");
 		expect(result.totalEntities).toEqual(2);
-		// Order by disables pagination
-		expect(result.pageSize).toEqual(0);
+		expect(result.pageSize).toEqual(40);
 	});
 
 	test("can query items and get a reduced data set", async () => {
-		const entityStorage = new ScyllaDBTableConnector<TestType>({
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config
 		});
+		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
 				id: (i + 1).toString(),
@@ -555,5 +508,88 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result.entities.length).toEqual(30);
 		expect(result.entities[0].value2).toBeUndefined();
 		expect(result.entities[0].value3).toBeUndefined();
+	});
+
+	test("can query sub items in object", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueObject: {
+					name: {
+						value: "bob"
+					}
+				}
+			});
+		}
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 10).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueObject: {
+					name: {
+						value: "fred"
+					}
+				}
+			});
+		}
+		const result = await entityStorage.query({
+			property: "valueObject",
+			condition: { conditions: [{ property: "name.value", value: "bob", operator: "Equals" }] }
+		});
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(5);
+	});
+
+	test("can query sub items in array", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 1).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
+			});
+		}
+		for (let i = 0; i < 5; i++) {
+			await entityStorage.set({
+				id: (i + 10).toString(),
+				value1: "aaa",
+				value2: 7777,
+				value3: undefined,
+				valueArray: [
+					{
+						field: "name",
+						value: "fred"
+					}
+				]
+			});
+		}
+		const result = await entityStorage.query({
+			conditions: [
+				{ property: "valueArray", value: { field: "name", value: "bob" }, operator: "Includes" }
+			]
+		});
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(5);
 	});
 });

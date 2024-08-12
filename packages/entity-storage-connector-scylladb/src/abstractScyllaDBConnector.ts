@@ -69,7 +69,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	/**
 	 * Create a new instance of AbstractScyllaDBConnector.
 	 * @param options The options for the connector.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
+	 * @param options.loggingConnectorType The type of logging connector to use, defaults to no logging.
 	 * @param options.entitySchema The name of the entity schema.
 	 * @param options.config The configuration for the connector.
 	 * @param className The name of the derived class.
@@ -95,7 +95,10 @@ export abstract class AbstractScyllaDBConnector<T> {
 		);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.keyspace), options.config.keyspace);
 
-		this._logging = LoggingConnectorFactory.getIfExists(options.loggingConnectorType ?? "logging");
+		if (Is.stringValue(options.loggingConnectorType)) {
+			this._logging = LoggingConnectorFactory.get(options.loggingConnectorType);
+		}
+
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
