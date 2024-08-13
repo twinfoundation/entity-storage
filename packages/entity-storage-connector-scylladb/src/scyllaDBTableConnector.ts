@@ -42,14 +42,14 @@ export class ScyllaDBTableConnector<T = unknown>
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
+	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
-		const systemLogging = LoggingConnectorFactory.getIfExists(
-			systemLoggingConnectorType ?? "system-logging"
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+		const nodeLogging = LoggingConnectorFactory.getIfExists(
+			nodeLoggingConnectorType ?? "node-logging"
 		);
-		systemLogging?.log({
+		nodeLogging?.log({
 			level: "info",
 			source: this.CLASS_NAME,
 			ts: Date.now(),
@@ -86,7 +86,7 @@ export class ScyllaDBTableConnector<T = unknown>
 						const sql = `CREATE TYPE IF NOT EXISTS
 																		"${subTypeSchemaRef}" (${typeFields.join(",")})`;
 
-						await systemLogging?.log({
+						await nodeLogging?.log({
 							level: "info",
 							source: this.CLASS_NAME,
 							ts: Date.now(),
@@ -96,7 +96,7 @@ export class ScyllaDBTableConnector<T = unknown>
 
 						await this.execute(dbConnection, sql);
 
-						await systemLogging?.log({
+						await nodeLogging?.log({
 							level: "info",
 							source: this.CLASS_NAME,
 							ts: Date.now(),
@@ -129,7 +129,7 @@ export class ScyllaDBTableConnector<T = unknown>
 
 			const sql = `CREATE TABLE IF NOT EXISTS "${this._fullTableName}" (${fields.join(", ")})`;
 
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
@@ -139,7 +139,7 @@ export class ScyllaDBTableConnector<T = unknown>
 
 			await this.execute(dbConnection, sql);
 
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
@@ -148,7 +148,7 @@ export class ScyllaDBTableConnector<T = unknown>
 			});
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-				await systemLogging?.log({
+				await nodeLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
@@ -156,7 +156,7 @@ export class ScyllaDBTableConnector<T = unknown>
 					data: { table: this._fullTableName }
 				});
 			} else {
-				await systemLogging?.log({
+				await nodeLogging?.log({
 					level: "error",
 					source: this.CLASS_NAME,
 					ts: Date.now(),

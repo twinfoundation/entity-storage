@@ -68,15 +68,15 @@ export class ScyllaDBViewConnector<T>
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
+	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
-		const systemLogging = LoggingConnectorFactory.getIfExists(
-			systemLoggingConnectorType ?? "system-logging"
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+		const nodeLogging = LoggingConnectorFactory.getIfExists(
+			nodeLoggingConnectorType ?? "node-logging"
 		);
 
-		systemLogging?.log({
+		nodeLogging?.log({
 			level: "info",
 			source: this.CLASS_NAME,
 			ts: Date.now(),
@@ -106,7 +106,7 @@ export class ScyllaDBViewConnector<T>
 
 			await this.execute(dbConnection, sql);
 
-			systemLogging?.log({
+			nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
@@ -115,7 +115,7 @@ export class ScyllaDBViewConnector<T>
 			});
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-				systemLogging?.log({
+				nodeLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
@@ -123,7 +123,7 @@ export class ScyllaDBViewConnector<T>
 					data: { view: this._fullTableName }
 				});
 			} else {
-				systemLogging?.log({
+				nodeLogging?.log({
 					level: "error",
 					source: this.CLASS_NAME,
 					ts: Date.now(),

@@ -52,15 +52,15 @@ Runtime name for the class.
 
 ### bootstrap()
 
-> **bootstrap**(`systemLoggingConnectorType`?): `Promise`\<`void`\>
+> **bootstrap**(`nodeLoggingConnectorType`?): `Promise`\<`void`\>
 
 Bootstrap the connector by creating and initializing any resources it needs.
 
 #### Parameters
 
-• **systemLoggingConnectorType?**: `string`
+• **nodeLoggingConnectorType?**: `string`
 
-The system logging connector type, defaults to "system-logging".
+The node logging connector type, defaults to "node-logging".
 
 #### Returns
 

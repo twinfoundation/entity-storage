@@ -120,16 +120,16 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 	/**
 	 * Bootstrap the service by creating and initializing any resources it needs.
-	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
+	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
 	 * @returns Nothing.
 	 */
-	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
-		const systemLogging = LoggingConnectorFactory.getIfExists(
-			systemLoggingConnectorType ?? "system-logging"
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+		const nodeLogging = LoggingConnectorFactory.getIfExists(
+			nodeLoggingConnectorType ?? "node-logging"
 		);
 
 		if (!(await this.tableExists(this._config.tableName))) {
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
@@ -225,7 +225,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					}
 				);
 
-				await systemLogging?.log({
+				await nodeLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					ts: Date.now(),
@@ -236,7 +236,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				});
 			} catch (err) {
 				if (BaseError.isErrorCode(err, "ResourceInUseException")) {
-					await systemLogging?.log({
+					await nodeLogging?.log({
 						level: "info",
 						source: this.CLASS_NAME,
 						ts: Date.now(),
@@ -246,7 +246,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 						}
 					});
 				} else {
-					await systemLogging?.log({
+					await nodeLogging?.log({
 						level: "error",
 						source: this.CLASS_NAME,
 						ts: Date.now(),
@@ -259,7 +259,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				}
 			}
 		} else {
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),

@@ -67,7 +67,7 @@ describe("FileEntityStorageConnector", () => {
 		EntityStorageConnectorFactory.register("log-entry", () => memoryEntityStorage);
 
 		LoggingConnectorFactory.register("logging", () => new EntityStorageLoggingConnector());
-		LoggingConnectorFactory.register("system-logging", () => new EntityStorageLoggingConnector());
+		LoggingConnectorFactory.register("node-logging", () => new EntityStorageLoggingConnector());
 	});
 
 	afterEach(async () => {

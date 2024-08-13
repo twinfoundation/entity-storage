@@ -69,16 +69,16 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
-	 * @param systemLoggingConnectorType The system logging connector type, defaults to "system-logging".
+	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
 	 * @returns The response of the bootstrapping as log entries.
 	 */
-	public async bootstrap(systemLoggingConnectorType?: string): Promise<void> {
-		const systemLogging = LoggingConnectorFactory.getIfExists(
-			systemLoggingConnectorType ?? "system-logging"
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+		const nodeLogging = LoggingConnectorFactory.getIfExists(
+			nodeLoggingConnectorType ?? "node-logging"
 		);
 
 		if (!(await this.dirExists(this._directory))) {
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				message: "directoryCreating",
@@ -90,7 +90,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 			try {
 				await mkdir(this._directory, { recursive: true });
 
-				await systemLogging?.log({
+				await nodeLogging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					message: "directoryCreated",
@@ -99,7 +99,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 					}
 				});
 			} catch (err) {
-				await systemLogging?.log({
+				await nodeLogging?.log({
 					level: "error",
 					source: this.CLASS_NAME,
 					message: "directoryCreateFailed",
@@ -110,7 +110,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 				});
 			}
 		} else {
-			await systemLogging?.log({
+			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				message: "directoryExists",
