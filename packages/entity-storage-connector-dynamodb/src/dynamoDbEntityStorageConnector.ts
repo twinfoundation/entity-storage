@@ -121,9 +121,9 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Bootstrap the service by creating and initializing any resources it needs.
 	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
-	 * @returns Nothing.
+	 * @returns True if the bootstrapping process was successful.
 	 */
-	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<boolean> {
 		const nodeLogging = LoggingConnectorFactory.getIfExists(
 			nodeLoggingConnectorType ?? "node-logging"
 		);
@@ -246,17 +246,21 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 						}
 					});
 				} else {
-					await nodeLogging?.log({
-						level: "error",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "tableCreateFailed",
-						error: BaseError.fromError(err),
-						data: {
-							tableName: this._config.tableName
-						}
-					});
+					const errors = err instanceof AggregateError ? err.errors : [err];
+					for (const error of errors) {
+						await nodeLogging?.log({
+							level: "error",
+							source: this.CLASS_NAME,
+							ts: Date.now(),
+							message: "tableCreateFailed",
+							error: BaseError.fromError(error),
+							data: {
+								tableName: this._config.tableName
+							}
+						});
+					}
 				}
+				return false;
 			}
 		} else {
 			await nodeLogging?.log({
@@ -269,6 +273,8 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				}
 			});
 		}
+
+		return true;
 	}
 
 	/**

@@ -69,9 +69,9 @@ export class ScyllaDBViewConnector<T>
 	/**
 	 * Bootstrap the connector by creating and initializing any resources it needs.
 	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
-	 * @returns The response of the bootstrapping as log entries.
+	 * @returns True if the bootstrapping process was successful.
 	 */
-	public async bootstrap(nodeLoggingConnectorType?: string): Promise<void> {
+	public async bootstrap(nodeLoggingConnectorType?: string): Promise<boolean> {
 		const nodeLogging = LoggingConnectorFactory.getIfExists(
 			nodeLoggingConnectorType ?? "node-logging"
 		);
@@ -132,7 +132,9 @@ export class ScyllaDBViewConnector<T>
 					data: { view: this._fullTableName }
 				});
 			}
+			return false;
 		}
+		return true;
 	}
 
 	/**

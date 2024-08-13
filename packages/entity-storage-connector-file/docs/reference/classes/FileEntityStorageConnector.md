@@ -52,7 +52,7 @@ Runtime name for the class.
 
 ### bootstrap()
 
-> **bootstrap**(`nodeLoggingConnectorType`?): `Promise`\<`void`\>
+> **bootstrap**(`nodeLoggingConnectorType`?): `Promise`\<`boolean`\>
 
 Bootstrap the connector by creating and initializing any resources it needs.
 
@@ -64,9 +64,9 @@ The node logging connector type, defaults to "node-logging".
 
 #### Returns
 
-`Promise`\<`void`\>
+`Promise`\<`boolean`\>
 
-The response of the bootstrapping as log entries.
+True if the bootstrapping process was successful.
 
 #### Implementation of
 
