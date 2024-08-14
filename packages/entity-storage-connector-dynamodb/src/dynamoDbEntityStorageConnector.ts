@@ -119,7 +119,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	}
 
 	/**
-	 * Bootstrap the service by creating and initializing any resources it needs.
+	 * Bootstrap the component by creating and initializing any resources it needs.
 	 * @param nodeLoggingConnectorType The node logging connector type, defaults to "node-logging".
 	 * @returns True if the bootstrapping process was successful.
 	 */

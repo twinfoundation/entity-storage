@@ -1,12 +1,12 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
+import type { IComponent } from "@gtsc/core";
 import type { EntityCondition, SortDirection } from "@gtsc/entity";
-import type { IService } from "@gtsc/services";
 
 /**
  * Interface describing an entity storage connector.
  */
-export interface IEntityStorageConnector<T = unknown> extends IService {
+export interface IEntityStorageConnector<T = unknown> extends IComponent {
 	/**
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
