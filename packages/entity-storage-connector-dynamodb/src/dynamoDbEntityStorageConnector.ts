@@ -116,6 +116,9 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
 		this._config = options.config;
+		this._config.endpoint = Is.stringValue(this._config.endpoint)
+			? this._config.endpoint
+			: undefined;
 	}
 
 	/**
