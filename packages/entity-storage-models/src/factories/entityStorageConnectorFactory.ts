@@ -8,4 +8,4 @@ import type { IEntityStorageConnector } from "../models/IEntityStorageConnector"
  */
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const EntityStorageConnectorFactory =
-	Factory.createFactory<IEntityStorageConnector>("entityStorage");
+	Factory.createFactory<IEntityStorageConnector>("entity-storage");
