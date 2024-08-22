@@ -36,6 +36,7 @@
 	},
 	"devDependencies": {
 		"@gtsc/entity-storage-connector-memory": "0.0.5-next.10",
+		"@gtsc/logging-connector-entity-storage": "next",
 		"@gtsc/nameof-transformer": "next",
 		"@types/node": "20.14.6",
 		"@vitest/coverage-v8": "1.6.0",
