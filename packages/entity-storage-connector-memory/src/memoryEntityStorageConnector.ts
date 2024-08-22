@@ -185,7 +185,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * Get the memory store.
 	 * @returns The store.
 	 */
-	public getStore(): T[] | undefined {
+	public getStore(): T[] {
 		return this._store;
 	}
 }
