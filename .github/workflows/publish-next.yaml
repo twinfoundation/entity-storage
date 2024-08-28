@@ -17,6 +17,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+       id-token: write
 
     if: github.ref != 'refs/heads/main'
 
@@ -76,6 +78,6 @@ jobs:
       - name: Publish
         run: |
           cd packages/${{ github.event.inputs.package }}
-          npm publish --access public --tag next
+          npm publish --provenance --access public --tag next
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
