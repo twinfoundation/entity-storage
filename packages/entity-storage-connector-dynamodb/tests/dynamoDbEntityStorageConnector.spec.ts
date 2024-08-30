@@ -440,7 +440,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const result = await entityStorage.query({
 			property: "id",
 			value: "20",
-			operator: ComparisonOperator.Equals
+			comparison: ComparisonOperator.Equals
 		});
 
 		expect(result).toBeDefined();
@@ -470,7 +470,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 					{
 						property: "value1",
 						value: ["26", "20"],
-						operator: ComparisonOperator.In
+						comparison: ComparisonOperator.In
 					}
 				]
 			},
@@ -543,7 +543,9 @@ describe("DynamoDbEntityStorageConnector", () => {
 			});
 		}
 		const result = await entityStorage.query({
-			conditions: [{ property: "valueObject.name.value", value: "bob", operator: "Equals" }]
+			conditions: [
+				{ property: "valueObject.name.value", value: "bob", comparison: ComparisonOperator.Equals }
+			]
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);
@@ -585,7 +587,11 @@ describe("DynamoDbEntityStorageConnector", () => {
 		}
 		const result = await entityStorage.query({
 			conditions: [
-				{ property: "valueArray", value: { field: "name", value: "bob" }, operator: "Includes" }
+				{
+					property: "valueArray",
+					value: { field: "name", value: "bob" },
+					comparison: ComparisonOperator.Includes
+				}
 			]
 		});
 		expect(result).toBeDefined();

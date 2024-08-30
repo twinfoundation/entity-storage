@@ -458,7 +458,7 @@ describe("FileEntityStorageConnector", () => {
 		const result = await entityStorage.query({
 			property: "value2",
 			value: "ccc",
-			operator: ComparisonOperator.Equals
+			comparison: ComparisonOperator.Equals
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);

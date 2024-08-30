@@ -308,6 +308,7 @@ export class ScyllaDBTableConnector<T = unknown>
 	 * @param logicalField The logical field description.
 	 * @returns The DB type.
 	 * @throws GeneralException if no mapping found.
+	 * @internal
 	 */
 	private toDbField(logicalField: IEntitySchemaProperty<T>): string {
 		let dbType: string;

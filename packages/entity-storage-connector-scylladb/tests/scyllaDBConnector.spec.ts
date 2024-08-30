@@ -489,7 +489,7 @@ describe("ScyllaDBTableConnector", () => {
 		const result = await entityStorage.query({
 			property: "id",
 			value: "20",
-			operator: ComparisonOperator.Equals
+			comparison: ComparisonOperator.Equals
 		});
 
 		expect(result).toBeDefined();
@@ -518,7 +518,7 @@ describe("ScyllaDBTableConnector", () => {
 					{
 						property: "id",
 						value: ["26", "20"],
-						operator: ComparisonOperator.In
+						comparison: ComparisonOperator.In
 					}
 				]
 			},

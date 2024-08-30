@@ -352,7 +352,7 @@ describe("MemoryEntityStorageConnector", () => {
 		const result = await entityStorage.query({
 			property: "id",
 			value: "20",
-			operator: ComparisonOperator.Equals
+			comparison: ComparisonOperator.Equals
 		});
 
 		expect(result).toBeDefined();
@@ -380,7 +380,7 @@ describe("MemoryEntityStorageConnector", () => {
 					{
 						property: "value1",
 						value: ["26", "20"],
-						operator: ComparisonOperator.In
+						comparison: ComparisonOperator.In
 					}
 				]
 			},
@@ -452,7 +452,11 @@ describe("MemoryEntityStorageConnector", () => {
 		}
 		const result = await entityStorage.query({
 			conditions: [
-				{ property: "valueArray", value: { field: "name", value: "bob" }, operator: "Includes" }
+				{
+					property: "valueArray",
+					value: { field: "name", value: "bob" },
+					comparison: ComparisonOperator.Includes
+				}
 			]
 		});
 		expect(result).toBeDefined();

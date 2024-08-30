@@ -230,16 +230,16 @@ export abstract class AbstractScyllaDBConnector<T> {
 					p => p.property === condition.property
 				);
 				if (
-					condition.operator === ComparisonOperator.Includes ||
-					condition.operator === ComparisonOperator.NotIncludes
+					condition.comparison === ComparisonOperator.Includes ||
+					condition.comparison === ComparisonOperator.NotIncludes
 				) {
 					const propValue = `'%${condition.value}%'`;
-					if (condition.operator === ComparisonOperator.Includes) {
+					if (condition.comparison === ComparisonOperator.Includes) {
 						conds.push(`"${condition.property}" LIKE ${propValue}`);
-					} else if (condition.operator === ComparisonOperator.NotIncludes) {
+					} else if (condition.comparison === ComparisonOperator.NotIncludes) {
 						conds.push(`"${condition.property}" NOT LIKE ${propValue}`);
 					}
-				} else if (condition.operator === ComparisonOperator.In) {
+				} else if (condition.comparison === ComparisonOperator.In) {
 					let value: unknown[] = [];
 					if (!Is.arrayValue(condition.value)) {
 						value.push(this.propertyToDbValue(condition.value, descriptor));
@@ -251,17 +251,17 @@ export abstract class AbstractScyllaDBConnector<T> {
 				} else {
 					const propValue = condition.value;
 					params.push(propValue);
-					if (condition.operator === ComparisonOperator.Equals) {
+					if (condition.comparison === ComparisonOperator.Equals) {
 						conds.push(`"${condition.property}" = ?`);
-					} else if (condition.operator === ComparisonOperator.NotEquals) {
+					} else if (condition.comparison === ComparisonOperator.NotEquals) {
 						conds.push(`"${condition.property}" <> ?`);
-					} else if (condition.operator === ComparisonOperator.GreaterThan) {
+					} else if (condition.comparison === ComparisonOperator.GreaterThan) {
 						conds.push(`"${condition.property}" > ?`);
-					} else if (condition.operator === ComparisonOperator.LessThan) {
+					} else if (condition.comparison === ComparisonOperator.LessThan) {
 						conds.push(`"${condition.property}" < ?`);
-					} else if (condition.operator === ComparisonOperator.GreaterThanOrEqual) {
+					} else if (condition.comparison === ComparisonOperator.GreaterThanOrEqual) {
 						conds.push(`"${condition.property}" >= ?`);
-					} else if (condition.operator === ComparisonOperator.LessThanOrEqual) {
+					} else if (condition.comparison === ComparisonOperator.LessThanOrEqual) {
 						conds.push(`"${condition.property}" <= ?`);
 					}
 				}

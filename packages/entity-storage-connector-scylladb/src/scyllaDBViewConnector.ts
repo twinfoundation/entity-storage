@@ -22,6 +22,7 @@ export class ScyllaDBViewConnector<T>
 
 	/**
 	 * The view descriptor.
+	 * @internal
 	 */
 	private readonly _viewSchema: IEntitySchema<T>;
 

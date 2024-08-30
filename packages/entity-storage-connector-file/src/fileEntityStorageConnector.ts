@@ -263,6 +263,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Read the store from file.
 	 * @returns The store.
+	 * @internal
 	 */
 	private async readStore(): Promise<T[]> {
 		try {
@@ -278,6 +279,7 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Write the store to the file.
 	 * @param store The store to write.
 	 * @returns Nothing.
+	 * @internal
 	 */
 	private async writeStore(store: T[]): Promise<void> {
 		try {

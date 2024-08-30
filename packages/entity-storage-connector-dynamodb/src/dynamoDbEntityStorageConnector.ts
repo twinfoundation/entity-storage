@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0.
 import {
 	type AttributeValue,
-	ConditionalOperator,
 	type CreateTableCommandInput,
 	DynamoDB,
 	type GlobalSecondaryIndex,
@@ -624,6 +623,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @param attributeNames The attribute names to use in the query.
 	 * @param attributeValues The attribute values to use in the query.
 	 * @returns The condition clause.
+	 * @internal
 	 */
 	private buildQueryParameters(
 		objectPath: string,
@@ -689,6 +689,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @param attributeValues The attribute values to use in the query.
 	 * @returns The comparison expression.
 	 * @throws GeneralError if the comparison operator is not supported.
+	 * @internal
 	 */
 	private mapComparisonOperator(
 		objectPath: string,
@@ -720,27 +721,29 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 			attributeValues[propName] = this.propertyToDbValue(comparator.value, type);
 		}
 
-		if (comparator.operator === ComparisonOperator.Equals) {
+		if (comparator.comparison === ComparisonOperator.Equals) {
 			return `${attributeName} = ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.NotEquals) {
+		} else if (comparator.comparison === ComparisonOperator.NotEquals) {
 			return `${attributeName} <> ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.GreaterThan) {
+		} else if (comparator.comparison === ComparisonOperator.GreaterThan) {
 			return `${attributeName} > ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.LessThan) {
+		} else if (comparator.comparison === ComparisonOperator.LessThan) {
 			return `${attributeName} < ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.GreaterThanOrEqual) {
+		} else if (comparator.comparison === ComparisonOperator.GreaterThanOrEqual) {
 			return `${attributeName} >= ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.LessThanOrEqual) {
+		} else if (comparator.comparison === ComparisonOperator.LessThanOrEqual) {
 			return `${attributeName} <= ${propName}`;
-		} else if (comparator.operator === ComparisonOperator.Includes) {
+		} else if (comparator.comparison === ComparisonOperator.Includes) {
 			return `contains(${attributeName}, ${propName})`;
-		} else if (comparator.operator === ComparisonOperator.NotIncludes) {
+		} else if (comparator.comparison === ComparisonOperator.NotIncludes) {
 			return `notContains(${attributeName}, ${propName})`;
-		} else if (comparator.operator === ComparisonOperator.In) {
+		} else if (comparator.comparison === ComparisonOperator.In) {
 			return `${propName} IN ${attributeName}`;
 		}
 
-		throw new GeneralError(this.CLASS_NAME, "comparisonNotSupported", { operator: comparator });
+		throw new GeneralError(this.CLASS_NAME, "comparisonNotSupported", {
+			comparison: comparator.comparison
+		});
 	}
 
 	/**
@@ -748,6 +751,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @param name The name to create a unique name for.
 	 * @param attributeNames The attribute names to use in the query.
 	 * @returns The unique name.
+	 * @internal
 	 */
 	private populateAttributeNames(name: string, attributeNames: { [id: string]: string }): string {
 		const parts = name.split(".");
@@ -769,12 +773,13 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @param operator The operator to map.
 	 * @returns The conditional operator.
 	 * @throws GeneralError if the conditional operator is not supported.
+	 * @internal
 	 */
 	private mapConditionalOperator(operator?: LogicalOperator): string {
 		if ((operator ?? LogicalOperator.And) === LogicalOperator.And) {
-			return ConditionalOperator.AND;
+			return "AND";
 		} else if (operator === LogicalOperator.Or) {
-			return ConditionalOperator.OR;
+			return "OR";
 		}
 
 		throw new GeneralError(this.CLASS_NAME, "conditionalNotSupported", { operator });
