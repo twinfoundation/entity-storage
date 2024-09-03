@@ -15,7 +15,7 @@ import {
 	PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { BaseError, Coerce, Converter, GeneralError, Guards, Is } from "@gtsc/core";
+import { BaseError, Coerce, Converter, GeneralError, Guards, Is, ObjectHelper } from "@gtsc/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -450,7 +450,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @param sortProperties The optional sort order.
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
-	 * @param pageSize The maximum number of entities in a page.
+	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -472,14 +472,6 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
 		cursor?: string;
-		/**
-		 * Number of entities to return.
-		 */
-		pageSize?: number;
-		/**
-		 * Total entities length.
-		 */
-		totalEntities: number;
 	}> {
 		const sql = "";
 
@@ -544,43 +536,28 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					: undefined,
 				ExpressionAttributeNames: attributeNames,
 				ExpressionAttributeValues: attributeValues,
-				ProjectionExpression: properties?.map(p => p as string).join(", ")
+				ProjectionExpression: properties?.map(p => p as string).join(", "),
+				Limit: returnSize,
+				ExclusiveStartKey: Is.empty(cursor)
+					? undefined
+					: ObjectHelper.fromBytes(Converter.base64ToBytes(cursor))
 			});
 
 			const connection = this.createDocClient();
 
 			const results = await connection.send(query);
 
-			const entities: T[] = [];
+			let entities: T[] = [];
 
-			let startIndex = 0;
-			const nextCursorId = Is.stringValue(cursor) ? Converter.hexToUtf8(cursor) : undefined;
-			if (Is.stringValue(nextCursorId) && Is.arrayValue(results.Items)) {
-				startIndex = results.Items.findIndex(it => it.id.S === nextCursorId);
-			}
-
-			let nextItem;
 			if (Is.arrayValue(results.Items)) {
-				for (let i = startIndex < 0 ? 0 : startIndex; i < results.Items.length; i++) {
-					const entity = unmarshall(results.Items[i]) as T;
-
-					entities.push(entity);
-					if (entities.length === returnSize) {
-						if (i < results.Items.length - 1) {
-							nextItem = results.Items[i + 1];
-						}
-						break;
-					}
-				}
+				entities = results.Items.map(item => unmarshall(item) as T);
 			}
 
 			return {
 				entities,
-				cursor: Is.stringValue(nextItem?.id?.S)
-					? Converter.utf8ToHex(nextItem?.id?.S as string)
-					: undefined,
-				pageSize: returnSize,
-				totalEntities: results.Items?.length ?? 0
+				cursor: Is.empty(results.LastEvaluatedKey)
+					? undefined
+					: Converter.bytesToBase64(ObjectHelper.toBytes(results.LastEvaluatedKey))
 			};
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {

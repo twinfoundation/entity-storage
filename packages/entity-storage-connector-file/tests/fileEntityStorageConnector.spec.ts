@@ -387,8 +387,6 @@ describe("FileEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
-		expect(result.totalEntities).toEqual(0);
-		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -402,8 +400,6 @@ describe("FileEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -419,8 +415,6 @@ describe("FileEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toEqual("20");
 	});
 
@@ -437,8 +431,6 @@ describe("FileEntityStorageConnector", () => {
 		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
-		expect(result2.totalEntities).toEqual(30);
-		expect(result2.pageSize).toEqual(20);
 		expect(result2.cursor).toBeUndefined();
 	});
 
@@ -462,8 +454,6 @@ describe("FileEntityStorageConnector", () => {
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
-		expect(result.totalEntities).toEqual(34);
-		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toEqual("58");
 	});
 
@@ -485,8 +475,6 @@ describe("FileEntityStorageConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(20);
 		expect(result.entities[0].id).toEqual("1");
-		expect(result.totalEntities).toEqual(30);
-		expect(result.pageSize).toEqual(20);
 		expect(result.cursor).toEqual("20");
 	});
 

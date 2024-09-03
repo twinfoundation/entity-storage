@@ -162,7 +162,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * @param sortProperties The optional sort order.
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
-	 * @param pageSize The maximum number of entities in a page.
+	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -184,14 +184,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
 		cursor?: string;
-		/**
-		 * Number of entities to return.
-		 */
-		pageSize?: number;
-		/**
-		 * Total entities length.
-		 */
-		totalEntities: number;
 	}> {
 		let connection;
 		try {
@@ -223,9 +215,10 @@ export abstract class AbstractScyllaDBConnector<T> {
 				}
 			}
 
-			// TODO: This code needs refactoring to support recursive conditions.
+			// TODO: This code needs refactoring to support conditions for sub properties.
 			for (const cond of theConditions) {
 				const condition = cond as IComparator;
+
 				const descriptor = this._entitySchema.properties?.find(
 					p => p.property === condition.property
 				);
@@ -276,19 +269,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 
 			connection = await this.openConnection();
 
-			// eslint-disable-next-line @typescript-eslint/quotes
-			const countQueryFragment = `SELECT COUNT(*) AS "totalEntities"`;
-			const countQuery = sql.replace("SELECT *", countQueryFragment);
-
-			const countResults = await this.queryDB(
-				connection,
-				countQuery,
-				params,
-				undefined,
-				returnSize
-			);
-
-			// Only supported one sort property at the moment. This code would need to be revised in a follow-up
+			// TODO: Only supported one sort property at the moment. This code would need to be revised in a follow-up
 			if (Is.array(sortProperties) && sortProperties.length >= 1) {
 				const sortKey = sortProperties[0].property ?? this._primaryKey.property;
 				const sortDir =
@@ -313,7 +294,6 @@ export abstract class AbstractScyllaDBConnector<T> {
 				data: { sql }
 			});
 
-			// We just use the cursor
 			const result = await this.queryDB(connection, sql, params, cursor, returnSize);
 
 			const entities: Partial<T>[] = [];
@@ -324,9 +304,7 @@ export abstract class AbstractScyllaDBConnector<T> {
 
 			return {
 				entities,
-				cursor: result.pageState ?? undefined,
-				pageSize: returnSize,
-				totalEntities: Number(countResults.rows[0].totalEntities)
+				cursor: Is.stringValue(result.pageState) ? result.pageState : undefined
 			};
 		} catch (error) {
 			throw new GeneralError(this.CLASS_NAME, "findFailed", { table: this._fullTableName }, error);

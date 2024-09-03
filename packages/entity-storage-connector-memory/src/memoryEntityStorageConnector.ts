@@ -112,7 +112,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	 * @param sortProperties The optional sort order.
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
-	 * @param pageSize The maximum number of entities in a page.
+	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
 	 * @returns All the entities for the storage matching the conditions,
 	 * and a cursor which can be used to request more entities.
 	 */
@@ -134,21 +134,12 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		 * An optional cursor, when defined can be used to call find to get more entities.
 		 */
 		cursor?: string;
-		/**
-		 * Number of entities to return.
-		 */
-		pageSize?: number;
-		/**
-		 * Total entities length.
-		 */
-		totalEntities: number;
 	}> {
 		let allEntities = this._store.slice();
 
 		const entities = [];
 		const finalPageSize = pageSize ?? MemoryEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
-		let totalEntities = 0;
 		if (allEntities.length > 0) {
 			const finalSortKeys = EntitySchemaHelper.buildSortProperties<T>(
 				this._entitySchema,
@@ -158,16 +149,11 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 			const startIndex = Coerce.number(cursor) ?? 0;
 
-			totalEntities = startIndex;
-
 			for (let i = startIndex; i < allEntities.length; i++) {
-				if (EntityConditions.check(allEntities[i], conditions)) {
-					totalEntities++;
-					if (entities.length < finalPageSize) {
-						entities.push(ObjectHelper.pick(allEntities[i], properties));
-						if (entities.length >= finalPageSize) {
-							nextCursor = (i + 1).toString();
-						}
+				if (EntityConditions.check(allEntities[i], conditions) && entities.length < finalPageSize) {
+					entities.push(ObjectHelper.pick(allEntities[i], properties));
+					if (entities.length >= finalPageSize) {
+						nextCursor = (i + 1).toString();
 					}
 				}
 			}
@@ -175,9 +161,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 
 		return {
 			entities,
-			cursor: nextCursor,
-			pageSize: finalPageSize,
-			totalEntities
+			cursor: nextCursor
 		};
 	}
 

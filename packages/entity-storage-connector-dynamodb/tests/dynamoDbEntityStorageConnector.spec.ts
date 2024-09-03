@@ -358,8 +358,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(0);
-		expect(result.totalEntities).toEqual(0);
-		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -373,8 +371,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -395,8 +391,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(40);
-		expect(result.totalEntities).toEqual(80);
-		expect(result.pageSize).toEqual(40);
 	});
 
 	test("can find items with multiple entries and cursor", async () => {
@@ -417,8 +411,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const result2 = await entityStorage.query(undefined, undefined, undefined, result.cursor);
 		expect(result2).toBeDefined();
 		expect(result2.entities.length).toEqual(10);
-		expect(result2.totalEntities).toEqual(50);
-		expect(result2.pageSize).toEqual(40);
 		expect(result2.cursor).toBeUndefined();
 	});
 
@@ -445,8 +437,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
-		expect(result.totalEntities).toEqual(1);
-		expect(result.pageSize).toEqual(40);
 		expect(result.cursor).toBeUndefined();
 	});
 
@@ -485,8 +475,6 @@ describe("DynamoDbEntityStorageConnector", () => {
 		expect(result.entities.length).toEqual(2);
 		expect(result.entities[0].value1).toEqual("20");
 		expect(result.entities[1].value1).toEqual("26");
-		expect(result.totalEntities).toEqual(2);
-		expect(result.pageSize).toEqual(40);
 	});
 
 	test("can query items and get a reduced data set", async () => {
