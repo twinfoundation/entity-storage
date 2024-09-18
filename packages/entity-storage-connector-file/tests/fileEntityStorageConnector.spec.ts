@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { readFile, rm } from "node:fs/promises";
-import { Converter, I18n, RandomHelper } from "@gtsc/core";
+import { Converter, I18n, RandomHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -9,16 +9,16 @@ import {
 	SortDirection,
 	entity,
 	property
-} from "@gtsc/entity";
-import { MemoryEntityStorageConnector } from "@gtsc/entity-storage-connector-memory";
-import { EntityStorageConnectorFactory } from "@gtsc/entity-storage-models";
+} from "@twin.org/entity";
+import { MemoryEntityStorageConnector } from "@twin.org/entity-storage-connector-memory";
+import { EntityStorageConnectorFactory } from "@twin.org/entity-storage-models";
 import {
 	EntityStorageLoggingConnector,
 	type LogEntry,
 	initSchema
-} from "@gtsc/logging-connector-entity-storage";
-import { LoggingConnectorFactory } from "@gtsc/logging-models";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/logging-connector-entity-storage";
+import { LoggingConnectorFactory } from "@twin.org/logging-models";
+import { nameof } from "@twin.org/nameof";
 import { FileEntityStorageConnector } from "../src/fileEntityStorageConnector";
 import type { IFileEntityStorageConnectorConfig } from "../src/models/IFileEntityStorageConnectorConfig";
 

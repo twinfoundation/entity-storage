@@ -1,11 +1,11 @@
-# GTSC Entity Storage Connector Dynamo DB
+# TWIN Entity Storage Connector Dynamo DB
 
 Entity Storage connector implementation using Dynamo DB storage.
 
 ## Installation
 
 ```shell
-npm install @gtsc/entity-storage-connector-dynamodb
+npm install @twin.org/entity-storage-connector-dynamodb
 ```
 
 ## Testing
@@ -28,7 +28,7 @@ Usage of the APIs is shown in the examples [docs/examples.md](docs/examples.md)
 
 ## Reference
 
-Detailed reference documentation for the API can be found in [docs/reference/globals.md](docs/reference/globals.md)
+Detailed reference documentation for the API can be found in [docs/reference/index.md](docs/reference/index.md)
 
 ## Changelog
 

@@ -1,6 +1,6 @@
-# GTSC Entity Storage
+# TWIN Entity Storage
 
-This mono-repository contains the packages to use with Entity Storage in GTSC applications.
+This mono-repository contains the packages to use with Entity Storage in TWIN applications.
 
 ## Packages
 

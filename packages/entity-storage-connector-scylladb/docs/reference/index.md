@@ -1,4 +1,4 @@
-# @gtsc/entity-storage-connector-scylladb
+# @twin.org/entity-storage-connector-scylladb
 
 ## Classes
 

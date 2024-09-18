@@ -1,5 +1,5 @@
-# @gtsc/entity-storage-connector-memory - Changelog
+# @twin.org/entity-storage-connector-memory - Changelog
 
-## v0.0.3
+## v0.0.1-next.2
 
 - Initial Release

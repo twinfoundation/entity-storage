@@ -6,7 +6,7 @@ Interface describing an entity storage connector.
 
 - `IComponent`
 
-## Type parameters
+## Type Parameters
 
 • **T** = `unknown`
 

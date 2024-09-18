@@ -6,7 +6,7 @@ Manage entities using ScyllaDB Views.
 
 - `AbstractScyllaDBConnector`\<`T`\>
 
-## Type parameters
+## Type Parameters
 
 • **T**
 

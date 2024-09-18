@@ -2,7 +2,7 @@
 
 Class for performing entity storage operations in-memory.
 
-## Type parameters
+## Type Parameters
 
 • **T** = `unknown`
 

@@ -1,11 +1,11 @@
-# GTSC Entity Storage Connector File
+# TWIN Entity Storage Connector File
 
 Entity Storage connector implementation using file storage.
 
 ## Installation
 
 ```shell
-npm install @gtsc/entity-storage-connector-file
+npm install @twin.org/entity-storage-connector-file
 ```
 
 ## Examples
@@ -14,7 +14,7 @@ Usage of the APIs is shown in the examples [docs/examples.md](docs/examples.md)
 
 ## Reference
 
-Detailed reference documentation for the API can be found in [docs/reference/globals.md](docs/reference/globals.md)
+Detailed reference documentation for the API can be found in [docs/reference/index.md](docs/reference/index.md)
 
 ## Changelog
 

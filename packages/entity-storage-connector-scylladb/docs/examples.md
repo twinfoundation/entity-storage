@@ -1,1 +1,1 @@
-# @gtsc/entity-storage-connector-scylladb - Examples
+# @twin.org/entity-storage-connector-scylladb - Examples
