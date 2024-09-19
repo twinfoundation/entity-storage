@@ -2,7 +2,7 @@
 
 Class for performing entity storage operations using Dynamo DB.
 
-## Type parameters
+## Type Parameters
 
 • **T** = `unknown`
 

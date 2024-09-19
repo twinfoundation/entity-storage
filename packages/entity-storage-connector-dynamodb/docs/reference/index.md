@@ -1,4 +1,4 @@
-# @gtsc/entity-storage-connector-dynamodb
+# @twin.org/entity-storage-connector-dynamodb
 
 ## Classes
 

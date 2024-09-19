@@ -1,5 +1,5 @@
-# @gtsc/entity-storage-connector-dynamodb - Changelog
+# @twin.org/entity-storage-connector-dynamodb - Changelog
 
-## v0.0.3
+## v0.0.1-next.3
 
 - Initial Release

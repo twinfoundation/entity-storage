@@ -1,1 +1,1 @@
-# @gtsc/entity-storage-connector-dynamodb - Examples
+# @twin.org/entity-storage-connector-dynamodb - Examples

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BaseError, Coerce, Guards, ObjectHelper } from "@gtsc/core";
+import { BaseError, Coerce, Guards, ObjectHelper } from "@twin.org/core";
 import {
 	EntityConditions,
 	EntitySchemaFactory,
@@ -12,10 +12,10 @@ import {
 	type IEntitySchema,
 	type IEntitySchemaProperty,
 	type SortDirection
-} from "@gtsc/entity";
-import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import { LoggingConnectorFactory } from "@gtsc/logging-models";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/entity";
+import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
+import { LoggingConnectorFactory } from "@twin.org/logging-models";
+import { nameof } from "@twin.org/nameof";
 import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
 
 /**

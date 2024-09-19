@@ -1,4 +1,4 @@
-# @gtsc/entity-storage-models
+# @twin.org/entity-storage-models
 
 ## Interfaces
 

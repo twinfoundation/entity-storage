@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 
-import { GeneralError, Guards, Is, StringHelper } from "@gtsc/core";
+import { GeneralError, Guards, Is, StringHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -13,9 +13,9 @@ import {
 	type IComparatorGroup,
 	type IEntitySchema,
 	type IEntitySchemaProperty
-} from "@gtsc/entity";
-import { LoggingConnectorFactory, type ILoggingConnector } from "@gtsc/logging-models";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/entity";
+import { LoggingConnectorFactory, type ILoggingConnector } from "@twin.org/logging-models";
+import { nameof } from "@twin.org/nameof";
 import { types as CassandraTypes, Client } from "cassandra-driver";
 import type { IScyllaDBConfig } from "./models/IScyllaDBConfig";
 import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";

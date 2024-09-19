@@ -1,1 +1,1 @@
-# @gtsc/entity-storage-models - Examples
+# @twin.org/entity-storage-models - Examples

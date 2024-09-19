@@ -1,1 +1,1 @@
-# @gtsc/entity-storage-connector-memory - Examples
+# @twin.org/entity-storage-connector-memory - Examples

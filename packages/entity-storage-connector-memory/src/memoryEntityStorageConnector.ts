@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Coerce, Guards, ObjectHelper } from "@gtsc/core";
+import { Coerce, Guards, ObjectHelper } from "@twin.org/core";
 import {
 	EntityConditions,
 	EntitySchemaFactory,
@@ -10,9 +10,9 @@ import {
 	type IEntitySchema,
 	type IEntitySchemaProperty,
 	type SortDirection
-} from "@gtsc/entity";
-import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/entity";
+import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
+import { nameof } from "@twin.org/nameof";
 
 /**
  * Class for performing entity storage operations in-memory.

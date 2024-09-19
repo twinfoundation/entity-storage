@@ -15,7 +15,15 @@ import {
 	PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import { BaseError, Coerce, Converter, GeneralError, Guards, Is, ObjectHelper } from "@gtsc/core";
+import {
+	BaseError,
+	Coerce,
+	Converter,
+	GeneralError,
+	Guards,
+	Is,
+	ObjectHelper
+} from "@twin.org/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -27,10 +35,10 @@ import {
 	type IEntitySchemaProperty,
 	LogicalOperator,
 	type SortDirection
-} from "@gtsc/entity";
-import type { IEntityStorageConnector } from "@gtsc/entity-storage-models";
-import { LoggingConnectorFactory } from "@gtsc/logging-models";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/entity";
+import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
+import { LoggingConnectorFactory } from "@twin.org/logging-models";
+import { nameof } from "@twin.org/nameof";
 import type { IDynamoDbEntityStorageConnectorConfig } from "./models/IDynamoDbEntityStorageConnectorConfig";
 
 /**

@@ -8,8 +8,8 @@ import {
 	SortDirection,
 	entity,
 	property
-} from "@gtsc/entity";
-import { nameof } from "@gtsc/nameof";
+} from "@twin.org/entity";
+import { nameof } from "@twin.org/nameof";
 import { MemoryEntityStorageConnector } from "../src/memoryEntityStorageConnector";
 
 /**

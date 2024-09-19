@@ -6,7 +6,7 @@ Store entities using ScyllaDB.
 
 - `AbstractScyllaDBConnector`\<`T`\>
 
-## Type parameters
+## Type Parameters
 
 • **T** = `unknown`
 

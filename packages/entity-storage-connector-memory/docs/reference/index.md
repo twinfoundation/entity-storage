@@ -1,4 +1,4 @@
-# @gtsc/entity-storage-connector-memory
+# @twin.org/entity-storage-connector-memory
 
 ## Classes
 
