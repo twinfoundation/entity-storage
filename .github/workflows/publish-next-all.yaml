@@ -33,7 +33,9 @@ jobs:
             entity-storage-connector-memory,
             entity-storage-connector-file,
             entity-storage-connector-scylladb,
-            entity-storage-connector-dynamodb
+            entity-storage-connector-dynamodb,
+            entity-storage-service,
+            entity-storage-rest-client
           ]
 
     steps:

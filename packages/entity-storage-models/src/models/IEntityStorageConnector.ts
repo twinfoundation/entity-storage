@@ -1,19 +1,17 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import type { IComponent } from "@twin.org/core";
-import type { EntityCondition, SortDirection } from "@twin.org/entity";
+import type { EntityCondition, IEntitySchema, SortDirection } from "@twin.org/entity";
 
 /**
  * Interface describing an entity storage connector.
  */
 export interface IEntityStorageConnector<T = unknown> extends IComponent {
 	/**
-	 * Get an entity.
-	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
-	 * @param secondaryIndex Get the item using a secondary index.
-	 * @returns The object if it can be found or undefined.
+	 * Get the schema for the entities.
+	 * @returns The schema for the entities.
 	 */
-	get(id: string, secondaryIndex?: keyof T): Promise<T | undefined>;
+	getSchema(): IEntitySchema;
 
 	/**
 	 * Set an entity.
@@ -21,6 +19,14 @@ export interface IEntityStorageConnector<T = unknown> extends IComponent {
 	 * @returns The id of the entity.
 	 */
 	set(entity: T): Promise<void>;
+
+	/**
+	 * Get an entity.
+	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
+	 * @param secondaryIndex Get the item using a secondary index.
+	 * @returns The object if it can be found or undefined.
+	 */
+	get(id: string, secondaryIndex?: keyof T): Promise<T | undefined>;
 
 	/**
 	 * Remove the entity.

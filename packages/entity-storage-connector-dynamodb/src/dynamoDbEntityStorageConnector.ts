@@ -288,6 +288,14 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	}
 
 	/**
+	 * Get the schema for the entities.
+	 * @returns The schema for the entities.
+	 */
+	public getSchema(): IEntitySchema {
+		return this._entitySchema as IEntitySchema;
+	}
+
+	/**
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.

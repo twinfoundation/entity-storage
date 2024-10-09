@@ -109,6 +109,14 @@ export abstract class AbstractScyllaDBConnector<T> {
 	}
 
 	/**
+	 * Get the schema for the entities.
+	 * @returns The schema for the entities.
+	 */
+	public getSchema(): IEntitySchema {
+		return this._entitySchema as IEntitySchema;
+	}
+
+	/**
 	 * Get an entity.
 	 * @param id The id of the entity to get.
 	 * @param secondaryIndex Get the item using a secondary index.

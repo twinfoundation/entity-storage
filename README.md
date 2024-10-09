@@ -9,6 +9,8 @@ This mono-repository contains the packages to use with Entity Storage in TWIN ap
 - [entity-storage-connector-file](packages/entity-storage-connector-file/README.md) - Entity Storage connector implementation using file storage.
 - [entity-storage-connector-scylladb](packages/entity-storage-connector-scylladb/README.md) - Entity Storage connector implementation using ScyllaDB.
 - [entity-storage-connector-dynamodb](packages/entity-storage-connector-dynamodb/README.md) - Entity Storage connector implementation using DynamoDB.
+- [entity-storage-service](packages/entity-storage-service/README.md) - Entity Storage contract implementation and REST endpoint definitions.
+- [entity-storage-rest-client](packages/entity-storage-rest-client/README.md) - Entity Storage contract implementation which can connect to REST endpoints.
 
 ## Contributing
 
