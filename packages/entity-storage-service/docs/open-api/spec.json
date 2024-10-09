@@ -348,6 +348,27 @@
                             }
                         }
                     },
+                    "404": {
+                        "description": "The resource you tried to access does not exist, see the content for more details.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundResponse"
+                                },
+                                "examples": {
+                                    "exampleResponse": {
+                                        "value": {
+                                            "name": "NotFoundError",
+                                            "message": "component.error",
+                                            "properties": {
+                                                "notFoundId": "1"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "500": {
                         "description": "The server has encountered a situation it does not know how to handle, see the content for more details.",
                         "content": {
@@ -435,6 +456,27 @@
                             }
                         }
                     },
+                    "404": {
+                        "description": "The resource you tried to access does not exist, see the content for more details.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotFoundResponse"
+                                },
+                                "examples": {
+                                    "exampleResponse": {
+                                        "value": {
+                                            "name": "NotFoundError",
+                                            "message": "component.error",
+                                            "properties": {
+                                                "notFoundId": "1"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "500": {
                         "description": "The server has encountered a situation it does not know how to handle, see the content for more details.",
                         "content": {
@@ -515,6 +557,45 @@
                 ],
                 "additionalProperties": false,
                 "description": "Model to describe serialized error."
+            },
+            "NotFoundResponse": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "notFoundId": {
+                        "type": "string",
+                        "description": "The id if the item that was not found."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "The name for the error."
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "The message for the error."
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "The source of the error."
+                    },
+                    "properties": {
+                        "type": "object",
+                        "additionalProperties": {},
+                        "description": "Any additional information for the error."
+                    },
+                    "stack": {
+                        "type": "string",
+                        "description": "The stack trace for the error."
+                    },
+                    "inner": {
+                        "$ref": "#/components/schemas/Error"
+                    }
+                },
+                "required": [
+                    "message",
+                    "name"
+                ],
+                "description": "The body which contains the error."
             }
         },
         "securitySchemes": {

@@ -4,7 +4,7 @@ Class for performing entity service operations.
 
 ## Type Parameters
 
-• **T** *extends* `object` = `any`
+• **T** = `any`
 
 ## Implements
 

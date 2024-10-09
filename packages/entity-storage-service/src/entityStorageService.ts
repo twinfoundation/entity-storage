@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { Guards, Is } from "@twin.org/core";
+import { Guards, Is, NotFoundError, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	LogicalOperator,
@@ -20,9 +20,7 @@ import type { IEntityStorageConfig } from "./models/IEntityStorageConfig";
  * Class for performing entity service operations.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class EntityStorageService<T extends { nodeIdentity?: string; userIdentity?: string } = any>
-	implements IEntityStorageComponent<T>
-{
+export class EntityStorageService<T = any> implements IEntityStorageComponent<T> {
 	/**
 	 * Runtime name for the class.
 	 */
@@ -70,15 +68,16 @@ export class EntityStorageService<T extends { nodeIdentity?: string; userIdentit
 	 */
 	public async set(entity: T, userIdentity?: string, nodeIdentity?: string): Promise<void> {
 		Guards.object(this.CLASS_NAME, nameof(entity), entity);
+
 		if (this._includeUserIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
-		}
-		if (this._includeNodeIdentity) {
-			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
+			ObjectHelper.propertySet(entity, "userIdentity", userIdentity);
 		}
 
-		entity.nodeIdentity = nodeIdentity;
-		entity.userIdentity = userIdentity;
+		if (this._includeNodeIdentity) {
+			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
+			ObjectHelper.propertySet(entity, "nodeIdentity", nodeIdentity);
+		}
 
 		return this._entityStorage.set(entity);
 	}
@@ -127,10 +126,13 @@ export class EntityStorageService<T extends { nodeIdentity?: string; userIdentit
 
 		if (conditions.length === 0) {
 			const entity = await this._entityStorage.get(id, secondaryIndex);
-			if (!Is.empty(entity)) {
-				delete entity.nodeIdentity;
-				delete entity.userIdentity;
+			if (Is.empty(entity)) {
+				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
 			}
+
+			ObjectHelper.propertyDelete(entity, "nodeIdentity");
+			ObjectHelper.propertyDelete(entity, "userIdentity");
+
 			return entity;
 		}
 
@@ -145,10 +147,16 @@ export class EntityStorageService<T extends { nodeIdentity?: string; userIdentit
 			1
 		);
 
-		const entity = results.entities[0] as T;
-		delete entity.nodeIdentity;
-		delete entity.userIdentity;
-		return entity;
+		const entity = results.entities[0];
+
+		if (Is.empty(entity)) {
+			throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
+		}
+
+		ObjectHelper.propertyDelete(entity, "nodeIdentity");
+		ObjectHelper.propertyDelete(entity, "userIdentity");
+
+		return entity as T;
 	}
 
 	/**
@@ -181,25 +189,32 @@ export class EntityStorageService<T extends { nodeIdentity?: string; userIdentit
 		}
 
 		if (conditions.length === 0) {
-			return this._entityStorage.remove(id);
-		}
+			const entity = await this._entityStorage.get(id);
+			if (Is.empty(entity)) {
+				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
+			}
 
-		const results = await this._entityStorage.query(
-			{
-				conditions,
-				logicalOperator: LogicalOperator.And
-			},
-			undefined,
-			undefined,
-			undefined,
-			1
-		);
+			await this._entityStorage.remove(id);
+		} else {
+			const results = await this._entityStorage.query(
+				{
+					conditions,
+					logicalOperator: LogicalOperator.And
+				},
+				undefined,
+				undefined,
+				undefined,
+				1
+			);
 
-		if (results.entities.length > 0) {
-			const firstEntity = results.entities[0] as T;
-			const schema = this._entityStorage.getSchema();
-			const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
-			await this._entityStorage.remove(firstEntity[primaryKey.property] as string);
+			if (results.entities.length > 0) {
+				const firstEntity = results.entities[0] as T;
+				const schema = this._entityStorage.getSchema();
+				const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
+				await this._entityStorage.remove(firstEntity[primaryKey.property] as string);
+			} else {
+				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
+			}
 		}
 	}
 
@@ -272,8 +287,8 @@ export class EntityStorageService<T extends { nodeIdentity?: string; userIdentit
 		);
 
 		for (const entity of result.entities) {
-			delete entity.nodeIdentity;
-			delete entity.userIdentity;
+			ObjectHelper.propertyDelete(entity, "nodeIdentity");
+			ObjectHelper.propertyDelete(entity, "userIdentity");
 		}
 
 		return result;

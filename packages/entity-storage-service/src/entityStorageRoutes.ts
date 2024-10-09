@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import {
 	HttpParameterHelper,
+	type INotFoundResponse,
 	type IHttpRequestContext,
 	type INoContentResponse,
 	type IRestRoute,
@@ -123,6 +124,9 @@ export function generateRestRoutesEntityStorage(
 						}
 					}
 				]
+			},
+			{
+				type: nameof<INotFoundResponse>()
 			}
 		]
 	};
@@ -151,6 +155,9 @@ export function generateRestRoutesEntityStorage(
 		responseType: [
 			{
 				type: nameof<INoContentResponse>()
+			},
+			{
+				type: nameof<INotFoundResponse>()
 			}
 		]
 	};
