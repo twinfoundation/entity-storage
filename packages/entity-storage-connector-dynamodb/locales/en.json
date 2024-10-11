@@ -13,7 +13,7 @@
 			"setFailed": "Unable to set entity \"{id}\"",
 			"getFailed": "Unable to get entity \"{id}\"",
 			"removeFailed": "Unable to remove entity \"{id}\"",
-			"queryFailed": "The query failed when issuing the following command \"{sql}\"",
+			"queryFailed": "The query failed",
 			"comparisonNotSupported": "Comparison operator \"{comparison}\" is not supported",
 			"conditionalNotSupported": "Conditional operator \"{operator}\" is not supported",
 			"sortSingle": "You can only sort by a single property",

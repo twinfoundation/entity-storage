@@ -277,7 +277,6 @@ describe("ScyllaDBTableConnector", () => {
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
-		console.log(typeof objectSet.value3.field1, typeof result?.value3?.field1);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);

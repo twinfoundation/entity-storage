@@ -489,8 +489,6 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		 */
 		cursor?: string;
 	}> {
-		const sql = "";
-
 		try {
 			const returnSize = pageSize ?? DynamoDbEntityStorageConnector._PAGE_SIZE;
 
@@ -586,14 +584,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					err
 				);
 			}
-			throw new GeneralError(
-				this.CLASS_NAME,
-				"queryFailed",
-				{
-					sql
-				},
-				err
-			);
+			throw new GeneralError(this.CLASS_NAME, "queryFailed", undefined, err);
 		}
 	}
 
@@ -610,7 +601,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	}
 
 	/**
-	 * Create an SQL condition clause.
+	 * Create the parameters for a query.
 	 * @param objectPath The path for the nested object.
 	 * @param condition The conditions to create the query from.
 	 * @param attributeNames The attribute names to use in the query.
@@ -636,6 +627,12 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		}
 
 		if ("conditions" in condition) {
+			if (condition.conditions.length === 0) {
+				return {
+					keyCondition: "",
+					filterCondition: ""
+				};
+			}
 			// It's a group of comparisons, so check the individual items and combine with the logical operator
 			const joinConditions: {
 				keyCondition: string;
@@ -645,8 +642,12 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 			);
 
 			const logicalOperator = this.mapConditionalOperator(condition.logicalOperator);
-			const keyCondition = joinConditions.map(j => j.keyCondition).join(` ${logicalOperator} `);
+			const keyCondition = joinConditions
+				.filter(j => j.keyCondition.length > 0)
+				.map(j => j.keyCondition)
+				.join(` ${logicalOperator} `);
 			const filterCondition = joinConditions
+				.filter(j => j.filterCondition.length > 0)
 				.map(j => j.filterCondition)
 				.join(` ${logicalOperator} `);
 

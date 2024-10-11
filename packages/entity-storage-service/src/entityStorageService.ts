@@ -279,7 +279,7 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 		}
 
 		const result = await this._entityStorage.query(
-			finalConditions,
+			finalConditions.conditions.length > 0 ? finalConditions : undefined,
 			sortProperties,
 			properties,
 			cursor,
