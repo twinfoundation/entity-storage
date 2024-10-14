@@ -196,6 +196,15 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 
 			await this._entityStorage.remove(id);
 		} else {
+			const schema = this._entityStorage.getSchema();
+			const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
+
+			conditions.push({
+				property: primaryKey.property,
+				comparison: ComparisonOperator.Equals,
+				value: id
+			});
+
 			const results = await this._entityStorage.query(
 				{
 					conditions,
@@ -209,8 +218,6 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 
 			if (results.entities.length > 0) {
 				const firstEntity = results.entities[0] as T;
-				const schema = this._entityStorage.getSchema();
-				const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
 				await this._entityStorage.remove(firstEntity[primaryKey.property] as string);
 			} else {
 				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
