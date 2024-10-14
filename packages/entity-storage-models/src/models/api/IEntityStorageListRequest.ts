@@ -15,7 +15,7 @@ export interface IEntityStorageListRequest {
 		conditions?: string;
 
 		/**
-		 * The sort property array as JSON serialization of {property,direction}[].
+		 * The sort property array as JSON serialization of property,direction.
 		 */
 		sortProperties?: string;
 

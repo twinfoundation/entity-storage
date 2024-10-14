@@ -133,7 +133,7 @@
                     },
                     {
                         "name": "sortProperties",
-                        "description": "The sort property array as JSON serialization of {property,direction}[].",
+                        "description": "The sort property array as JSON serialization of property,direction.",
                         "in": "query",
                         "required": false,
                         "schema": {

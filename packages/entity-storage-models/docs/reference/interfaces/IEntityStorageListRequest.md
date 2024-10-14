@@ -20,7 +20,7 @@ The condition for the query as JSON version of EntityCondition type.
 
 > `optional` **sortProperties**: `string`
 
-The sort property array as JSON serialization of {property,direction}[].
+The sort property array as JSON serialization of property,direction.
 
 #### properties?
 
