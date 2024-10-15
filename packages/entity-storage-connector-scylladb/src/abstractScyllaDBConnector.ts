@@ -120,9 +120,14 @@ export abstract class AbstractScyllaDBConnector<T> {
 	 * Get an entity.
 	 * @param id The id of the entity to get.
 	 * @param secondaryIndex Get the item using a secondary index.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
+	public async get(
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		let connection;

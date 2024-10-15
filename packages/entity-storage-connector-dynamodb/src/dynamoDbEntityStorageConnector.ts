@@ -14,7 +14,7 @@ import {
 	GetCommand,
 	PutCommand
 } from "@aws-sdk/lib-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { type NativeAttributeValue, unmarshall } from "@aws-sdk/util-dynamodb";
 import {
 	BaseError,
 	Coerce,
@@ -299,15 +299,20 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
+	public async get(
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
 			const docClient = this.createDocClient();
 
-			if (Is.undefined(secondaryIndex)) {
+			if (Is.empty(secondaryIndex) && Is.empty(conditions)) {
 				const getCommand = new GetCommand({
 					TableName: this._config.tableName,
 					Key: {
@@ -323,31 +328,37 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				return response.Item as T;
 			}
 
-			const secIndex = secondaryIndex.toString();
-			const globalSecondaryIndex = `${secIndex}Index`;
+			const finalConditions: EntityCondition<T> = {
+				conditions: []
+			};
 
-			const queryCommand = new QueryCommand({
-				TableName: this._config.tableName,
-				IndexName: globalSecondaryIndex,
-				KeyConditionExpression: `#${secIndex} = :id AND #${DynamoDbEntityStorageConnector._PARTITION_ID_NAME} = :${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`,
-				ExpressionAttributeNames: {
-					[`#${secIndex}`]: secIndex,
-					[`#${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]:
-						DynamoDbEntityStorageConnector._PARTITION_ID_NAME
-				},
-				ExpressionAttributeValues: {
-					[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
-						S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
-					},
-					":id": { S: id }
-				}
-			});
-
-			const response = await docClient.send(queryCommand);
-
-			if (response.Items?.length === 1) {
-				return unmarshall(response.Items[0]) as T;
+			if (Is.stringValue(secondaryIndex)) {
+				finalConditions.conditions.push({
+					property: secondaryIndex,
+					comparison: ComparisonOperator.Equals,
+					value: id
+				});
 			}
+			if (Is.arrayValue(conditions)) {
+				for (const c of conditions) {
+					finalConditions.conditions.push({
+						property: c.property as string,
+						comparison: ComparisonOperator.Equals,
+						value: c.value
+					});
+				}
+			}
+
+			const queryResult = await this.internalQuery(
+				finalConditions,
+				undefined,
+				undefined,
+				undefined,
+				1,
+				secondaryIndex as string
+			);
+
+			return queryResult.entities[0] as T;
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {
 				throw new GeneralError(
@@ -368,15 +379,15 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				err
 			);
 		}
-		return undefined;
 	}
 
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The id of the entity.
 	 */
-	public async set(entity: T): Promise<void> {
+	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		const id = entity[this._primaryKey.property];
@@ -384,13 +395,19 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		try {
 			const docClient = this.createDocClient();
 
+			const { conditionExpression, attributeNames, attributeValues } =
+				this.buildConditionExpression(conditions);
+
 			const putCommand = new PutCommand({
 				TableName: this._config.tableName,
 				Item: {
 					[DynamoDbEntityStorageConnector._PARTITION_ID_NAME]:
 						DynamoDbEntityStorageConnector._PARTITION_ID_VALUE,
 					...entity
-				} as { [id: string]: unknown }
+				} as { [id: string]: unknown },
+				ConditionExpression: conditionExpression,
+				ExpressionAttributeNames: attributeNames,
+				ExpressionAttributeValues: attributeValues
 			});
 
 			await docClient.send(putCommand);
@@ -419,13 +436,20 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string): Promise<void> {
+	public async remove(
+		id: string,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
 			const docClient = this.createDocClient();
+
+			const { conditionExpression, attributeNames, attributeValues } =
+				this.buildConditionExpression(conditions);
 
 			const deleteCommand = new DeleteCommand({
 				TableName: this._config.tableName,
@@ -433,11 +457,17 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					[DynamoDbEntityStorageConnector._PARTITION_ID_NAME]:
 						DynamoDbEntityStorageConnector._PARTITION_ID_VALUE,
 					[this._primaryKey.property as string]: id
-				}
+				},
+				ConditionExpression: conditionExpression,
+				ExpressionAttributeNames: attributeNames,
+				ExpressionAttributeValues: attributeValues
 			});
 
 			await docClient.send(deleteCommand);
 		} catch (err) {
+			if (BaseError.isErrorName(err, "ConditionalCheckFailedException")) {
+				return;
+			}
 			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {
 				throw new GeneralError(
 					this.CLASS_NAME,
@@ -489,103 +519,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		 */
 		cursor?: string;
 	}> {
-		try {
-			const returnSize = pageSize ?? DynamoDbEntityStorageConnector._PAGE_SIZE;
-
-			let indexName: string | undefined;
-
-			// If we have a sortable property defined in the descriptor then we must use
-			// the secondary index for the query
-			if (Is.arrayValue(sortProperties)) {
-				if (sortProperties.length > 1) {
-					throw new GeneralError(this.CLASS_NAME, "sortSingle");
-				}
-
-				for (const sortProperty of sortProperties) {
-					const propertySchema = this._entitySchema.properties?.find(
-						e => e.property === sortProperty.property
-					);
-					if (
-						Is.undefined(propertySchema) ||
-						(!propertySchema.isPrimary &&
-							!propertySchema.isSecondary &&
-							Is.empty(propertySchema.sortDirection))
-					) {
-						throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
-							property: sortProperty.property
-						});
-					}
-
-					indexName = propertySchema.isPrimary
-						? undefined
-						: `${sortProperty.property as string}Index`;
-				}
-			}
-
-			const attributeNames: { [id: string]: string } = { "#partitionId": "partitionId" };
-			const attributeValues: { [id: string]: AttributeValue } = {
-				[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
-					S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
-				}
-			};
-
-			const expressions = this.buildQueryParameters(
-				"",
-				conditions,
-				attributeNames,
-				attributeValues
-			);
-
-			let keyExpression = "#partitionId = :partitionId";
-			if (expressions.keyCondition.length > 0) {
-				keyExpression += ` AND ${expressions.keyCondition}`;
-			}
-
-			const query = new QueryCommand({
-				TableName: this._config.tableName,
-				IndexName: indexName,
-				KeyConditionExpression: keyExpression,
-				FilterExpression: Is.stringValue(expressions.filterCondition)
-					? expressions.filterCondition
-					: undefined,
-				ExpressionAttributeNames: attributeNames,
-				ExpressionAttributeValues: attributeValues,
-				ProjectionExpression: properties?.map(p => p as string).join(", "),
-				Limit: returnSize,
-				ExclusiveStartKey: Is.empty(cursor)
-					? undefined
-					: ObjectHelper.fromBytes(Converter.base64ToBytes(cursor))
-			});
-
-			const connection = this.createDocClient();
-
-			const results = await connection.send(query);
-
-			let entities: T[] = [];
-
-			if (Is.arrayValue(results.Items)) {
-				entities = results.Items.map(item => unmarshall(item) as T);
-			}
-
-			return {
-				entities,
-				cursor: Is.empty(results.LastEvaluatedKey)
-					? undefined
-					: Converter.bytesToBase64(ObjectHelper.toBytes(results.LastEvaluatedKey))
-			};
-		} catch (err) {
-			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {
-				throw new GeneralError(
-					this.CLASS_NAME,
-					"tableDoesNotExist",
-					{
-						table: this._config.tableName
-					},
-					err
-				);
-			}
-			throw new GeneralError(this.CLASS_NAME, "queryFailed", undefined, err);
-		}
+		return this.internalQuery(conditions, sortProperties, properties, cursor, pageSize);
 	}
 
 	/**
@@ -613,7 +547,8 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		objectPath: string,
 		condition: EntityCondition<T> | undefined,
 		attributeNames: { [id: string]: string },
-		attributeValues: { [id: string]: AttributeValue }
+		attributeValues: { [id: string]: AttributeValue },
+		secondaryIndex?: string
 	): {
 		keyCondition: string;
 		filterCondition: string;
@@ -638,7 +573,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				keyCondition: string;
 				filterCondition: string;
 			}[] = condition.conditions.map(c =>
-				this.buildQueryParameters(objectPath, c, attributeNames, attributeValues)
+				this.buildQueryParameters(objectPath, c, attributeNames, attributeValues, secondaryIndex)
 			);
 
 			const logicalOperator = this.mapConditionalOperator(condition.logicalOperator);
@@ -668,9 +603,11 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 			attributeValues
 		);
 
+		const isKey =
+			schemaProp?.isPrimary || (schemaProp?.isSecondary && schemaProp?.property === secondaryIndex);
 		return {
-			keyCondition: schemaProp?.isPrimary ? comparison : "",
-			filterCondition: schemaProp?.isPrimary ? "" : comparison
+			keyCondition: isKey ? comparison : "",
+			filterCondition: !isKey ? comparison : ""
 		};
 	}
 
@@ -873,5 +810,181 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		} catch {
 			return false;
 		}
+	}
+
+	/**
+	 * Find all the entities which match the conditions.
+	 * @param conditions The conditions to match for the entities.
+	 * @param sortProperties The optional sort order.
+	 * @param properties The optional properties to return, defaults to all.
+	 * @param cursor The cursor to request the next page of entities.
+	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
+	 * @param secondaryIndex The secondary index to use for the query.
+	 * @returns All the entities for the storage matching the conditions,
+	 * and a cursor which can be used to request more entities.
+	 * @internal
+	 */
+	private async internalQuery(
+		conditions?: EntityCondition<T>,
+		sortProperties?: {
+			property: keyof T;
+			sortDirection: SortDirection;
+		}[],
+		properties?: (keyof T)[],
+		cursor?: string,
+		pageSize?: number,
+		secondaryIndex?: string
+	): Promise<{
+		/**
+		 * The entities, which can be partial if a limited keys list was provided.
+		 */
+		entities: Partial<T>[];
+		/**
+		 * An optional cursor, when defined can be used to call find to get more entities.
+		 */
+		cursor?: string;
+	}> {
+		try {
+			const returnSize = pageSize ?? DynamoDbEntityStorageConnector._PAGE_SIZE;
+
+			let indexName: string | undefined = Is.stringValue(secondaryIndex)
+				? `${secondaryIndex}Index`
+				: undefined;
+
+			// If we have a sortable property defined in the descriptor then we must use
+			// the secondary index for the query
+			if (Is.arrayValue(sortProperties)) {
+				if (sortProperties.length > 1) {
+					throw new GeneralError(this.CLASS_NAME, "sortSingle");
+				}
+
+				for (const sortProperty of sortProperties) {
+					const propertySchema = this._entitySchema.properties?.find(
+						e => e.property === sortProperty.property
+					);
+					if (
+						Is.undefined(propertySchema) ||
+						(!propertySchema.isPrimary &&
+							!propertySchema.isSecondary &&
+							Is.empty(propertySchema.sortDirection))
+					) {
+						throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
+							property: sortProperty.property
+						});
+					}
+
+					indexName = propertySchema.isPrimary
+						? undefined
+						: `${sortProperty.property as string}Index`;
+				}
+			}
+
+			const attributeNames: { [id: string]: string } = { "#partitionId": "partitionId" };
+			const attributeValues: { [id: string]: AttributeValue } = {
+				[`:${DynamoDbEntityStorageConnector._PARTITION_ID_NAME}`]: {
+					S: DynamoDbEntityStorageConnector._PARTITION_ID_VALUE
+				}
+			};
+
+			const expressions = this.buildQueryParameters(
+				"",
+				conditions,
+				attributeNames,
+				attributeValues,
+				secondaryIndex
+			);
+
+			let keyExpression = "#partitionId = :partitionId";
+			if (expressions.keyCondition.length > 0) {
+				keyExpression += ` AND ${expressions.keyCondition}`;
+			}
+
+			const query = new QueryCommand({
+				TableName: this._config.tableName,
+				IndexName: indexName,
+				KeyConditionExpression: keyExpression,
+				FilterExpression: Is.stringValue(expressions.filterCondition)
+					? expressions.filterCondition
+					: undefined,
+				ExpressionAttributeNames: attributeNames,
+				ExpressionAttributeValues: attributeValues,
+				ProjectionExpression: properties?.map(p => p as string).join(", "),
+				Limit: returnSize,
+				ExclusiveStartKey: Is.empty(cursor)
+					? undefined
+					: ObjectHelper.fromBytes(Converter.base64ToBytes(cursor))
+			});
+
+			const connection = this.createDocClient();
+
+			const results = await connection.send(query);
+
+			let entities: T[] = [];
+
+			if (Is.arrayValue(results.Items)) {
+				entities = results.Items.map(item => unmarshall(item) as T);
+			}
+
+			return {
+				entities,
+				cursor: Is.empty(results.LastEvaluatedKey)
+					? undefined
+					: Converter.bytesToBase64(ObjectHelper.toBytes(results.LastEvaluatedKey))
+			};
+		} catch (err) {
+			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {
+				throw new GeneralError(
+					this.CLASS_NAME,
+					"tableDoesNotExist",
+					{
+						table: this._config.tableName
+					},
+					err
+				);
+			}
+			throw new GeneralError(this.CLASS_NAME, "queryFailed", undefined, err);
+		}
+	}
+
+	/**
+	 * Build the condition expression for the query.
+	 * @param conditions The conditions to build the expression from.
+	 * @returns The condition expression.
+	 * @throws GeneralError if the property is not found in the schema.
+	 * @internal
+	 */
+	private buildConditionExpression(conditions?: { property: keyof T; value: unknown }[]): {
+		conditionExpression: string | undefined;
+		attributeNames: { [id: string]: string } | undefined;
+		attributeValues: { [key: string]: NativeAttributeValue } | undefined;
+	} {
+		let conditionExpression: string | undefined;
+		let attributeNames: { [id: string]: string } | undefined;
+		let attributeValues: { [key: string]: NativeAttributeValue } | undefined;
+
+		if (Is.arrayValue(conditions)) {
+			const expressions: string[] = [];
+
+			for (const c of conditions) {
+				const schemaProp = this._entitySchema.properties?.find(p => p.property === c.property);
+
+				if (Is.undefined(schemaProp)) {
+					throw new GeneralError(this.CLASS_NAME, "propertyNotFound", {
+						property: c.property
+					});
+				}
+
+				const attributeName = `#${c.property as string}`;
+				const attributeValueName = `:${c.property as string}`;
+				attributeNames ??= {};
+				attributeValues ??= {};
+				attributeNames[attributeName] = c.property as string;
+				attributeValues[attributeValueName] = c.value;
+				expressions.push(`${attributeName} = ${attributeValueName}`);
+			}
+
+			conditionExpression = expressions.join(" AND ");
+		}
+		return { conditionExpression, attributeNames, attributeValues };
 	}
 }

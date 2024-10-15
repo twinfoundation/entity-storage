@@ -271,6 +271,28 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(result).toBeUndefined();
 	});
 
+	test("can fail to remove an item with condition", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99 });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa2" }]);
+
+		const result = await entityStorage.get("1");
+		expect(result).toBeDefined();
+	});
+
+	test("can remove an item with condition", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99 });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get("1");
+		expect(result).toBeUndefined();
+	});
+
 	test("can find items with empty store", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()

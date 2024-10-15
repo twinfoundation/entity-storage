@@ -6,7 +6,8 @@ import {
 	LogicalOperator,
 	type SortDirection,
 	type EntityCondition,
-	EntitySchemaHelper
+	EntitySchemaHelper,
+	type IEntitySchemaProperty
 } from "@twin.org/entity";
 import {
 	EntityStorageConnectorFactory,
@@ -45,6 +46,12 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	private readonly _includeUserIdentity: boolean;
 
 	/**
+	 * The primary key for the entity.
+	 * @internal
+	 */
+	private readonly _primaryKey: IEntitySchemaProperty<T>;
+
+	/**
 	 * Create a new instance of EntityStorageService.
 	 * @param options The dependencies for the entity storage service.
 	 * @param options.config The configuration for the service.
@@ -57,6 +64,7 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 		);
 		this._includeNodeIdentity = options.config?.includeNodeIdentity ?? true;
 		this._includeUserIdentity = options.config?.includeUserIdentity ?? true;
+		this._primaryKey = EntitySchemaHelper.getPrimaryKey(this._entityStorage.getSchema());
 	}
 
 	/**
@@ -69,17 +77,28 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	public async set(entity: T, userIdentity?: string, nodeIdentity?: string): Promise<void> {
 		Guards.object(this.CLASS_NAME, nameof(entity), entity);
 
+		const conditions: {
+			property: keyof T;
+			value: unknown;
+		}[] = [];
 		if (this._includeUserIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
+			conditions.push({
+				property: "userIdentity" as keyof T,
+				value: userIdentity
+			});
 			ObjectHelper.propertySet(entity, "userIdentity", userIdentity);
 		}
-
 		if (this._includeNodeIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
+			conditions.push({
+				property: "nodeIdentity" as keyof T,
+				value: nodeIdentity
+			});
 			ObjectHelper.propertySet(entity, "nodeIdentity", nodeIdentity);
 		}
 
-		return this._entityStorage.set(entity);
+		return this._entityStorage.set(entity, conditions);
 	}
 
 	/**
@@ -98,65 +117,7 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
-		const conditions: EntityCondition<T>[] = [];
-
-		if (this._includeUserIdentity) {
-			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
-			conditions.push({
-				property: "userIdentity",
-				comparison: ComparisonOperator.Equals,
-				value: userIdentity
-			});
-		}
-		if (this._includeNodeIdentity) {
-			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
-			conditions.push({
-				property: "nodeIdentity",
-				comparison: ComparisonOperator.Equals,
-				value: nodeIdentity
-			});
-		}
-		if (Is.stringValue(secondaryIndex)) {
-			conditions.push({
-				property: secondaryIndex,
-				comparison: ComparisonOperator.Equals,
-				value: id
-			});
-		}
-
-		if (conditions.length === 0) {
-			const entity = await this._entityStorage.get(id, secondaryIndex);
-			if (Is.empty(entity)) {
-				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
-			}
-
-			ObjectHelper.propertyDelete(entity, "nodeIdentity");
-			ObjectHelper.propertyDelete(entity, "userIdentity");
-
-			return entity;
-		}
-
-		const results = await this._entityStorage.query(
-			{
-				conditions,
-				logicalOperator: LogicalOperator.And
-			},
-			undefined,
-			undefined,
-			undefined,
-			1
-		);
-
-		const entity = results.entities[0];
-
-		if (Is.empty(entity)) {
-			throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
-		}
-
-		ObjectHelper.propertyDelete(entity, "nodeIdentity");
-		ObjectHelper.propertyDelete(entity, "userIdentity");
-
-		return entity as T;
+		return this.internalGet(id, secondaryIndex, userIdentity, nodeIdentity);
 	}
 
 	/**
@@ -169,60 +130,26 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	public async remove(id: string, userIdentity?: string, nodeIdentity?: string): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
-		const conditions: EntityCondition<T>[] = [];
-
+		const conditions: {
+			property: keyof T;
+			value: unknown;
+		}[] = [];
 		if (this._includeUserIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
 			conditions.push({
-				property: "userIdentity",
-				comparison: ComparisonOperator.Equals,
+				property: "userIdentity" as keyof T,
 				value: userIdentity
 			});
 		}
 		if (this._includeNodeIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
 			conditions.push({
-				property: "nodeIdentity",
-				comparison: ComparisonOperator.Equals,
+				property: "nodeIdentity" as keyof T,
 				value: nodeIdentity
 			});
 		}
 
-		if (conditions.length === 0) {
-			const entity = await this._entityStorage.get(id);
-			if (Is.empty(entity)) {
-				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
-			}
-
-			await this._entityStorage.remove(id);
-		} else {
-			const schema = this._entityStorage.getSchema();
-			const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
-
-			conditions.push({
-				property: primaryKey.property,
-				comparison: ComparisonOperator.Equals,
-				value: id
-			});
-
-			const results = await this._entityStorage.query(
-				{
-					conditions,
-					logicalOperator: LogicalOperator.And
-				},
-				undefined,
-				undefined,
-				undefined,
-				1
-			);
-
-			if (results.entities.length > 0) {
-				const firstEntity = results.entities[0] as T;
-				await this._entityStorage.remove(firstEntity[primaryKey.property] as string);
-			} else {
-				throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
-			}
-		}
+		await this._entityStorage.remove(id, conditions);
 	}
 
 	/**
@@ -258,29 +185,28 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 		 */
 		cursor?: string;
 	}> {
-		const conditionsList: EntityCondition<T>[] = [];
+		const finalConditions: EntityCondition<T> = {
+			conditions: [],
+			logicalOperator: LogicalOperator.And
+		};
 
-		if (this._includeUserIdentity) {
-			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
-			conditionsList.push({
-				property: "userIdentity",
-				comparison: ComparisonOperator.Equals,
-				value: userIdentity
-			});
-		}
 		if (this._includeNodeIdentity) {
 			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
-			conditionsList.push({
+			finalConditions.conditions.push({
 				property: "nodeIdentity",
 				comparison: ComparisonOperator.Equals,
 				value: nodeIdentity
 			});
 		}
+		if (this._includeUserIdentity) {
+			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
+			finalConditions.conditions.push({
+				property: "userIdentity",
+				comparison: ComparisonOperator.Equals,
+				value: userIdentity
+			});
+		}
 
-		const finalConditions: EntityCondition<T> = {
-			conditions: conditionsList,
-			logicalOperator: LogicalOperator.And
-		};
 		if (!Is.empty(conditions)) {
 			finalConditions.conditions.push(conditions);
 		}
@@ -299,5 +225,85 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 		}
 
 		return result;
+	}
+
+	/**
+	 * Get an entity.
+	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
+	 * @param secondaryIndex Get the item using a secondary index.
+	 * @param userIdentity The user identity to use with storage operations.
+	 * @param nodeIdentity The node identity to use with storage operations.
+	 * @returns The object if it can be found or throws.
+	 * @internal
+	 */
+	private async internalGet(
+		id: string,
+		secondaryIndex?: keyof T,
+		userIdentity?: string,
+		nodeIdentity?: string
+	): Promise<T> {
+		const conditions: EntityCondition<T>[] = [];
+
+		if (this._includeUserIdentity) {
+			Guards.stringValue(this.CLASS_NAME, nameof(userIdentity), userIdentity);
+			conditions.push({
+				property: "userIdentity",
+				comparison: ComparisonOperator.Equals,
+				value: userIdentity
+			});
+		}
+		if (this._includeNodeIdentity) {
+			Guards.stringValue(this.CLASS_NAME, nameof(nodeIdentity), nodeIdentity);
+			conditions.push({
+				property: "nodeIdentity",
+				comparison: ComparisonOperator.Equals,
+				value: nodeIdentity
+			});
+		}
+		if (Is.stringValue(secondaryIndex)) {
+			conditions.push({
+				property: secondaryIndex,
+				comparison: ComparisonOperator.Equals,
+				value: id
+			});
+		}
+
+		let entity: T | undefined;
+		if (conditions.length === 0) {
+			entity = await this._entityStorage.get(id, secondaryIndex);
+		} else {
+			if (!Is.stringValue(secondaryIndex)) {
+				const schema = this._entityStorage.getSchema();
+				const primaryKey = EntitySchemaHelper.getPrimaryKey(schema);
+
+				conditions.unshift({
+					property: primaryKey.property,
+					comparison: ComparisonOperator.Equals,
+					value: id
+				});
+			}
+
+			const results = await this._entityStorage.query(
+				{
+					conditions,
+					logicalOperator: LogicalOperator.And
+				},
+				undefined,
+				undefined,
+				undefined,
+				1
+			);
+
+			entity = results.entities[0] as T;
+		}
+
+		if (Is.empty(entity)) {
+			throw new NotFoundError(this.CLASS_NAME, "entityNotFound", id);
+		}
+
+		ObjectHelper.propertyDelete(entity, "nodeIdentity");
+		ObjectHelper.propertyDelete(entity, "userIdentity");
+
+		return entity;
 	}
 }

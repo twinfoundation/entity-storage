@@ -19,6 +19,7 @@ import {
 } from "@twin.org/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
+import { TEST_DYNAMODB_CONFIG } from "./setupTestEnv";
 import { DynamoDbEntityStorageConnector } from "../src/dynamoDbEntityStorageConnector";
 import type { IDynamoDbEntityStorageConnectorConfig } from "../src/models/IDynamoDbEntityStorageConnectorConfig";
 
@@ -84,13 +85,6 @@ class TestType {
 }
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
-const config: IDynamoDbEntityStorageConnectorConfig = {
-	region: "region",
-	accessKeyId: "accessKeyId",
-	secretAccessKey: "secretAccessKey",
-	tableName: "tableName",
-	endpoint: "http://localhost:8000"
-};
 
 describe("DynamoDbEntityStorageConnector", () => {
 	beforeAll(async () => {
@@ -114,7 +108,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	afterEach(async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		try {
 			await entityStorage.tableDelete();
@@ -166,13 +160,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can construct and bootstrap", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
-			config: {
-				region: "region",
-				accessKeyId: "accessKeyId",
-				secretAccessKey: "secretAccessKey",
-				tableName: "tableName",
-				endpoint: "http://localhost:8000"
-			}
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore();
@@ -188,7 +176,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -203,7 +191,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can set an item", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
@@ -225,7 +213,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can set an item to update it", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 
@@ -251,7 +239,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await expect(entityStorage.get(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
@@ -266,7 +254,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can not get an item", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const item = await entityStorage.get("20000");
@@ -277,7 +265,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can get an item", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
@@ -293,8 +281,9 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
+
 		await entityStorage.bootstrap();
 		const secondaryValue = "zzz";
 		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
@@ -309,7 +298,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
@@ -325,9 +314,10 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can not remove an item", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
+
 		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
 
 		const idToRemove = "1000999";
@@ -338,7 +328,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can remove an item", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const idToRemove = "65432";
@@ -349,10 +339,38 @@ describe("DynamoDbEntityStorageConnector", () => {
 		expect(result).toBeUndefined();
 	});
 
+	test("can fail to remove an item with conditions", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa1" }]);
+
+		const result = await entityStorage.get("1");
+		expect(result).toBeDefined();
+	});
+
+	test("can remove an item with conditions", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get("1");
+		expect(result).toBeUndefined();
+	});
+
 	test("can find items with empty store", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const result = await entityStorage.query();
@@ -364,7 +382,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can find items with single entry", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
@@ -377,7 +395,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can find items with multiple entries", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 80; i++) {
@@ -396,7 +414,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can find items with multiple entries and cursor", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 50; i++) {
@@ -417,7 +435,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can find items with multiple entries and apply conditions", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
@@ -443,7 +461,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can find items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
@@ -480,7 +498,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 30; i++) {
@@ -501,7 +519,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can query sub items in object", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 5; i++) {
@@ -542,7 +560,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 	test("can query sub items in array", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_DYNAMODB_CONFIG
 		});
 		await entityStorage.bootstrap();
 		for (let i = 0; i < 5; i++) {

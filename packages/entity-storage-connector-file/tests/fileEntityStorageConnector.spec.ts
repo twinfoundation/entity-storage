@@ -378,6 +378,36 @@ describe("FileEntityStorageConnector", () => {
 		expect(store.length).toEqual(0);
 	});
 
+	test("can fail to remove an item with condition", async () => {
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: { directory: TEST_DIRECTORY }
+		});
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa1" }]);
+
+		const file = await readFile(TEST_STORE_NAME, "utf8");
+		const store = JSON.parse(file);
+		expect(store).toBeDefined();
+		expect(store.length).toEqual(1);
+	});
+
+	test("can remove an item with condition", async () => {
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: { directory: TEST_DIRECTORY }
+		});
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa" }]);
+
+		const file = await readFile(TEST_STORE_NAME, "utf8");
+		const store = JSON.parse(file);
+		expect(store).toBeDefined();
+		expect(store.length).toEqual(0);
+	});
+
 	test("can query items with empty store", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
