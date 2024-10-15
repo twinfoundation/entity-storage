@@ -46,12 +46,6 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	private readonly _includeUserIdentity: boolean;
 
 	/**
-	 * The primary key for the entity.
-	 * @internal
-	 */
-	private readonly _primaryKey: IEntitySchemaProperty<T>;
-
-	/**
 	 * Create a new instance of EntityStorageService.
 	 * @param options The dependencies for the entity storage service.
 	 * @param options.config The configuration for the service.
@@ -64,7 +58,6 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 		);
 		this._includeNodeIdentity = options.config?.includeNodeIdentity ?? true;
 		this._includeUserIdentity = options.config?.includeUserIdentity ?? true;
-		this._primaryKey = EntitySchemaHelper.getPrimaryKey(this._entityStorage.getSchema());
 	}
 
 	/**
