@@ -517,6 +517,9 @@
                         "description": "The cursor for the next page."
                     }
                 },
+                "required": [
+                    "entities"
+                ],
                 "additionalProperties": false,
                 "description": "The list of entries from the query."
             },

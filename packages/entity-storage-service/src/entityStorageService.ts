@@ -3,11 +3,10 @@
 import { Guards, Is, NotFoundError, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
-	LogicalOperator,
-	type SortDirection,
 	type EntityCondition,
 	EntitySchemaHelper,
-	type IEntitySchemaProperty
+	LogicalOperator,
+	type SortDirection
 } from "@twin.org/entity";
 import {
 	EntityStorageConnectorFactory,
