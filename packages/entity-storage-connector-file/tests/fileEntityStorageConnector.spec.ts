@@ -253,6 +253,27 @@ describe("FileEntityStorageConnector", () => {
 		expect(store[0].value2).toEqual("bbb");
 	});
 
+	test("can set an item with a condition", async () => {
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: { directory: TEST_DIRECTORY }
+		});
+		await entityStorage.bootstrap();
+
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" }, [
+			{ property: "value1", value: "aaa" }
+		]);
+
+		const file = await readFile(TEST_STORE_NAME, "utf8");
+		const store = JSON.parse(file);
+		expect(store).toBeDefined();
+		expect(store.length).toEqual(1);
+		expect(store[0]).toBeDefined();
+		expect(store[0].id).toEqual("1");
+		expect(store[0].value1).toEqual("aaa");
+		expect(store[0].value2).toEqual("bbb");
+	});
+
 	test("can set an item to update it", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),

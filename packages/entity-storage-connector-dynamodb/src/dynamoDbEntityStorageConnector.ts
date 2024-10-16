@@ -405,7 +405,11 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 						DynamoDbEntityStorageConnector._PARTITION_ID_VALUE,
 					...entity
 				} as { [id: string]: unknown },
-				ConditionExpression: conditionExpression,
+				// Only set the condition expression if we have conditions to match
+				// and the primary key exists, otherwise we are creating a new object
+				ConditionExpression: Is.stringValue(conditionExpression)
+					? `(attribute_exists(${this._primaryKey.property as string}) AND ${conditionExpression}) OR attribute_not_exists(${this._primaryKey.property as string})`
+					: undefined,
 				ExpressionAttributeNames: attributeNames,
 				ExpressionAttributeValues: attributeValues
 			});
@@ -422,6 +426,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					err
 				);
 			}
+
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"setFailed",

@@ -272,6 +272,28 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toEqual(objectSet);
 	});
 
+	test("can set an item with a condition", async () => {
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_SCYLLA_CONFIG
+		});
+
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date() }
+		};
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
+	});
+
 	test("can set an item to update it", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
