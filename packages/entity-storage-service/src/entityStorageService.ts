@@ -6,7 +6,7 @@ import {
 	type EntityCondition,
 	EntitySchemaHelper,
 	LogicalOperator,
-	type SortDirection
+	SortDirection
 } from "@twin.org/entity";
 import {
 	EntityStorageConnectorFactory,
@@ -147,7 +147,8 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	/**
 	 * Query all the entities which match the conditions.
 	 * @param conditions The conditions to match for the entities.
-	 * @param sortProperties The optional sort order.
+	 * @param orderBy The order for the results.
+	 * @param orderByDirection The direction for the order, defaults to ascending.
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
@@ -158,10 +159,8 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	 */
 	public async query(
 		conditions?: EntityCondition<T>,
-		sortProperties?: {
-			property: keyof T;
-			sortDirection: SortDirection;
-		}[],
+		orderBy?: keyof T,
+		orderByDirection?: SortDirection,
 		properties?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number,
@@ -205,7 +204,9 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 
 		const result = await this._entityStorage.query(
 			finalConditions.conditions.length > 0 ? finalConditions : undefined,
-			sortProperties,
+			Is.stringValue(orderBy)
+				? [{ property: orderBy, sortDirection: orderByDirection ?? SortDirection.Ascending }]
+				: undefined,
 			properties,
 			cursor,
 			pageSize

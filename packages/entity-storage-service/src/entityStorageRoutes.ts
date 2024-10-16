@@ -304,7 +304,8 @@ export async function entityStorageList(
 	const component = ComponentFactory.get<IEntityStorageComponent>(componentName);
 	const result = await component.query(
 		HttpParameterHelper.objectFromString(request.query?.conditions),
-		HttpParameterHelper.objectFromString(request.query?.sortProperties),
+		request.query?.orderBy as keyof unknown,
+		request.query?.orderByDirection,
 		HttpParameterHelper.objectFromString(request.query?.properties),
 		request.query?.cursor,
 		Coerce.number(request.query?.pageSize),

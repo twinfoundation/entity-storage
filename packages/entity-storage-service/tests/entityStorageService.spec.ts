@@ -187,6 +187,7 @@ describe("EntityStorageService", () => {
 			undefined,
 			undefined,
 			undefined,
+			undefined,
 			TEST_USER_IDENTITY,
 			TEST_NODE_IDENTITY
 		);

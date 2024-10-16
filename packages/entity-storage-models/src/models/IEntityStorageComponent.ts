@@ -43,7 +43,8 @@ export interface IEntityStorageComponent<T = unknown> extends IComponent {
 	/**
 	 * Query all the entities which match the conditions.
 	 * @param conditions The conditions to match for the entities.
-	 * @param sortProperties The optional sort order.
+	 * @param orderBy The order for the results.
+	 * @param orderByDirection The direction for the order, defaults to ascending.
 	 * @param properties The optional properties to return, defaults to all.
 	 * @param cursor The cursor to request the next page of entities.
 	 * @param pageSize The suggested number of entities to return in each chunk, in some scenarios can return a different amount.
@@ -54,10 +55,8 @@ export interface IEntityStorageComponent<T = unknown> extends IComponent {
 	 */
 	query(
 		conditions?: EntityCondition<T>,
-		sortProperties?: {
-			property: keyof T;
-			sortDirection: SortDirection;
-		}[],
+		orderBy?: keyof T,
+		orderByDirection?: SortDirection,
 		properties?: (keyof T)[],
 		cursor?: string,
 		pageSize?: number,

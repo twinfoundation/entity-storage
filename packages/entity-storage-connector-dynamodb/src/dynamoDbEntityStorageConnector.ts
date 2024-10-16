@@ -34,7 +34,7 @@ import {
 	type IEntitySchema,
 	type IEntitySchemaProperty,
 	LogicalOperator,
-	type SortDirection
+	SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
@@ -853,6 +853,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 			// If we have a sortable property defined in the descriptor then we must use
 			// the secondary index for the query
+			let scanAscending = true;
 			if (Is.arrayValue(sortProperties)) {
 				if (sortProperties.length > 1) {
 					throw new GeneralError(this.CLASS_NAME, "sortSingle");
@@ -876,6 +877,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 					indexName = propertySchema.isPrimary
 						? undefined
 						: `${sortProperty.property as string}Index`;
+					scanAscending = sortProperty.sortDirection === SortDirection.Ascending;
 				}
 			}
 
@@ -910,6 +912,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 				ExpressionAttributeValues: attributeValues,
 				ProjectionExpression: properties?.map(p => p as string).join(", "),
 				Limit: returnSize,
+				ScanIndexForward: scanAscending,
 				ExclusiveStartKey: Is.empty(cursor)
 					? undefined
 					: ObjectHelper.fromBytes(Converter.base64ToBytes(cursor))
