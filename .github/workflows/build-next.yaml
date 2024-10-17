@@ -23,23 +23,6 @@ jobs:
         ports:
           - 8000:8000
 
-      cosmosdb:
-        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        options: --platform=linux/amd64 --name=cosmosdb-emulator --memory=3g
-        ports:
-          - 8081:8081
-          - 10250:10250
-          - 10251:10251
-          - 10252:10252
-          - 10253:10253
-          - 10254:10254
-        env:
-          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
-          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
-          AZURE_COSMOS_EMULATOR_ACCEPT_EULA: "Y"
-        volumes:
-          - cosmosdb-data:/data
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,6 +41,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        
+      - name: Run the CosmosDB 
+        run: |
+          echo "Running the Cosmosdb container"
+          docker run -p 8081:8081 -p 10250:10250 -e AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE=127.0.0.1 --name cosmosdb-emulator mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
       
       - name: Verify CosmosDB Container is Running 1
         run: |
