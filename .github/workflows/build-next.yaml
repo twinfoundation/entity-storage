@@ -23,20 +23,6 @@ jobs:
         ports:
           - 8000:8000
 
-      cosmosdb:
-        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        options: --platform=linux/amd64
-        ports:
-          - 8081:8081
-          - 10250:10250
-          - 10251:10251
-          - 10252:10252
-          - 10253:10253
-          - 10254:10254
-        env:
-          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
-          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: 'true'
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,12 +42,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Wait for CosmosDB Emulator to be ready
+      - name: Pull CosmosDB Emulator Docker Image
         run: |
-          until curl --insecure -s -o /dev/null -w "%{http_code}" https://localhost:8081/_explorer/emulator.pem | grep 200; do
-            echo "Waiting for CosmosDB emulator...";
-            sleep 5;
-          done
+          docker pull mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+
+      - name: Run CosmosDB Emulator
+        run: |
+          docker run \
+            --publish 8081:8081 \
+            --publish 10250-10255:10250-10255 \
+            --name twin-entity-cosmos \
+            --detach \
+            mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+
+      - name: Wait for Emulator to Start
+        run: sleep 30
+
+      - name: Download Emulator Certificate
+        run: |
+          curl --insecure https://localhost:8081/_explorer/emulator.pem > ~/emulatorcert.crt
+
+      - name: Install Certificate
+        run: |
+          sudo cp ~/emulatorcert.crt /usr/local/share/ca-certificates/
+          sudo update-ca-certificates
 
       - name: Run Lint and Dist
         run: |
