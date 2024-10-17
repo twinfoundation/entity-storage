@@ -12,7 +12,7 @@ export interface IEntityStorageListResponse {
 		/**
 		 * The entities from the query.
 		 */
-		entities?: unknown[];
+		entities: unknown[];
 
 		/**
 		 * The cursor for the next page.

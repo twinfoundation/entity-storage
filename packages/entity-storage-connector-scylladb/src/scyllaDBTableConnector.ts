@@ -173,28 +173,40 @@ export class ScyllaDBTableConnector<T = unknown>
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
+	 * @param conditions The optional conditions to match for the entities.
 	 */
-	public async set(entity: T): Promise<void> {
+	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		let connection;
-		const id = entity[this._primaryKey?.property];
+		const id = entity[this._primaryKey?.property] as string;
 		try {
-			const propNames = this._entitySchema.properties?.map(f => `"${String(f.property)}"`) ?? [];
 			const propValues: unknown[] = [];
-			const preparedValues: string[] = [];
+			const updateValues: string[] = [];
 
-			const entityAsKeyValues = entity as unknown as { [key: string]: unknown };
+			conditions ??= [];
 
 			for (const propDesc of this._entitySchema.properties ?? []) {
-				const value = entityAsKeyValues[propDesc.property as string];
-				propValues.push(this.propertyToDbValue(value, propDesc));
-				preparedValues.push("?");
+				if (!propDesc.isPrimary && !propDesc.isSecondary) {
+					propValues.push(this.propertyToDbValue(entity[propDesc.property], propDesc));
+					updateValues.push(`"${String(propDesc.property)}"=?`);
+				} else {
+					conditions.unshift({
+						property: propDesc.property,
+						value: this.propertyToDbValue(entity[propDesc.property], propDesc)
+					});
+				}
 			}
 
-			const sql = `INSERT INTO "${this._fullTableName}" (${propNames.join(",")}) VALUES (${preparedValues.join(
-				","
-			)})`;
+			const { sqlCondition, conditionValues } = this.buildConditions(conditions);
+
+			let conditionString = "";
+			if (sqlCondition.length > 0) {
+				conditionString = ` WHERE ${sqlCondition}`;
+				propValues.push(...conditionValues);
+			}
+
+			const sql = `UPDATE "${this._fullTableName}" SET ${updateValues.join(",")}${conditionString}`;
 
 			await this._logging?.log({
 				level: "info",
@@ -222,17 +234,25 @@ export class ScyllaDBTableConnector<T = unknown>
 	}
 
 	/**
-	 * Delete the entity.
+	 * Remove the entity.
 	 * @param id The id of the entity to remove.
+	 * @param conditions The optional conditions to match for the entities.
 	 */
-	public async remove(id: string): Promise<void> {
+	public async remove(
+		id: string,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		let connection;
-		const primaryFieldValue = this.propertyToDbValue(id, this._primaryKey);
 
 		try {
-			const sql = `DELETE FROM "${this._fullTableName}" WHERE "${String(this._primaryKey?.property)}"=?`;
+			conditions ??= [];
+			conditions.unshift({ property: this._primaryKey?.property, value: id });
+
+			const { sqlCondition, conditionValues } = this.buildConditions(conditions);
+
+			const sql = `DELETE FROM "${this._fullTableName}" WHERE ${sqlCondition}`;
 
 			await this._logging?.log({
 				level: "info",
@@ -244,7 +264,7 @@ export class ScyllaDBTableConnector<T = unknown>
 
 			connection = await this.openConnection();
 
-			await this.execute(connection, sql, [primaryFieldValue]);
+			await this.execute(connection, sql, conditionValues);
 		} catch (error) {
 			throw new GeneralError(
 				this.CLASS_NAME,
@@ -389,5 +409,29 @@ export class ScyllaDBTableConnector<T = unknown>
 		}
 
 		return dbType;
+	}
+
+	/**
+	 * Build the conditions for the query.
+	 * @param conditions The optional conditions to match for the entities.
+	 * @returns The SQL conditions and the values.
+	 */
+	private buildConditions(conditions: { property: keyof T; value: unknown }[] | undefined): {
+		sqlCondition: string;
+		conditionValues: unknown[];
+	} {
+		const conditionValues: unknown[] = [];
+		const sqlConditions: string[] = [];
+
+		if (Is.arrayValue(conditions)) {
+			for (const condition of conditions) {
+				sqlConditions.push(`"${condition.property as string}"=?`);
+				const schemaProperty = this._entitySchema.properties?.find(
+					s => s.property === condition.property
+				);
+				conditionValues.push(this.propertyToDbValue(condition.value, schemaProperty));
+			}
+		}
+		return { sqlCondition: sqlConditions.join(" AND "), conditionValues };
 	}
 }
