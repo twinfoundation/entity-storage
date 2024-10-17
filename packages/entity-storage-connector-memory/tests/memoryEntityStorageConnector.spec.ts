@@ -157,6 +157,27 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
+	test("can set an item with a condition", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
+	});
+
 	test("can set an item to update it", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()
@@ -268,6 +289,28 @@ describe("MemoryEntityStorageConnector", () => {
 		await entityStorage.remove(idToRemove);
 
 		const result = await entityStorage.get(idToRemove);
+		expect(result).toBeUndefined();
+	});
+
+	test("can fail to remove an item with condition", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99 });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa2" }]);
+
+		const result = await entityStorage.get("1");
+		expect(result).toBeDefined();
+	});
+
+	test("can remove an item with condition", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 99 });
+		await entityStorage.remove("1", [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get("1");
 		expect(result).toBeUndefined();
 	});
 
