@@ -54,9 +54,14 @@ jobs:
             --name twin-entity-cosmos \
             --detach \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+      
+      - name: Verify CosmosDB Container is Running
+        run: |
+          echo "Checking if container is running..."
+          docker ps
 
       - name: Wait for Emulator to Start
-        run: sleep 30
+        run: sleep 60
 
       - name: Download Emulator Certificate
         run: |
