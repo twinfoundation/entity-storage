@@ -25,7 +25,7 @@ jobs:
 
       cosmosdb:
         image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        options: --platform=linux/amd64 --name=cosmosdb-emulator
+        options: --platform=linux/amd64 --name=cosmosdb-emulator --memory=3g
         ports:
           - 8081:8081
           - 10250:10250
@@ -35,7 +35,10 @@ jobs:
           - 10254:10254
         env:
           AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
-          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: 'true'
+          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
+          AZURE_COSMOS_EMULATOR_ACCEPT_EULA: "Y"
+        volumes:
+          - cosmosdb-data:/data
 
     steps:
       - name: Checkout
