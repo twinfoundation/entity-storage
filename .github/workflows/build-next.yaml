@@ -62,7 +62,7 @@ jobs:
 
 
       - name: Check CosmosDB Container Logs
-        run: docker logs twin-entity-cosmosdb
+        run: docker logs twin-entity-cosmos
 
       - name: Wait for Emulator to Start
         run: sleep 60
