@@ -11,6 +11,7 @@ jobs:
 
     env:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
+      FIRESTORE_EMULATOR_HOST: localhost:8080
 
     services:
       scylladb:
@@ -24,12 +25,11 @@ jobs:
           - 8000:8000
 
       firestore-emulator:
-        image: firebase/firebase-tools
+        image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
         ports:
           - 8080:8080
         options: >-
-          --entrypoint "firebase emulators:start --only firestore
-          --host 0.0.0.0 --project test-project-id"
+          --entrypoint "gcloud beta emulators firestore start --host-port=0.0.0.0:8080"
 
     steps:
       - name: Checkout
