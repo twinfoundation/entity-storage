@@ -21,6 +21,7 @@ import {
 } from "@twin.org/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
+import { TEST_SCYLLA_CONFIG } from "./setupTestEnv";
 import type { IScyllaDBTableConfig } from "../src/models/IScyllaDBTableConfig";
 import { ScyllaDBTableConnector } from "../src/scyllaDBTableConnector";
 
@@ -68,15 +69,6 @@ class TestType {
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 
-const TABLE_NAME = "test-table";
-
-const localConfig: IScyllaDBTableConfig = {
-	tableName: TABLE_NAME,
-	hosts: ["localhost"],
-	localDataCenter: "datacenter1",
-	keyspace: "test_keyspace"
-};
-
 describe("ScyllaDBTableConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
@@ -99,7 +91,7 @@ describe("ScyllaDBTableConnector", () => {
 	afterEach(async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		try {
 			await entityStorage.truncateTable();
@@ -109,7 +101,7 @@ describe("ScyllaDBTableConnector", () => {
 	afterAll(async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.dropTable();
 	});
@@ -201,7 +193,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can construct", async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		expect(entityStorage).toBeDefined();
 	});
@@ -230,7 +222,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can bootstrap and create table", async () => {
 		const entityStorage = new ScyllaDBTableConnector({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore();
@@ -249,7 +241,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can fail to set an item with no entity", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await expect(entityStorage.set(undefined as unknown as TestType)).rejects.toMatchObject({
 			name: "GuardError",
@@ -264,7 +256,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can set an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
@@ -277,16 +269,35 @@ describe("ScyllaDBTableConnector", () => {
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
+		expect(result).toEqual(objectSet);
+	});
+
+	test("can set an item with a condition", async () => {
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_SCYLLA_CONFIG
+		});
+
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date() }
+		};
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
 		expect(result?.id).toEqual(objectSet.id);
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3?.field1).toEqual(objectSet.value3?.field1);
+		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
 	test("can set an item to update it", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		const entityId = "1";
 		const objectSet = {
@@ -310,7 +321,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can fail to get an item with no id", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await expect(entityStorage.get(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
@@ -325,7 +336,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can not get an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		const item = await entityStorage.get("20000");
 
@@ -335,7 +346,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can get an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
 		const item = await entityStorage.get("2");
@@ -350,7 +361,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can get an item by secondary index", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		const secondaryValue = "zzz";
 		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
@@ -365,7 +376,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can fail to remove an item with no id", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
@@ -380,7 +391,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can not remove an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
 
@@ -392,7 +403,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can remove an item", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		const idToRemove = "65432";
 		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
@@ -402,10 +413,36 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result).toBeUndefined();
 	});
 
+	test("can fail remove an item with a condition", async () => {
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_SCYLLA_CONFIG
+		});
+		const idToRemove = "65432";
+		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove(idToRemove, [{ property: "value1", value: "aaa1" }]);
+
+		const result = await entityStorage.get(idToRemove);
+		expect(result).toBeDefined();
+	});
+
+	test("can remove an item with a condition", async () => {
+		const entityStorage = new ScyllaDBTableConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_SCYLLA_CONFIG
+		});
+		const idToRemove = "65432";
+		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.remove(idToRemove, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(idToRemove);
+		expect(result).toBeUndefined();
+	});
+
 	test("can query items with empty store", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
@@ -416,7 +453,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items with single entry", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
 		const result = await entityStorage.query();
@@ -428,7 +465,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items with multiple entries", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		for (let i = 0; i < 80; i++) {
 			await entityStorage.set({
@@ -446,7 +483,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items with multiple entries and cursor", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		for (let i = 0; i < 50; i++) {
 			await entityStorage.set({
@@ -466,7 +503,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items with multiple entries and apply conditions", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
@@ -491,7 +528,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items with multiple entries and apply custom sort", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({
@@ -526,7 +563,7 @@ describe("ScyllaDBTableConnector", () => {
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
-			config: localConfig
+			config: TEST_SCYLLA_CONFIG
 		});
 		for (let i = 0; i < 30; i++) {
 			await entityStorage.set({

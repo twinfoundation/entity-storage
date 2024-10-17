@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BaseError, Coerce, Guards, ObjectHelper } from "@twin.org/core";
+import { BaseError, Coerce, Guards, Is, ObjectHelper } from "@twin.org/core";
 import {
+	ComparisonOperator,
 	EntityConditions,
 	EntitySchemaFactory,
 	EntitySchemaHelper,
@@ -135,36 +136,39 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	 * Get an entity.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
+	public async get(
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-
-		const lookupKey = secondaryIndex ?? this._primaryKey.property;
 
 		const store = await this.readStore();
 
-		const found = store?.find(entity => entity[lookupKey] === id);
+		const foundIndex = this.findItem(store, id, secondaryIndex, conditions);
 
-		if (found) {
-			return found;
-		}
-
-		return undefined;
+		return foundIndex === -1 ? undefined : store[foundIndex];
 	}
 
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The id of the entity.
 	 */
-	public async set(entity: T): Promise<void> {
+	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		const store = await this.readStore();
 
-		const existingIndex = store.findIndex(
-			e => e[this._primaryKey.property] === entity[this._primaryKey.property]
+		const existingIndex = this.findItem(
+			store,
+			entity[this._primaryKey.property] as string,
+			undefined,
+			conditions
 		);
 		if (existingIndex >= 0) {
 			store[existingIndex] = entity;
@@ -178,19 +182,23 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string): Promise<void> {
+	public async remove(
+		id: string,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		const store = await this.readStore();
 
-		const index = store.findIndex(e => e[this._primaryKey.property] === id);
+		const index = this.findItem(store, id, undefined, conditions);
+
 		if (index >= 0) {
 			store.splice(index, 1);
+			await this.writeStore(store);
 		}
-
-		await this.writeStore(store);
 	}
 
 	/**
@@ -294,5 +302,61 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 		} catch {
 			return false;
 		}
+	}
+
+	/**
+	 * Find the item in the store.
+	 * @param store The store to search.
+	 * @param id The id to search for.
+	 * @param secondaryIndex The secondary index to search for.
+	 * @param conditions The optional conditions to match for the entities.
+	 * @returns The index of the item if found or -1.
+	 * @internal
+	 */
+	private findItem(
+		store: T[],
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): number {
+		const finalConditions: EntityCondition<T>[] = [];
+
+		if (!Is.empty(secondaryIndex)) {
+			finalConditions.push({
+				property: secondaryIndex as string,
+				comparison: ComparisonOperator.Equals,
+				value: id
+			});
+		}
+
+		if (Is.arrayValue(conditions)) {
+			// If we haven't added a secondary index condition we need to add the primary key condition.
+			if (finalConditions.length === 0) {
+				finalConditions.push({
+					property: this._primaryKey.property as string,
+					comparison: ComparisonOperator.Equals,
+					value: id
+				});
+			}
+			finalConditions.push(
+				...conditions.map(c => ({
+					property: c.property as string,
+					comparison: ComparisonOperator.Equals,
+					value: c.value
+				}))
+			);
+		}
+
+		if (finalConditions.length > 0) {
+			for (let i = 0; i < store.length; i++) {
+				if (EntityConditions.check(store[i], { conditions: finalConditions })) {
+					return i;
+				}
+			}
+		} else {
+			return store.findIndex(e => e[this._primaryKey.property] === id);
+		}
+
+		return -1;
 	}
 }

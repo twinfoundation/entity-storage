@@ -1,5 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
+import type { SortDirection } from "@twin.org/entity";
 
 /**
  * Query the entries from entity storage.
@@ -15,9 +16,14 @@ export interface IEntityStorageListRequest {
 		conditions?: string;
 
 		/**
-		 * The sort property array as JSON serialization of property,direction.
+		 * The order property for the results.
 		 */
-		sortProperties?: string;
+		orderBy?: string;
+
+		/**
+		 * The direction for the order, defaults to desc.
+		 */
+		orderByDirection?: SortDirection;
 
 		/**
 		 * The properties to return in the response as a comma separated list, by default returns all properties.
