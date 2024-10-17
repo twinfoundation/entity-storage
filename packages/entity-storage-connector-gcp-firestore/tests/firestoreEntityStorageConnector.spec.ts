@@ -117,7 +117,7 @@ class TestType {
 const config: IFirestoreEntityStorageConnectorConfig = {
 	projectId: "test-project",
 	collectionName: "test-collection",
-	emulatorHost: "localhost:8081"
+	emulatorHost: "localhost:8080"
 };
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
