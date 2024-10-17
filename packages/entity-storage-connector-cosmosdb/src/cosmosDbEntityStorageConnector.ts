@@ -186,7 +186,23 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		// Create the container if it does not exist
 		try {
-			await this.createContainer();
+			const { resource: containerDefinition } = await client
+				.database(this._config.databaseId)
+				.containers.createIfNotExists(
+					{
+						id: this._config.containerId,
+						partitionKey: {
+							kind: PartitionKeyKind.Hash,
+							paths: [CosmosDbEntityStorageConnector._PARTITION_ID_PATH]
+						}
+					},
+					{ offerThroughput: 400 }
+				);
+
+			if (!containerDefinition) {
+				throw new GeneralError(this.CLASS_NAME, "containerNotExisting");
+			}
+			this._container = client.database(this._config.databaseId).container(containerDefinition.id);
 			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
@@ -197,17 +213,34 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 				}
 			});
 		} catch (error) {
-			await nodeLogging?.log({
-				level: "error",
-				source: this.CLASS_NAME,
-				ts: Date.now(),
-				message: "containerCreateFailed",
-				error: BaseError.fromError(error),
-				data: {
-					containerId: this._config.containerId
+			if (GeneralError.isErrorCode(error, "containerNotExisting")) {
+				try {
+					await this.createContainer();
+					await nodeLogging?.log({
+						level: "info",
+						source: this.CLASS_NAME,
+						ts: Date.now(),
+						message: "containerExists",
+						data: {
+							containerId: this._config.containerId
+						}
+					});
+				} catch (err) {
+					await nodeLogging?.log({
+						level: "error",
+						source: this.CLASS_NAME,
+						ts: Date.now(),
+						message: "containerCreateFailed",
+						error: BaseError.fromError(err),
+						data: {
+							containerId: this._config.containerId
+						}
+					});
+					return false;
 				}
-			});
-			return false;
+			} else {
+				throw new GeneralError(this.CLASS_NAME, "containerNotCreated", undefined, error);
+			}
 		}
 
 		return true;
@@ -669,47 +702,16 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @throws GeneralError if the container was not created.
 	 * @internal
 	 */
-	private async createContainer(): Promise<Container> {
+	private createContainer(): Container {
 		if (this._container) {
 			return this._container;
 		}
-
 		const client = new CosmosClient({
 			endpoint: this._config.endpoint,
 			key: this._config.key
 		});
 
-		try {
-			const { resource: containerDefinition } = await client
-				.database(this._config.databaseId)
-				.containers.createIfNotExists(
-					{
-						id: this._config.containerId,
-						partitionKey: {
-							kind: PartitionKeyKind.Hash,
-							paths: [CosmosDbEntityStorageConnector._PARTITION_ID_PATH]
-						}
-					},
-					{ offerThroughput: 400 }
-				);
-
-			if (!containerDefinition) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotExisting");
-			}
-			this._container = client.database(this._config.databaseId).container(containerDefinition.id);
-		} catch (error) {
-			if (GeneralError.isErrorCode(error, "containerNotExisting")) {
-				this._container = client
-					.database(this._config.databaseId)
-					.container(this._config.containerId);
-			} else {
-				throw new GeneralError(this.CLASS_NAME, "containerNotCreated", undefined, error);
-			}
-		}
-
-		if (!this._container) {
-			throw new GeneralError(this.CLASS_NAME, "containerNotCreated");
-		}
+		this._container = client.database(this._config.databaseId).container(this._config.containerId);
 		return this._container;
 	}
 }
