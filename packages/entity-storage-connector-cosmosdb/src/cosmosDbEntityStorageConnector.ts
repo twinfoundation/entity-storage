@@ -21,7 +21,7 @@ import {
 	type IEntitySchema,
 	type IEntitySchemaProperty,
 	LogicalOperator,
-	type SortDirection
+	SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
@@ -29,7 +29,7 @@ import { nameof } from "@twin.org/nameof";
 import type { ICosmosDbEntityStorageConnectorConfig } from "./models/ICosmosDbEntityStorageConnectorConfig";
 
 /**
- * Class for performing entity storage operations using Cosmo DB.
+ * Class for performing entity storage operations using Cosmos DB.
  */
 export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
 	/**
@@ -133,8 +133,6 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 			nodeLoggingConnectorType ?? "node-logging"
 		);
 
-		Guards.object(this.CLASS_NAME, nameof(this._config), this._config);
-
 		// Create the Cosmos DB client
 		const client = new CosmosClient({
 			endpoint: this._config.endpoint,
@@ -188,64 +186,28 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		// Create the container if it does not exist
 		try {
-			const { resource: containerDefinition } = await client
-				.database(this._config.databaseId)
-				.containers.createIfNotExists(
-					{
-						id: this._config.containerId,
-						partitionKey: {
-							kind: PartitionKeyKind.Hash,
-							paths: [CosmosDbEntityStorageConnector._PARTITION_ID_PATH]
-						}
-					},
-					{
-						offerThroughput: 400
-					}
-				);
-			Guards.stringValue(this.CLASS_NAME, nameof(containerDefinition?.id), containerDefinition?.id);
-
+			await this.createContainer();
 			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
 				message: "containerExists",
 				data: {
-					containerId: containerDefinition.id
+					containerId: this._config.containerId
 				}
 			});
-
-			const db = client.database(this._config.databaseId);
-			this._container = db.container(containerDefinition.id);
 		} catch (error) {
-			if (BaseError.isErrorCode(error, "Conflict")) {
-				await nodeLogging?.log({
-					level: "info",
-					source: this.CLASS_NAME,
-					ts: Date.now(),
-					message: "containerAlreadyExists",
-					data: {
-						containerId: this._config.containerId
-					}
-				});
-
-				const db = client.database(this._config.databaseId);
-				this._container = db.container(this._config.containerId);
-			} else {
-				const errors = error instanceof AggregateError ? error.errors : [error];
-				for (const err of errors) {
-					await nodeLogging?.log({
-						level: "error",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "containerCreateFailed",
-						error: BaseError.fromError(err),
-						data: {
-							containerId: this._config.containerId
-						}
-					});
+			await nodeLogging?.log({
+				level: "error",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "containerCreateFailed",
+				error: BaseError.fromError(error),
+				data: {
+					containerId: this._config.containerId
 				}
-				return false;
-			}
+			});
+			return false;
 		}
 
 		return true;
@@ -270,11 +232,9 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		try {
 			// No second index
+			const container = await this.createContainer();
 			if (Is.undefined(secondaryIndex)) {
-				if (!this._container) {
-					throw new GeneralError(this.CLASS_NAME, "containerNotInitialized", { id });
-				}
-				const { resource: item } = await this._container
+				const { resource: item } = await container
 					.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE)
 					.read<ItemDefinition>();
 				return item as T | undefined;
@@ -289,10 +249,8 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 					{ name: "@partitionKey", value: CosmosDbEntityStorageConnector._PARTITION_ID_VALUE }
 				]
 			};
-			if (!this._container) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotInitialized", { id });
-			}
-			const { resources: items } = await this._container.items.query(query).fetchAll();
+
+			const { resources: items } = await container.items.query(query).fetchAll();
 
 			if (items.length === 1) {
 				return items[0] as T;
@@ -331,11 +289,9 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		const id = entity[this._primaryKey.property];
 
 		try {
-			if (!this._container) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotInitialized");
-			}
+			const container = await this.createContainer();
 
-			await this._container.items.upsert({
+			await container.items.upsert({
 				id,
 				[CosmosDbEntityStorageConnector._PARTITION_ID_NAME]:
 					CosmosDbEntityStorageConnector._PARTITION_ID_VALUE,
@@ -372,11 +328,9 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			if (!this._container) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotInitialized");
-			}
+			const container = await this.createContainer();
 
-			await this._container.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE).delete();
+			await container.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE).delete();
 		} catch (err) {
 			if (typeof err === "object" && err !== null && "body" in err) {
 				const body = (err as { body?: unknown }).body;
@@ -441,7 +395,10 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 							property: sortProperty.property
 						});
 					}
-					const direction = sortProperty.sortDirection === "asc" ? "asc" : "desc";
+					const direction =
+						sortProperty.sortDirection === SortDirection.Ascending
+							? SortDirection.Ascending
+							: SortDirection.Descending;
 					orderByClause = `ORDER BY c.${String(sortProperty.property)} ${direction}`;
 				}
 			}
@@ -452,10 +409,6 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 			if (queryClause.length > 1) {
 				queryClause = ` AND ${queryClause}`;
-			}
-
-			if (!this._container) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotInitialized");
 			}
 
 			const querySpecs: SqlQuerySpec = {
@@ -472,10 +425,12 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 				maxItemCount: returnSize,
 				continuationToken: cursor
 			};
-			const feedResponse = await this._container.items.query(querySpecs, feedOptions).fetchNext();
+
+			const container = await this.createContainer();
+			const feedResponse = await container.items.query(querySpecs, feedOptions).fetchNext();
 			const entities: Partial<T>[] = feedResponse.resources.map(item => ({ ...item }));
 
-			return { entities, cursor: feedResponse.continuationToken || undefined };
+			return { entities, cursor: feedResponse.continuationToken };
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "queryFailed", { sql }, err);
 		}
@@ -706,5 +661,55 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		}
 
 		throw new GeneralError(this.CLASS_NAME, "conditionalNotSupported", { operator });
+	}
+
+	/**
+	 * Creates the CosmosDB container to be used if it doesn't exists in the context yet.
+	 * @returns The existing container.
+	 * @throws GeneralError if the container was not created.
+	 * @internal
+	 */
+	private async createContainer(): Promise<Container> {
+		if (this._container) {
+			return this._container;
+		}
+
+		const client = new CosmosClient({
+			endpoint: this._config.endpoint,
+			key: this._config.key
+		});
+
+		try {
+			const { resource: containerDefinition } = await client
+				.database(this._config.databaseId)
+				.containers.createIfNotExists(
+					{
+						id: this._config.containerId,
+						partitionKey: {
+							kind: PartitionKeyKind.Hash,
+							paths: [CosmosDbEntityStorageConnector._PARTITION_ID_PATH]
+						}
+					},
+					{ offerThroughput: 400 }
+				);
+
+			if (!containerDefinition) {
+				throw new GeneralError(this.CLASS_NAME, "containerNotExisting");
+			}
+			this._container = client.database(this._config.databaseId).container(containerDefinition.id);
+		} catch (error) {
+			if (GeneralError.isErrorCode(error, "containerNotExisting")) {
+				this._container = client
+					.database(this._config.databaseId)
+					.container(this._config.containerId);
+			} else {
+				throw new GeneralError(this.CLASS_NAME, "containerNotCreated", undefined, error);
+			}
+		}
+
+		if (!this._container) {
+			throw new GeneralError(this.CLASS_NAME, "containerNotCreated");
+		}
+		return this._container;
 	}
 }

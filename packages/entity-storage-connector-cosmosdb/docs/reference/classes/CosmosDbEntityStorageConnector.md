@@ -1,6 +1,6 @@
 # Class: CosmosDbEntityStorageConnector\<T\>
 
-Class for performing entity storage operations using Cosmo DB.
+Class for performing entity storage operations using Cosmos DB.
 
 ## Type Parameters
 
