@@ -25,7 +25,7 @@ jobs:
 
       cosmosdb:
         image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-        options: --platform=linux/amd64
+        options: --platform=linux/amd64 --name=cosmosdb-emulator
         ports:
           - 8081:8081
           - 10250:10250
@@ -56,13 +56,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Verify CosmosDB Container is Running
+      - name: Verify CosmosDB Container is Running 1
+        run: |
+          echo "Checking if container is running..."
+          docker ps
+      
+      - name: Starting the Cosmos Emulator again
+        run: |
+          echo "Cosmosdb Starting..."
+          docker start cosmosdb-emulator
+      
+      - name: Verify CosmosDB Container is Running 2
         run: |
           echo "Checking if container is running..."
           docker ps
 
       - name: Wait for Emulator to Start
         run: sleep 60
+      
+      - name: Verify CosmosDB Container is Running 3
+        run: |
+          echo "Checking if container is running..."
+          docker ps
 
       - name: Wait for CosmosDB Emulator to be ready
         run: |
