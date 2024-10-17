@@ -479,9 +479,6 @@ describe("FirestoreEntityStorageConnector", () => {
 		expect(result.entities.length).toEqual(5);
 	});
 	test("can query sub items in array using indexing field", async () => {
-		// eslint-disable-next-line no-console
-		console.log("Starting test: can query sub items in array");
-
 		for (let i = 0; i < 5; i++) {
 			const item = {
 				id: (i + 1).toString(),
@@ -490,7 +487,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				value3: undefined,
 				valueArray: [{ field: "name", value: "bob" }]
 			};
-			console.log(`Setting item ${i + 1}:`, JSON.stringify(item));
 			await entityStorage.set(item);
 		}
 
@@ -502,7 +498,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				value3: undefined,
 				valueArray: [{ field: "name", value: "fred" }]
 			};
-			console.log(`Setting item ${i + 10}:`, JSON.stringify(item));
 			await entityStorage.set(item);
 		}
 
@@ -515,15 +510,11 @@ describe("FirestoreEntityStorageConnector", () => {
 				}
 			]
 		};
-		// eslint-disable-next-line no-console
-		console.log("Query condition:", JSON.stringify(queryCondition));
 
 		const result = await entityStorage.query(queryCondition);
-		// eslint-disable-next-line no-console
-		console.log("Query result:", JSON.stringify(result));
 
 		expect(result).toBeDefined();
-		expect(result.entities.length).toEqual(5); // Expecting 5 items with "bob"
+		expect(result.entities.length).toEqual(5);
 	});
 
 	describe("handleUndefinedValues", () => {
