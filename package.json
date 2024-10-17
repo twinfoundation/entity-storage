@@ -45,7 +45,8 @@
 		"packages/entity-storage-connector-scylladb",
 		"packages/entity-storage-connector-dynamodb",
 		"packages/entity-storage-service",
-		"packages/entity-storage-rest-client"
+		"packages/entity-storage-rest-client",
+		"packages/entity-storage-connector-gcp-firestore"
 	],
 	"type": "module"
 }
