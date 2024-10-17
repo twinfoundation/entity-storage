@@ -31,16 +31,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Restore root node_modules from cache
-        id: node-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci
+          
+      - name: Increase aio-max-nr
+        run: |
+          echo 1048576 | sudo tee /proc/sys/fs/aio-max-nr
       
       - name: Pull CosmosDB Emulator Docker Image
         run: |
@@ -80,6 +74,16 @@ jobs:
         run: |
           echo "Checking detailed logs..."
           docker logs twin-entity-cosmos --tail 100
+
+      - name: Restore root node_modules from cache
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
         
       - name: Wait for CosmosDB Emulator to be Ready
         run: |
