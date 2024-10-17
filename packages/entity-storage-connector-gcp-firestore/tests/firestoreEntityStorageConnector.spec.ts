@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-import { GeneralError, I18n } from "@twin.org/core";
+import { I18n } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -19,23 +19,9 @@ import {
 } from "@twin.org/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import { TestableFirestoreEntityStorageConnector } from "./setupTestEnv";
+import { TEST_FIRESTORE_CONFIG } from "./setupTestEnv";
 import { FirestoreEntityStorageConnector } from "../src/firestoreEntityStorageConnector";
 import type { IFirestoreEntityStorageConnectorConfig } from "../src/models/IFirestoreEntityStorageConnectorConfig";
-
-/**
- * Create a custom entity storage.
- * @param customConfig - The custom configuration.
- * @returns The custom entity storage.
- */
-function createCustomEntityStorage(
-	customConfig?: Partial<IFirestoreEntityStorageConnectorConfig>
-): TestableFirestoreEntityStorageConnector<TestType> {
-	return new TestableFirestoreEntityStorageConnector<TestType>({
-		entitySchema: nameof<TestType>(),
-		config: { ...config, ...customConfig }
-	});
-}
 
 /**
  * Test SubType Definition.
@@ -114,12 +100,6 @@ class TestType {
 	public valueArray?: ValueType[];
 }
 
-const config: IFirestoreEntityStorageConnectorConfig = {
-	projectId: "test-project",
-	collectionName: "test-collection",
-	emulatorHost: "localhost:8080"
-};
-
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 let entityStorage: FirestoreEntityStorageConnector<TestType>;
 
@@ -146,7 +126,7 @@ describe("FirestoreEntityStorageConnector", () => {
 
 		entityStorage = new FirestoreEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
-			config
+			config: TEST_FIRESTORE_CONFIG
 		});
 		await entityStorage.bootstrap();
 	});
@@ -276,7 +256,7 @@ describe("FirestoreEntityStorageConnector", () => {
 	});
 
 	test("can get an item", async () => {
-		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
+		await entityStorage.set({ id: "2", value1: "vvv", value2: 35 });
 		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
@@ -298,7 +278,7 @@ describe("FirestoreEntityStorageConnector", () => {
 	});
 
 	test("can not remove an item", async () => {
-		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
+		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555 });
 
 		const idToRemove = "1000999";
 		await entityStorage.remove(idToRemove);
@@ -307,36 +287,11 @@ describe("FirestoreEntityStorageConnector", () => {
 
 	test("can remove an item", async () => {
 		const idToRemove = "65432";
-		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99 });
 		await entityStorage.remove(idToRemove);
 
 		const result = await entityStorage.get(idToRemove);
 		expect(result).toBeUndefined();
-	});
-
-	test("can handle undefined values according to configuration", async () => {
-		const customEntityStorage = createCustomEntityStorage({
-			undefinedValueHandling: "convert-to-null"
-		});
-		await customEntityStorage.bootstrap();
-		await customEntityStorage.set({ id: "3", value1: "test", value2: 42, value3: undefined });
-		const item = await customEntityStorage.get("3");
-
-		expect(item).toBeDefined();
-		expect(item?.id).toEqual("3");
-		expect(item?.value1).toEqual("test");
-		expect(item?.value2).toEqual(42);
-		expect(item?.value3).toBeNull();
-	});
-
-	test("can throw error for undefined values when configured", async () => {
-		const customEntityStorage = createCustomEntityStorage({
-			undefinedValueHandling: "throw-error"
-		});
-		await customEntityStorage.bootstrap();
-		await expect(
-			customEntityStorage.set({ id: "4", value1: "test", value2: 42, value3: undefined })
-		).rejects.toThrow();
 	});
 
 	test("can find items with empty store", async () => {
@@ -347,7 +302,7 @@ describe("FirestoreEntityStorageConnector", () => {
 	});
 
 	test("can find items with single entry", async () => {
-		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 95 });
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
@@ -359,8 +314,7 @@ describe("FirestoreEntityStorageConnector", () => {
 			await entityStorage.set({
 				id: (i + 1).toString(),
 				value1: "aaa",
-				value2: 999,
-				value3: undefined
+				value2: 999
 			});
 		}
 		const result = await entityStorage.query();
@@ -373,8 +327,7 @@ describe("FirestoreEntityStorageConnector", () => {
 			await entityStorage.set({
 				id: (i + 1).toString(),
 				value1: "aaa",
-				value2: 5555,
-				value3: undefined
+				value2: 5555
 			});
 		}
 		const result = await entityStorage.query();
@@ -410,8 +363,7 @@ describe("FirestoreEntityStorageConnector", () => {
 			await entityStorage.set({
 				id: (30 - i).toString(),
 				value1: (30 - i).toString(),
-				value2: 7777,
-				value3: undefined
+				value2: 7777
 			});
 		}
 		const result = await entityStorage.query(
@@ -441,8 +393,7 @@ describe("FirestoreEntityStorageConnector", () => {
 			await entityStorage.set({
 				id: (i + 1).toString(),
 				value1: "aaa",
-				value2: 7777,
-				value3: undefined
+				value2: 7777
 			});
 		}
 		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
@@ -457,7 +408,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: { name: { value: "bob" } }
 			});
 		}
@@ -466,7 +416,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				id: (i + 10).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: { name: { value: "fred" } }
 			});
 		}
@@ -484,7 +433,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueArray: [{ field: "name", value: "bob" }]
 			};
 			await entityStorage.set(item);
@@ -495,7 +443,6 @@ describe("FirestoreEntityStorageConnector", () => {
 				id: (i + 10).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueArray: [{ field: "name", value: "fred" }]
 			};
 			await entityStorage.set(item);
@@ -515,115 +462,5 @@ describe("FirestoreEntityStorageConnector", () => {
 
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);
-	});
-
-	describe("handleUndefinedValues", () => {
-		test("converts undefined to null when configured", () => {
-			const customEntityStorage = createCustomEntityStorage({
-				undefinedValueHandling: "convert-to-null"
-			});
-			const customEntity = {
-				id: "1",
-				value1: "test",
-				value2: undefined,
-				value3: { nested: undefined }
-			};
-			const result = customEntityStorage.testHandleUndefinedValues(customEntity);
-			expect(result).toEqual({ id: "1", value1: "test", value2: null, value3: { nested: null } });
-		});
-
-		test("throws error when undefined values are found and configured to do so", () => {
-			const customEntityStorage = createCustomEntityStorage({
-				undefinedValueHandling: "throw-error"
-			});
-			const customEntity = { id: "1", value1: "test", value2: undefined };
-			expect(() => customEntityStorage.testHandleUndefinedValues(customEntity)).toThrow(
-				GeneralError
-			);
-		});
-
-		test("removes undefined properties when configured (default behavior)", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const customEntity = {
-				id: "1",
-				value1: "test",
-				value2: undefined,
-				value3: { nested: undefined }
-			};
-			const result = customEntityStorage.testHandleUndefinedValues(customEntity);
-			expect(result).toEqual({ id: "1", value1: "test", value3: {} });
-		});
-	});
-
-	describe("convertUndefinedToNull", () => {
-		test("converts undefined to null in nested objects", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: undefined, c: { d: undefined, e: 2 }, f: [1, undefined, 3] };
-			const result = customEntityStorage.testConvertUndefinedToNull(obj);
-			expect(result).toEqual({ a: 1, b: null, c: { d: null, e: 2 }, f: [1, null, 3] });
-		});
-
-		test("handles arrays correctly", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const arr = [1, undefined, { a: undefined, b: 2 }, [undefined, 3]];
-			const result = customEntityStorage.testConvertUndefinedToNull(arr);
-			expect(result).toEqual([1, null, { a: null, b: 2 }, [null, 3]]);
-		});
-
-		test("returns non-object values as-is", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			expect(customEntityStorage.testConvertUndefinedToNull(1)).toBe(1);
-			expect(customEntityStorage.testConvertUndefinedToNull("test")).toBe("test");
-			expect(customEntityStorage.testConvertUndefinedToNull(null)).toBe(null);
-		});
-	});
-
-	describe("checkForUndefinedProperties", () => {
-		test("throws error when undefined property is found", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: undefined };
-			expect(() => customEntityStorage.testCheckForUndefinedProperties(obj)).toThrow(GeneralError);
-		});
-
-		test("checks nested objects", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: { c: undefined } };
-			expect(() => customEntityStorage.testCheckForUndefinedProperties(obj)).toThrow(GeneralError);
-		});
-
-		test("checks arrays", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: [1, { c: undefined }] };
-			expect(() => customEntityStorage.testCheckForUndefinedProperties(obj)).toThrow(GeneralError);
-		});
-
-		test("does not throw for objects without undefined properties", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: { c: null }, d: [1, 2, 3] };
-			expect(() => customEntityStorage.testCheckForUndefinedProperties(obj)).not.toThrow();
-		});
-	});
-
-	describe("removeUndefinedProperties", () => {
-		test("removes undefined properties from nested objects", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const obj = { a: 1, b: undefined, c: { d: undefined, e: 2 }, f: [1, undefined, 3] };
-			const result = customEntityStorage.testRemoveUndefinedProperties(obj);
-			expect(result).toEqual({ a: 1, c: { e: 2 }, f: [1, 3] });
-		});
-
-		test("handles arrays correctly", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			const arr = [1, undefined, { a: undefined, b: 2 }, [undefined, 3]];
-			const result = customEntityStorage.testRemoveUndefinedProperties(arr);
-			expect(result).toEqual([1, { b: 2 }, [3]]);
-		});
-
-		test("returns non-object values as-is", () => {
-			const customEntityStorage = createCustomEntityStorage();
-			expect(customEntityStorage.testRemoveUndefinedProperties(1)).toBe(1);
-			expect(customEntityStorage.testRemoveUndefinedProperties("test")).toBe("test");
-			expect(customEntityStorage.testRemoveUndefinedProperties(null)).toBe(null);
-		});
 	});
 });

@@ -8,7 +8,7 @@ import {
 	type DocumentSnapshot,
 	type DocumentData
 } from "@google-cloud/firestore";
-import { BaseError, GeneralError, Guards } from "@twin.org/core";
+import { BaseError, Converter, GeneralError, Guards, Is, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -21,6 +21,7 @@ import {
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
+import type { JWTInput } from "google-auth-library";
 import type { IEntityWithIndexing } from "./models/IEntityWithIndexing";
 import type { IFirestoreEntityStorageConnectorConfig } from "./models/IFirestoreEntityStorageConnectorConfig";
 import type { IValueType } from "./models/IValueType";
@@ -62,7 +63,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	 * The Firestore client.
 	 * @internal
 	 */
-	private _firestoreClient: Firestore | undefined;
+	private readonly _firestoreClient: Firestore;
 
 	/**
 	 * Create a new instance of FirestoreEntityStorageConnector.
@@ -90,17 +91,42 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			options.config.collectionName
 		);
 
-		this._config = {
-			...options.config,
-			undefinedValueHandling: options.config.undefinedValueHandling ?? "remove"
-		};
-
-		if (!this._config.projectId) {
-			throw new GeneralError(this.CLASS_NAME, "missingProjectId");
+		let credentials: JWTInput | undefined;
+		if (!Is.empty(options.config.credentials)) {
+			Guards.stringBase64(
+				this.CLASS_NAME,
+				nameof(options.config.credentials),
+				options.config.credentials
+			);
+			credentials = ObjectHelper.fromBytes<JWTInput>(
+				Converter.base64ToBytes(options.config.credentials)
+			);
 		}
+
+		this._config = options.config;
+
+		Guards.stringValue(this.CLASS_NAME, nameof(this._config.projectId), this._config.projectId);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
+
+		const firestoreOptions: Settings = {
+			projectId: this._config.projectId,
+			...this._config.settings
+		};
+
+		if (this._config.endpoint) {
+			firestoreOptions.host = this._config.endpoint;
+			firestoreOptions.ssl = false;
+		}
+
+		if (this._config.keyFilename) {
+			firestoreOptions.keyFilename = this._config.keyFilename;
+		} else if (credentials) {
+			firestoreOptions.credentials = credentials;
+		}
+
+		this._firestoreClient = new Firestore(firestoreOptions);
 	}
 
 	/**
@@ -114,26 +140,8 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		);
 
 		try {
-			const firestoreOptions: Settings = {
-				projectId: this._config.projectId,
-				...this._config.settings
-			};
-
-			if (this._config.emulatorHost) {
-				firestoreOptions.host = this._config.emulatorHost;
-				firestoreOptions.ssl = false;
-			}
-
-			if (this._config.keyFilename) {
-				firestoreOptions.keyFilename = this._config.keyFilename;
-			} else if (this._config.credentials) {
-				firestoreOptions.credentials = this._config.credentials;
-			}
-
-			this._firestoreClient = new Firestore(firestoreOptions);
-
 			// Firestore doesn't require explicit collection creation
-			// We can perform a small write operation to ensure connectivity
+			// Perform a small write operation to ensure connectivity
 			const testDoc = this._firestoreClient.collection(this._config.collectionName).doc("test");
 			await testDoc.set({ test: true });
 			await testDoc.delete();
@@ -189,7 +197,6 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			if (doc.exists) {
 				return doc.data() as T;
 			}
-			return undefined;
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "getEntityFailed", { id }, err);
 		}
@@ -211,20 +218,17 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			// Handle indexing field BEFORE cleaning undefined values
 			if (
 				entityWithPossibleIndexing.valueArray &&
-				Array.isArray(entityWithPossibleIndexing.valueArray)
+				Is.array(entityWithPossibleIndexing.valueArray)
 			) {
 				const valueArrayFields = entityWithPossibleIndexing.valueArray
-					.filter((item): item is IValueType => item !== null && item !== undefined)
+					.filter((item): item is IValueType => Is.notEmpty(item))
 					.map(item => `${item.field}:${item.value}`);
 				entityWithPossibleIndexing.valueArrayFields = valueArrayFields;
 			}
 
-			// Handle indexing field
-			const cleanedEntity = this.handleUndefinedValues(entity) as T;
-
 			await this.getCollection()
 				.doc(id)
-				.set(cleanedEntity as DocumentData);
+				.set(entity as DocumentData);
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "setEntityFailed", { entity }, err);
 		}
@@ -299,7 +303,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			}
 
 			const limit = pageSize ?? FirestoreEntityStorageConnector._PAGE_SIZE;
-			query = query.limit(limit || FirestoreEntityStorageConnector._PAGE_SIZE);
+			query = query.limit(limit);
 			queryDescription.push(`Limit: ${limit}`);
 
 			if (properties) {
@@ -311,7 +315,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			const entities = querySnapshot.docs.map((doc: DocumentSnapshot) => doc.data() as T);
 
 			let nextCursor: string | undefined;
-			if (entities.length === (limit || FirestoreEntityStorageConnector._PAGE_SIZE)) {
+			if (entities.length === limit) {
 				nextCursor = querySnapshot.docs[querySnapshot.docs.length - 1].ref.path;
 			}
 
@@ -349,88 +353,6 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				error
 			);
 		}
-	}
-
-	/**
-	 * Handle undefined values in the entity.
-	 * @param entity The entity to handle undefined values in.
-	 * @returns The entity with undefined values handled.
-	 * @internal
-	 */
-	protected handleUndefinedValues(entity: unknown): unknown {
-		switch (this._config.undefinedValueHandling) {
-			case "convert-to-null":
-				return this.convertUndefinedToNull(entity);
-			case "throw-error":
-				this.checkForUndefinedProperties(entity);
-				return entity;
-			default:
-				return this.removeUndefinedProperties(entity);
-		}
-	}
-
-	/**
-	 * Convert undefined values to null.
-	 * @param obj The object to convert undefined values to null.
-	 * @returns The object with undefined values converted to null.
-	 * @internal
-	 */
-	protected convertUndefinedToNull(obj: unknown): unknown {
-		if (Array.isArray(obj)) {
-			return obj.map(item => (item === undefined ? null : this.convertUndefinedToNull(item)));
-		} else if (obj !== null && typeof obj === "object") {
-			return Object.fromEntries(
-				Object.entries(obj).map(([k, v]) => [
-					k,
-					v === undefined ? null : this.convertUndefinedToNull(v)
-				])
-			);
-		}
-		return obj === undefined ? null : obj;
-	}
-
-	/**
-	 * Check for undefined properties in the entity.
-	 * @param obj The object to check for undefined properties.
-	 * @returns Nothing.
-	 * @internal
-	 */
-	protected checkForUndefinedProperties(obj: unknown): void {
-		if (Array.isArray(obj)) {
-			for (const item of obj) {
-				this.checkForUndefinedProperties(item);
-			}
-		} else if (obj !== null && typeof obj === "object") {
-			for (const [key, value] of Object.entries(obj)) {
-				if (value === undefined) {
-					throw new GeneralError(this.CLASS_NAME, "undefinedProperty", { key });
-				}
-				if (typeof value === "object") {
-					this.checkForUndefinedProperties(value);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Remove undefined properties from an object.
-	 * @param obj The object to remove undefined properties from.
-	 * @returns The object with undefined properties removed.
-	 * @internal
-	 */
-	protected removeUndefinedProperties(obj: unknown): unknown {
-		if (Array.isArray(obj)) {
-			return obj
-				.map(item => this.removeUndefinedProperties(item))
-				.filter(item => item !== undefined);
-		} else if (obj !== null && typeof obj === "object") {
-			return Object.fromEntries(
-				Object.entries(obj)
-					.filter(([_, v]) => v !== undefined)
-					.map(([k, v]) => [k, this.removeUndefinedProperties(v)])
-			);
-		}
-		return obj;
 	}
 
 	/**

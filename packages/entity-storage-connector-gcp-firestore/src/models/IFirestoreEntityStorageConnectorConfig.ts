@@ -21,9 +21,14 @@ export interface IFirestoreEntityStorageConnectorConfig {
 	keyFilename?: string;
 
 	/**
-	 * The emulator host for local testing (e.g., "localhost:8080").
+	 * The GCP credentials, a base64 encoded version of the JWTInput data type.
 	 */
-	emulatorHost?: string;
+	credentials?: string;
+
+	/**
+	 * It's usually only used with an emulator (e.g., "localhost:8080").
+	 */
+	endpoint?: string;
 
 	/**
 	 * Optional settings for Firestore client initialization.
@@ -39,20 +44,4 @@ export interface IFirestoreEntityStorageConnectorConfig {
 		 */
 		timeout?: number;
 	};
-
-	/**
-	 * The GCP credentials (optional for local development or when using default credentials).
-	 */
-	credentials?: {
-		client_email: string;
-		private_key: string;
-	};
-
-	/**
-	 * Specifies how to handle undefined values when storing data in Firestore.
-	 * - 'remove': Remove properties with undefined values (default)
-	 * - 'convert-to-null': Convert undefined values to null
-	 * - 'throw-error': Throw an error if undefined values are encountered
-	 */
-	undefinedValueHandling?: "remove" | "convert-to-null" | "throw-error";
 }

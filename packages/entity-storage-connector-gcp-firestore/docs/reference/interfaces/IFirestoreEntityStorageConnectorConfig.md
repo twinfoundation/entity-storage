@@ -28,11 +28,19 @@ The path to the service account key file (optional for production when using def
 
 ***
 
-### emulatorHost?
+### credentials?
 
-> `optional` **emulatorHost**: `string`
+> `optional` **credentials**: `string`
 
-The emulator host for local testing (e.g., "localhost:8080").
+The GCP credentials, a base64 encoded version of the JWTInput data type.
+
+***
+
+### endpoint?
+
+> `optional` **endpoint**: `string`
+
+It's usually only used with an emulator (e.g., "localhost:8080").
 
 ***
 
@@ -53,30 +61,3 @@ The maximum number of idle channels to keep open.
 > `optional` **timeout**: `number`
 
 The custom timeout for requests (in milliseconds).
-
-***
-
-### credentials?
-
-> `optional` **credentials**: `object`
-
-The GCP credentials (optional for local development or when using default credentials).
-
-#### client\_email
-
-> **client\_email**: `string`
-
-#### private\_key
-
-> **private\_key**: `string`
-
-***
-
-### undefinedValueHandling?
-
-> `optional` **undefinedValueHandling**: `"remove"` \| `"convert-to-null"` \| `"throw-error"`
-
-Specifies how to handle undefined values when storing data in Firestore.
-- 'remove': Remove properties with undefined values (default)
-- 'convert-to-null': Convert undefined values to null
-- 'throw-error': Throw an error if undefined values are encountered
