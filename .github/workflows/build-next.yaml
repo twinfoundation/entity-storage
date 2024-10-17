@@ -60,8 +60,23 @@ jobs:
           echo "Checking if container is running..."
           docker ps
 
+
+      - name: Check CosmosDB Container Logs
+        run: docker logs twin-entity-cosmosdb
+
       - name: Wait for Emulator to Start
         run: sleep 60
+        
+      - name: Wait for CosmosDB Emulator to be Ready
+        run: |
+          for i in {1..30}; do
+            if nc -zv localhost 8081; then
+              echo "CosmosDB emulator is ready!"
+              break
+            fi
+            echo "Waiting for CosmosDB emulator to be ready..."
+            sleep 5
+          done
 
       - name: Download Emulator Certificate
         run: |
