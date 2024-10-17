@@ -31,11 +31,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
       - name: Increase aio-max-nr
         run: |
           echo 1048576 | sudo tee /proc/sys/fs/aio-max-nr
-      
+
       - name: Pull CosmosDB Emulator Docker Image
         run: |
           docker pull mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
@@ -49,32 +49,9 @@ jobs:
             --detach \
             --platform=linux/amd64 --memory=3g --cpus=2.0 \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-      
-      - name: Verify CosmosDB Container is Running 1
-        run: |
-          echo "Checking if container is running..."
-          docker ps
-
-      - name: Check CosmosDB Container Logs
-        run: docker logs twin-entity-cosmos --details
 
       - name: Wait for Emulator to Start
-        run: sleep 60
-      
-      - name: Verify CosmosDB Container is Running 2
-        run: |
-          echo "Checking if container is running..."
-          docker ps
-          
-      - name: Check CosmosDB Exit Status
-        run: |
-          echo "Checking exit status..."
-          docker inspect twin-entity-cosmos --format='{{.State.ExitCode}}'
-
-      - name: Check Detailed Logs
-        run: |
-          echo "Checking detailed logs..."
-          docker logs twin-entity-cosmos --tail 100
+        run: sleep 10
 
       - name: Restore root node_modules from cache
         id: node-cache
@@ -85,7 +62,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        
+
       - name: Wait for CosmosDB Emulator to be Ready
         run: |
           for i in {1..30}; do
