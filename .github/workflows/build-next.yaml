@@ -32,17 +32,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run the CosmosDB 
-        run: |
-          echo "Running the Cosmosdb container"
-          docker run --platform linux/amd64 -p 8081:8081 -p 10250:10250 \
-          --name cosmosdb-emulator \
-          --memory=3g --cpus=2.0 \
-          -e AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE=127.0.0.1 \
-          -e AZURE_COSMOS_EMULATOR_PARTITION_COUNT=1 \
-          -e AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=false \
-          mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
-      
       - name: Restore root node_modules from cache
         id: node-cache
         uses: actions/cache@v4
@@ -52,36 +41,55 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        
+      
+      - name: Pull CosmosDB Emulator Docker Image
+        run: |
+          docker pull mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+
+      - name: Run CosmosDB Emulator
+        run: |
+          docker run \
+            --publish 8081:8081 \
+            --publish 10250-10255:10250-10255 \
+            --name twin-entity-cosmos \
+            --detach \
+            mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+      
       - name: Verify CosmosDB Container is Running 1
         run: |
           echo "Checking if container is running..."
           docker ps
-      
-      - name: Starting the Cosmos Emulator again
-        run: |
-          echo "Cosmosdb Starting..."
-          docker start cosmosdb-emulator
+
+      - name: Check CosmosDB Container Logs
+        run: docker logs twin-entity-cosmos
+
+      - name: Wait for Emulator to Start
+        run: sleep 60
       
       - name: Verify CosmosDB Container is Running 2
         run: |
           echo "Checking if container is running..."
           docker ps
-
-      - name: Wait for Emulator to Start
-        run: sleep 60
-      
-      - name: Verify CosmosDB Container is Running 3
+        
+      - name: Wait for CosmosDB Emulator to be Ready
         run: |
-          echo "Checking if container is running..."
-          docker ps
-
-      - name: Wait for CosmosDB Emulator to be ready
-        run: |
-          until curl --insecure -s -o /dev/null -w "%{http_code}" https://localhost:8081/_explorer/index.html | grep 200; do
-            echo "Waiting for CosmosDB emulator...";
-            sleep 5;
+          for i in {1..30}; do
+            if nc -zv localhost 8081; then
+              echo "CosmosDB emulator is ready!"
+              break
+            fi
+            echo "Waiting for CosmosDB emulator to be ready..."
+            sleep 5
           done
+
+      - name: Download Emulator Certificate
+        run: |
+          curl --insecure https://localhost:8081/_explorer/emulator.pem > ~/emulatorcert.crt
+
+      - name: Install Certificate
+        run: |
+          sudo cp ~/emulatorcert.crt /usr/local/share/ca-certificates/
+          sudo update-ca-certificates
 
       - name: Run Lint and Dist
         run: |
