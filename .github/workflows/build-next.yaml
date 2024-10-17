@@ -23,6 +23,20 @@ jobs:
         ports:
           - 8000:8000
 
+      cosmosdb:
+        image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+        options: --platform=linux/amd64
+        ports:
+          - 8081:8081
+          - 10250:10250
+          - 10251:10251
+          - 10252:10252
+          - 10253:10253
+          - 10254:10254
+        env:
+          AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
+          AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: 'true'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,50 +56,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Pull CosmosDB Emulator Docker Image
-        run: |
-          docker pull mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-
-      - name: Run CosmosDB Emulator
-        run: |
-          docker run \
-            --publish 8081:8081 \
-            --publish 10250-10255:10250-10255 \
-            --name twin-entity-cosmos \
-            --detach \
-            mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-      
       - name: Verify CosmosDB Container is Running
         run: |
           echo "Checking if container is running..."
           docker ps
 
-
-      - name: Check CosmosDB Container Logs
-        run: docker logs twin-entity-cosmos
-
       - name: Wait for Emulator to Start
         run: sleep 60
-        
-      - name: Wait for CosmosDB Emulator to be Ready
+
+      - name: Wait for CosmosDB Emulator to be ready
         run: |
-          for i in {1..30}; do
-            if nc -zv localhost 8081; then
-              echo "CosmosDB emulator is ready!"
-              break
-            fi
-            echo "Waiting for CosmosDB emulator to be ready..."
-            sleep 5
+          until curl --insecure -s -o /dev/null -w "%{http_code}" https://localhost:8081/_explorer/index.html | grep 200; do
+            echo "Waiting for CosmosDB emulator...";
+            sleep 5;
           done
-
-      - name: Download Emulator Certificate
-        run: |
-          curl --insecure https://localhost:8081/_explorer/emulator.pem > ~/emulatorcert.crt
-
-      - name: Install Certificate
-        run: |
-          sudo cp ~/emulatorcert.crt /usr/local/share/ca-certificates/
-          sudo update-ca-certificates
 
       - name: Run Lint and Dist
         run: |
