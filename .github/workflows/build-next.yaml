@@ -23,6 +23,14 @@ jobs:
         ports:
           - 8000:8000
 
+      firestore-emulator:
+        image: firebase/firebase-tools
+        ports:
+          - 8080:8080
+        options: >-
+          --entrypoint "firebase emulators:start --only firestore
+          --host 0.0.0.0 --project test-project-id"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,11 +39,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      # TODO: Remove once we have a way to pass flags in the services section
-      - name: Start Firestore Emulator
-        run: |
-          docker run -d --name firestore-emulator -p 8080:8080 gcr.io/google.com/cloudsdktool/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
 
       - name: Restore root node_modules from cache
         id: node-cache
