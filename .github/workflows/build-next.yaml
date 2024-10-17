@@ -46,6 +46,7 @@ jobs:
             --publish 8081:8081 \
             --publish 10250-10255:10250-10255 \
             --name twin-entity-cosmos \
+            --detach \
             --platform=linux/amd64 --memory=3g --cpus=2.0 \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
       
