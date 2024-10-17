@@ -104,9 +104,6 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		}
 
 		this._config = options.config;
-
-		Guards.stringValue(this.CLASS_NAME, nameof(this._config.projectId), this._config.projectId);
-
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
