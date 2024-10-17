@@ -52,7 +52,6 @@ jobs:
             --publish 8081:8081 \
             --publish 10250-10255:10250-10255 \
             --name twin-entity-cosmos \
-            --detach \
             --platform=linux/amd64 --memory=3g --cpus=2.0 \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
       
@@ -62,7 +61,7 @@ jobs:
           docker ps
 
       - name: Check CosmosDB Container Logs
-        run: docker logs twin-entity-cosmos
+        run: docker logs twin-entity-cosmos --details
 
       - name: Wait for Emulator to Start
         run: sleep 60
@@ -71,6 +70,16 @@ jobs:
         run: |
           echo "Checking if container is running..."
           docker ps
+          
+      - name: Check CosmosDB Exit Status
+        run: |
+          echo "Checking exit status..."
+          docker inspect twin-entity-cosmos --format='{{.State.ExitCode}}'
+
+      - name: Check Detailed Logs
+        run: |
+          echo "Checking detailed logs..."
+          docker logs twin-entity-cosmos --tail 100
         
       - name: Wait for CosmosDB Emulator to be Ready
         run: |
