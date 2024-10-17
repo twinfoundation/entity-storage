@@ -36,7 +36,6 @@ jobs:
         env:
           AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
           AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: 'true'
-          AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE: '127.0.0.1'
 
     steps:
       - name: Checkout
@@ -56,6 +55,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      
+      - name: Wait for CosmosDB Emulator to be ready
+        run: |
+          until curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/_explorer/emulator.pem | grep 200; do
+            echo "Waiting for CosmosDB emulator...";
+            sleep 5;
+          done
 
       - name: Run Lint and Dist
         run: |
