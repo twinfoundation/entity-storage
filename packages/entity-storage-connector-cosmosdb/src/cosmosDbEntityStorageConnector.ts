@@ -258,25 +258,42 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * Get an entity from Cosmos DB.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(id: string, secondaryIndex?: keyof T): Promise<T | undefined> {
+	public async get(
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
 			// No second index
 			const container = await this.createContainer();
-			if (Is.undefined(secondaryIndex)) {
+			if (Is.empty(secondaryIndex) && Is.empty(conditions)) {
 				const { resource: item } = await container
 					.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE)
 					.read<ItemDefinition>();
 				return item as T | undefined;
 			}
 
+			let whereQuery: string = "";
+
 			// With a second index
-			const secIndex = secondaryIndex.toString();
+			if (secondaryIndex) {
+				const secIndex = secondaryIndex.toString();
+				whereQuery = ` c.${secIndex} = @id AND`;
+			}
+
+			// With a conditions
+			if (Is.arrayValue(conditions)) {
+				for (const c of conditions) {
+					whereQuery = ` c.${String(c.property)} = ${this.propertyToDbValue(c.value, typeof c.value as EntitySchemaPropertyType)} AND`;
+				}
+			}
 			const query: SqlQuerySpec = {
-				query: `SELECT * FROM c WHERE c.${secIndex} = @id AND c.${CosmosDbEntityStorageConnector._PARTITION_ID_NAME} = @partitionKey`,
+				query: `SELECT * FROM c WHERE ${whereQuery} c.${CosmosDbEntityStorageConnector._PARTITION_ID_NAME} = @partitionKey`,
 				parameters: [
 					{ name: "@id", value: id },
 					{ name: "@partitionKey", value: CosmosDbEntityStorageConnector._PARTITION_ID_VALUE }
@@ -314,15 +331,30 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns The id of the entity.
 	 */
-	public async set(entity: T): Promise<void> {
+	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		const id = entity[this._primaryKey.property];
 
 		try {
 			const container = await this.createContainer();
+
+			if (Is.string(id) && conditions) {
+				const item = await this.get(id);
+				if (!Is.undefined(item) && !this.verifyConditions(conditions, item)) {
+					throw new GeneralError(
+						this.CLASS_NAME,
+						"conditionsUnmatched",
+						{
+							id
+						},
+						undefined
+					);
+				}
+			}
 
 			await container.items.upsert({
 				id,
@@ -355,13 +387,24 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
+	 * @param conditions The optional conditions to match for the entities.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string): Promise<void> {
+	public async remove(
+		id: string,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
 			const container = await this.createContainer();
+
+			if (Is.string(id) && conditions) {
+				const item = await this.get(id);
+				if (Is.undefined(item) || !this.verifyConditions(conditions, item)) {
+					return;
+				}
+			}
 
 			await container.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE).delete();
 		} catch (err) {
@@ -648,7 +691,9 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 			return map;
 		}
 
-		if (type === "integer" || type === "number") {
+		if (type === "string") {
+			return `${Coerce.string(value)}`;
+		} else if (type === "integer" || type === "number") {
 			return Coerce.string(value) ?? "";
 		} else if (type === "boolean") {
 			return Coerce.boolean(value) ?? false;
@@ -713,5 +758,21 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		this._container = client.database(this._config.databaseId).container(this._config.containerId);
 		return this._container;
+	}
+
+	/**
+	 * Creates the CosmosDB container to be used if it doesn't exists in the context yet.
+	 * @returns The existing container.
+	 * @throws GeneralError if the container was not created.
+	 * @internal
+	 */
+	private verifyConditions(
+		conditions: { property: keyof T; value: unknown }[],
+		obj: { [key in keyof T]: unknown }
+	): boolean {
+		return conditions.every(condition => {
+			const { property, value } = condition;
+			return Object.prototype.hasOwnProperty.call(obj, property) && obj[property] === value;
+		});
 	}
 }

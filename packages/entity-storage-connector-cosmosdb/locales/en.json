@@ -16,7 +16,8 @@
 			"sortSingle": "You can only sort by a single property",
 			"sortNotIndexed": "The property \"{property}\" is not indexed and cannot be used for sorting",
 			"containerNotExisting": "The expected container definition is undefined",
-			"containerNotCreated": "The container couldn't be created"
+			"containerNotCreated": "The container couldn't be created",
+			"conditionsUnmatched": "The conditions don't match the item  \"{id}\""
 		}
 	}
 }
