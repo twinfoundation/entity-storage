@@ -192,7 +192,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			if (!secondaryIndex && (!conditions || conditions.length === 0)) {
+			if (!Is.stringValue(secondaryIndex) && !Is.arrayValue(conditions)) {
 				const docRef = this.getCollection().doc(id);
 				const doc = await docRef.get();
 
@@ -250,7 +250,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 
 			const docRef = this.getCollection().doc(id);
 
-			if (!conditions || conditions.length === 0) {
+			if (!Is.arrayValue(conditions)) {
 				await docRef.set(entityCopy as DocumentData);
 			} else {
 				await this._firestoreClient.runTransaction(async transaction => {
