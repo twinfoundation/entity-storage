@@ -300,7 +300,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		try {
 			const docRef = this.getCollection().doc(id);
 
-			if (!conditions || conditions.length === 0) {
+			if (!Is.arrayValue(conditions)) {
 				await docRef.delete();
 			} else {
 				await this._firestoreClient.runTransaction(async transaction => {
