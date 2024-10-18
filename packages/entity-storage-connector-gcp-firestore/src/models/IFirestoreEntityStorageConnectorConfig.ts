@@ -16,11 +16,6 @@ export interface IFirestoreEntityStorageConnectorConfig {
 	collectionName: string;
 
 	/**
-	 * The path to the service account key file (optional for production when using default credentials).
-	 */
-	keyFilename?: string;
-
-	/**
 	 * The GCP credentials, a base64 encoded version of the JWTInput data type.
 	 */
 	credentials?: string;

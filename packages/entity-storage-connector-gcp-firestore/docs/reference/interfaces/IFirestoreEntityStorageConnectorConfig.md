@@ -20,14 +20,6 @@ The name of the collection for the storage.
 
 ***
 
-### keyFilename?
-
-> `optional` **keyFilename**: `string`
-
-The path to the service account key file (optional for production when using default credentials).
-
-***
-
 ### credentials?
 
 > `optional` **credentials**: `string`

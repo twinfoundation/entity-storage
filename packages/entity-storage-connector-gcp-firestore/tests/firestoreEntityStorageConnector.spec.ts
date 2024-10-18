@@ -218,6 +218,65 @@ describe("FirestoreEntityStorageConnector", () => {
 		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
+	test("can set an item to update it with a condition", async () => {
+		const entityId = "1";
+		const objectSet: TestType = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+
+		await entityStorage.set(objectSet);
+
+		objectSet.value2 = 99;
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
+	});
+
+	test("can fail to set an item with conditions not met", async () => {
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35
+		};
+		await entityStorage.set(objectSet);
+
+		objectSet.value2 = 99;
+		await expect(
+			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
+		).rejects.toMatchObject({
+			name: "GeneralError",
+			message: "firestoreEntityStorageConnector.conditionNotMet",
+			properties: {
+				id: entityId,
+				conditions: [{ property: "value1", value: "bbb" }]
+			}
+		});
+	});
+
+	test("can set an item with conditions met", async () => {
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35
+		};
+		await entityStorage.set(objectSet);
+
+		objectSet.value2 = 99;
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.value2).toEqual(99);
+	});
+
 	test("can set an item to update it", async () => {
 		const entityId = "1";
 		const objectSet = {
@@ -236,6 +295,32 @@ describe("FirestoreEntityStorageConnector", () => {
 		expect(result?.value1).toEqual(objectSet.value1);
 		expect(result?.value2).toEqual(objectSet.value2);
 		expect(result?.value3).toEqual(objectSet.value3);
+	});
+
+	test("can fail to update an item with a condition", async () => {
+		const entityId = "1";
+		const objectSet: TestType = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+
+		await entityStorage.set(objectSet);
+
+		objectSet.value2 = 99;
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		await expect(
+			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
+		).rejects.toMatchObject({
+			name: "GeneralError",
+			message: expect.stringContaining("conditionNotMet"),
+			properties: {
+				id: entityId,
+				conditions: [{ property: "value1", value: "bbb" }]
+			}
+		});
 	});
 
 	test("can fail to get an item with no id", async () => {
@@ -266,6 +351,38 @@ describe("FirestoreEntityStorageConnector", () => {
 		expect(item?.value3).toBeUndefined();
 	});
 
+	test("can get an item using secondary index", async () => {
+		await entityStorage.set({ id: "2", value1: "vvv", value2: 35 });
+
+		const item = await entityStorage.get("vvv", "value1");
+
+		expect(item).toBeDefined();
+		expect(item?.id).toEqual("2");
+		expect(item?.value1).toEqual("vvv");
+		expect(item?.value2).toEqual(35);
+	});
+
+	test("can get an item with conditions met", async () => {
+		const entityId = "1";
+		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+
+		const result = await entityStorage.get(entityId, undefined, [
+			{ property: "value1", value: "aaa" }
+		]);
+		expect(result).toBeDefined();
+		expect(result?.value1).toEqual("aaa");
+	});
+
+	test("can fail to get an item with conditions not met", async () => {
+		const entityId = "1";
+		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+
+		const result = await entityStorage.get(entityId, "value1", [
+			{ property: "value1", value: "bbb" }
+		]);
+		expect(result).toBeUndefined();
+	});
+
 	test("can fail to remove an item with no id", async () => {
 		await expect(entityStorage.remove(undefined as unknown as string)).rejects.toMatchObject({
 			name: "GuardError",
@@ -291,6 +408,39 @@ describe("FirestoreEntityStorageConnector", () => {
 		await entityStorage.remove(idToRemove);
 
 		const result = await entityStorage.get(idToRemove);
+		expect(result).toBeUndefined();
+	});
+
+	test("can fail to remove an item with conditions not met", async () => {
+		const entityId = "1";
+		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+
+		// Try to remove with a condition that value1 is "bbb" (which is not true)
+		await expect(
+			entityStorage.remove(entityId, [{ property: "value1", value: "bbb" }])
+		).rejects.toMatchObject({
+			name: "GeneralError",
+			message: "firestoreEntityStorageConnector.conditionNotMet",
+			properties: {
+				id: entityId,
+				conditions: [{ property: "value1", value: "bbb" }]
+			}
+		});
+
+		// The document should still exist
+		const result = await entityStorage.get(entityId);
+		expect(result).toBeDefined();
+	});
+
+	test("can remove an item with conditions met", async () => {
+		const entityId = "1";
+		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+
+		// Remove with a condition that value1 is "aaa" (which is true)
+		await entityStorage.remove(entityId, [{ property: "value1", value: "aaa" }]);
+
+		// The document should no longer exist
+		const result = await entityStorage.get(entityId);
 		expect(result).toBeUndefined();
 	});
 

@@ -98,7 +98,7 @@ The schema for the entities.
 
 ### get()
 
-> **get**(`id`): `Promise`\<`undefined` \| `T`\>
+> **get**(`id`, `secondaryIndex`?, `conditions`?): `Promise`\<`undefined` \| `T`\>
 
 Get an entity.
 
@@ -107,6 +107,14 @@ Get an entity.
 • **id**: `string`
 
 The id of the entity to get.
+
+• **secondaryIndex?**: keyof `T`
+
+The optional secondary index to use.
+
+• **conditions?**: `object`[]
+
+The optional conditions to apply to the query.
 
 #### Returns
 
@@ -122,7 +130,7 @@ The object if it can be found or undefined.
 
 ### set()
 
-> **set**(`entity`): `Promise`\<`void`\>
+> **set**(`entity`, `conditions`?): `Promise`\<`void`\>
 
 Set an entity.
 
@@ -131,6 +139,10 @@ Set an entity.
 • **entity**: `T`
 
 The entity to set.
+
+• **conditions?**: `object`[]
+
+The optional conditions to apply to the update.
 
 #### Returns
 
@@ -146,7 +158,7 @@ Nothing.
 
 ### remove()
 
-> **remove**(`id`): `Promise`\<`void`\>
+> **remove**(`id`, `conditions`?): `Promise`\<`void`\>
 
 Remove the entity.
 
@@ -155,6 +167,10 @@ Remove the entity.
 • **id**: `string`
 
 The id of the entity to remove.
+
+• **conditions?**: `object`[]
+
+The optional conditions to apply to the delete.
 
 #### Returns
 

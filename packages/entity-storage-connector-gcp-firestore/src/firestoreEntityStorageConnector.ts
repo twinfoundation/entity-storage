@@ -117,9 +117,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			firestoreOptions.ssl = false;
 		}
 
-		if (this._config.keyFilename) {
-			firestoreOptions.keyFilename = this._config.keyFilename;
-		} else if (credentials) {
+		if (credentials) {
 			firestoreOptions.credentials = credentials;
 		}
 
@@ -182,17 +180,46 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	/**
 	 * Get an entity.
 	 * @param id The id of the entity to get.
+	 * @param secondaryIndex The optional secondary index to use.
+	 * @param conditions The optional conditions to apply to the query.
 	 * @returns The object if it can be found or undefined.
 	 */
-	public async get(id: string): Promise<T | undefined> {
+	public async get(
+		id: string,
+		secondaryIndex?: keyof T,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const docRef = this.getCollection().doc(id);
-			const doc = await docRef.get();
+			if (!secondaryIndex && (!conditions || conditions.length === 0)) {
+				const docRef = this.getCollection().doc(id);
+				const doc = await docRef.get();
 
-			if (doc.exists) {
-				return doc.data() as T;
+				if (doc.exists) {
+					return doc.data() as T;
+				}
+			}
+
+			// Use secondaryIndex and/or conditions to construct a query
+			let query: Query = this.getCollection();
+
+			if (secondaryIndex) {
+				query = query.where(secondaryIndex as string, "==", id);
+			} else {
+				// If no secondaryIndex, include primary key in conditions
+				query = query.where(this._primaryKey.property as string, "==", id);
+			}
+
+			if (conditions && conditions.length > 0) {
+				for (const condition of conditions) {
+					query = query.where(condition.property as string, "==", condition.value);
+				}
+			}
+
+			const querySnapshot = await query.limit(1).get();
+			if (!querySnapshot.empty) {
+				return querySnapshot.docs[0].data() as T;
 			}
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "getEntityFailed", { id }, err);
@@ -202,31 +229,58 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	/**
 	 * Set an entity.
 	 * @param entity The entity to set.
+	 * @param conditions The optional conditions to apply to the update.
 	 * @returns Nothing.
 	 */
-	public async set(entity: T): Promise<void> {
+	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object(this.CLASS_NAME, nameof(entity), entity);
 
 		try {
 			const id = entity[this._primaryKey.property as keyof T] as string;
 
-			const entityWithPossibleIndexing = entity as T & Partial<IEntityWithIndexing>;
+			const entityCopy = { ...entity } as T & Partial<IEntityWithIndexing>;
 
-			// Handle indexing field BEFORE cleaning undefined values
-			if (
-				entityWithPossibleIndexing.valueArray &&
-				Is.array(entityWithPossibleIndexing.valueArray)
-			) {
-				const valueArrayFields = entityWithPossibleIndexing.valueArray
+			// Handle indexing field
+			if (entityCopy.valueArray && Is.array(entityCopy.valueArray)) {
+				const valueArrayFields = entityCopy.valueArray
 					.filter((item): item is IValueType => Is.notEmpty(item))
 					.map(item => `${item.field}:${item.value}`);
-				entityWithPossibleIndexing.valueArrayFields = valueArrayFields;
+				entityCopy.valueArrayFields = valueArrayFields;
 			}
 
-			await this.getCollection()
-				.doc(id)
-				.set(entity as DocumentData);
+			const docRef = this.getCollection().doc(id);
+
+			if (!conditions || conditions.length === 0) {
+				await docRef.set(entityCopy as DocumentData);
+			} else {
+				await this._firestoreClient.runTransaction(async transaction => {
+					const docSnapshot = await transaction.get(docRef);
+
+					if (!docSnapshot.exists) {
+						transaction.set(docRef, entityCopy as DocumentData);
+					} else {
+						const data = docSnapshot.data() as T;
+
+						let conditionsMet = true;
+						for (const condition of conditions) {
+							if (data[condition.property] !== condition.value) {
+								conditionsMet = false;
+								break;
+							}
+						}
+
+						if (conditionsMet) {
+							transaction.set(docRef, entityCopy as DocumentData);
+						} else {
+							throw new GeneralError(this.CLASS_NAME, "conditionNotMet", { id, conditions });
+						}
+					}
+				});
+			}
 		} catch (err) {
+			if (err instanceof GeneralError) {
+				throw err;
+			}
 			throw new GeneralError(this.CLASS_NAME, "setEntityFailed", { entity }, err);
 		}
 	}
@@ -234,14 +288,48 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	/**
 	 * Remove the entity.
 	 * @param id The id of the entity to remove.
+	 * @param conditions The optional conditions to apply to the delete.
 	 * @returns Nothing.
 	 */
-	public async remove(id: string): Promise<void> {
+	public async remove(
+		id: string,
+		conditions?: { property: keyof T; value: unknown }[]
+	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			await this.getCollection().doc(id).delete();
+			const docRef = this.getCollection().doc(id);
+
+			if (!conditions || conditions.length === 0) {
+				await docRef.delete();
+			} else {
+				await this._firestoreClient.runTransaction(async transaction => {
+					const docSnapshot = await transaction.get(docRef);
+
+					if (!docSnapshot.exists) {
+						throw new GeneralError(this.CLASS_NAME, "documentDoesNotExist", { id });
+					}
+
+					const data = docSnapshot.data() as T;
+					let conditionsMet = true;
+					for (const condition of conditions) {
+						if (data[condition.property] !== condition.value) {
+							conditionsMet = false;
+							break;
+						}
+					}
+
+					if (conditionsMet) {
+						transaction.delete(docRef);
+					} else {
+						throw new GeneralError(this.CLASS_NAME, "conditionNotMet", { id, conditions });
+					}
+				});
+			}
 		} catch (err) {
+			if (err instanceof GeneralError) {
+				throw err;
+			}
 			throw new GeneralError(this.CLASS_NAME, "removeEntityFailed", { id }, err);
 		}
 	}

@@ -15,11 +15,6 @@ Guards.stringValue(
 	"TEST_FIRESTORE_COLLECTION_NAME",
 	process.env.TEST_FIRESTORE_COLLECTION_NAME
 );
-Guards.stringValue(
-	"TestEnv",
-	"TEST_FIRESTORE_KEY_FILENAME",
-	process.env.TEST_FIRESTORE_KEY_FILENAME
-);
 Guards.stringValue("TestEnv", "TEST_FIRESTORE_ENDPOINT", process.env.TEST_FIRESTORE_ENDPOINT);
 Guards.stringValue(
 	"TestEnv",
@@ -31,7 +26,6 @@ Guards.stringValue("TestEnv", "TEST_FIRESTORE_TIMEOUT", process.env.TEST_FIRESTO
 export const TEST_FIRESTORE_CONFIG: IFirestoreEntityStorageConnectorConfig = {
 	projectId: process.env.TEST_FIRESTORE_PROJECT_ID ?? "test-project",
 	collectionName: process.env.TEST_FIRESTORE_COLLECTION_NAME ?? "test-collection",
-	keyFilename: process.env.TEST_FIRESTORE_KEY_FILENAME,
 	endpoint: process.env.TEST_FIRESTORE_ENDPOINT ?? "localhost:8081",
 	settings: {
 		maxIdleChannels: Coerce.number(process.env.TEST_FIRESTORE_MAX_IDLE_CHANNELS),

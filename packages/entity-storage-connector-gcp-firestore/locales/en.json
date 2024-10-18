@@ -15,7 +15,9 @@
 			"unsupportedComparisonOperator": "Comparison operator \"{comparison}\" is not supported",
 			"firestoreClientNotInitialized": "Firestore client not initialized",
 			"undefinedProperty": "Property \"{key}\" is undefined. Firestore does not support undefined values.",
-			"missingProjectId": "Project ID is required"
+			"missingProjectId": "Project ID is required",
+			"conditionNotMet": "The specified conditions were not met for document {id, conditions}.",
+			"documentDoesNotExist": "The document with id {id} does not exist."
 		}
 	}
 }
