@@ -35,7 +35,8 @@ jobs:
             entity-storage-connector-scylladb,
             entity-storage-connector-dynamodb,
             entity-storage-service,
-            entity-storage-rest-client
+            entity-storage-rest-client,
+            entity-storage-connector-cosmosdb
           ]
 
     steps:
@@ -49,6 +50,31 @@ jobs:
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Increase aio-max-nr
+        # Increase the maximum number of asynchronous I/O (AIO) requests that can be queued to
+        # the kernel. This is necessary for the CosmosDB Emulator to function properly, as it
+        # requires a higher limit for I/O operations.
+        # Reference: https://man7.org/linux/man-pages/man5/proc.5.html#fs.aio-max-nr
+        run: |
+          echo 1048576 | sudo tee /proc/sys/fs/aio-max-nr
+
+      - name: Pull CosmosDB Emulator Docker Image
+        run: |
+          docker pull mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+
+      - name: Run CosmosDB Emulator
+        run: |
+          docker run \
+            --publish 8081:8081 \
+            --publish 10250-10255:10250-10255 \
+            --name twin-entity-cosmos \
+            --detach \
+            --platform=linux/amd64 --memory=3g --cpus=2.0 \
+            mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+
+      - name: Wait for Emulator to Start
+        run: sleep 10
 
       - name: Remove Mono-Repo Node Modules
         run: |
@@ -64,6 +90,17 @@ jobs:
             echo "Error: package version does not contain -next"
             exit 1
           fi
+
+      - name: Wait for CosmosDB Emulator to be Ready
+        run: |
+          for i in {1..30}; do
+            if nc -zv localhost 8081; then
+              echo "CosmosDB emulator is ready!"
+              break
+            fi
+            echo "Waiting for CosmosDB emulator to be ready..."
+            sleep 5
+          done
 
       - name: Run Dist
         run: |
