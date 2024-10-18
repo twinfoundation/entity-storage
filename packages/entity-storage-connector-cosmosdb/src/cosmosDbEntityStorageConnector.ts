@@ -289,7 +289,8 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 			// With a conditions
 			if (Is.arrayValue(conditions)) {
 				for (const c of conditions) {
-					whereQuery = ` c.${String(c.property)} = ${this.propertyToDbValue(c.value, typeof c.value as EntitySchemaPropertyType)} AND`;
+					const schemaProp = this._entitySchema.properties?.find(p => p.property === c.property);
+					whereQuery = ` c.${String(c.property)} = ${this.propertyToDbValue(c.value, schemaProp?.type)} AND`;
 				}
 			}
 			const query: SqlQuerySpec = {
