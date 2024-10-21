@@ -26,7 +26,7 @@ Guards.stringValue("TestEnv", "TEST_FIRESTORE_TIMEOUT", process.env.TEST_FIRESTO
 export const TEST_FIRESTORE_CONFIG: IFirestoreEntityStorageConnectorConfig = {
 	projectId: process.env.TEST_FIRESTORE_PROJECT_ID ?? "test-project",
 	collectionName: process.env.TEST_FIRESTORE_COLLECTION_NAME ?? "test-collection",
-	endpoint: process.env.TEST_FIRESTORE_ENDPOINT ?? "localhost:8081",
+	endpoint: process.env.TEST_FIRESTORE_ENDPOINT ?? "localhost:8080",
 	settings: {
 		maxIdleChannels: Coerce.number(process.env.TEST_FIRESTORE_MAX_IDLE_CHANNELS),
 		timeout: Coerce.number(process.env.TEST_FIRESTORE_TIMEOUT)

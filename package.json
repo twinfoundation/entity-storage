@@ -46,7 +46,8 @@
 		"packages/entity-storage-connector-file",
 		"packages/entity-storage-connector-scylladb",
 		"packages/entity-storage-connector-dynamodb",
-		"packages/entity-storage-connector-gcp-firestore"
+		"packages/entity-storage-connector-gcp-firestore",
+		"packages/entity-storage-connector-cosmosdb"
 	],
 	"type": "module"
 }
