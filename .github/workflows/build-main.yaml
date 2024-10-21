@@ -32,6 +32,11 @@ jobs:
         with:
           node-version: 20
 
+      # TODO: Remove once we have a way to pass flags in the services section
+      - name: Start Firestore Emulator
+        run: |
+          docker run -d --name twin-entity-storage-firestore -p 8080:8080 gcr.io/google.com/cloudsdktool/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
+
       - name: Increase aio-max-nr
         # Increase the maximum number of asynchronous I/O (AIO) requests that can be queued to
         # the kernel. This is necessary for the CosmosDB Emulator to function properly, as it
@@ -56,7 +61,6 @@ jobs:
 
       - name: Wait for Emulator to Start
         run: sleep 10
-
       - name: Restore root node_modules from cache
         id: node-cache
         uses: actions/cache@v4
