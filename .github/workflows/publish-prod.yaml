@@ -15,6 +15,7 @@ on:
           - entity-storage-connector-dynamodb
           - entity-storage-service
           - entity-storage-rest-client
+          - entity-storage-connector-gcp-firestore
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -46,6 +47,11 @@ jobs:
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
+      # TODO: Remove once we have a way to pass flags in the services section
+      - name: Start Firestore Emulator
+        run: |
+          docker run -d --name twin-entity-storage-firestore -p 8080:8080 gcr.io/google.com/cloudsdktool/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
 
       - name: Remove Mono-Repo Node Modules
         run: |

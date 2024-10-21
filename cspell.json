@@ -17,7 +17,16 @@
 		".eslintrc.cjs",
 		"**/wordlists/**"
 	],
-	"words": ["conds", "nameof", "scylladb", "Stiftung", "TINYINT", "unmarshall"],
+	"words": [
+		"cloudsdktool",
+		"conds",
+		"Firestore",
+		"nameof",
+		"scylladb",
+		"Stiftung",
+		"TINYINT",
+		"unmarshall"
+	],
 	"ignoreRegExpList": [
 		"/from\\s+(['\"]).*\\1/",
 		"/eslint-disable.*/",

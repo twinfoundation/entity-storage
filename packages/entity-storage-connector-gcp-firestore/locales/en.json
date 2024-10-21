@@ -1,0 +1,23 @@
+{
+	"info": {
+		"firestoreEntityStorageConnector": {
+			"firestoreConnected": "Connected to Firestore"
+		}
+	},
+	"error": {
+		"firestoreEntityStorageConnector": {
+			"firestoreConnectionFailed": "Failed to connect to Firestore",
+			"setEntityFailed": "Failed to set entity \"{id}\"",
+			"getEntityFailed": "Failed to get entity \"{id}\"",
+			"removeEntityFailed": "Failed to remove entity \"{id}\"",
+			"queryFailed": "The query failed when issuing the following command \"{queryDescription}\"",
+			"collectionDeleteFailed": "Failed to delete collection \"{collectionName}\"",
+			"unsupportedComparisonOperator": "Comparison operator \"{comparison}\" is not supported",
+			"firestoreClientNotInitialized": "Firestore client not initialized",
+			"undefinedProperty": "Property \"{key}\" is undefined. Firestore does not support undefined values.",
+			"missingProjectId": "Project ID is required",
+			"conditionNotMet": "The specified conditions were not met for document {id, conditions}.",
+			"documentDoesNotExist": "The document with id {id} does not exist."
+		}
+	}
+}
