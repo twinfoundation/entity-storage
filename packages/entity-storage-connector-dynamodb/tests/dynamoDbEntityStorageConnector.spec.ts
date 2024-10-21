@@ -627,4 +627,56 @@ describe("DynamoDbEntityStorageConnector", () => {
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);
 	});
+
+	test("can set an item to update it with a condition", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+		await entityStorage.bootstrap();
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+
+		await entityStorage.set(objectSet);
+		objectSet.value2 = 99;
+		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result?.id).toEqual(objectSet.id);
+		expect(result?.value1).toEqual(objectSet.value1);
+		expect(result?.value2).toEqual(objectSet.value2);
+		expect(result?.value3).toEqual(objectSet.value3);
+	});
+
+	test("can fail set an item to update it with a unmatch condition", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+		await entityStorage.bootstrap();
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() }
+		};
+
+		await entityStorage.set(objectSet);
+		objectSet.value2 = 99;
+
+		await expect(
+			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
+		).rejects.toMatchObject({
+			name: "GeneralError",
+			properties: {
+				id: entityId
+			}
+		});
+	});
 });
