@@ -1,16 +1,17 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import {
+	type Container,
 	CosmosClient,
+	CosmosDbDiagnosticLevel,
+	type FeedOptions,
 	type ItemDefinition,
 	PartitionKeyKind,
-	type Container,
-	type SqlQuerySpec,
-	type FeedOptions,
-	type SqlParameter
+	type Resource,
+	type SqlParameter,
+	type SqlQuerySpec
 } from "@azure/cosmos";
-
-import { BaseError, Coerce, GeneralError, Guards, Is } from "@twin.org/core";
+import { BaseError, Coerce, GeneralError, Guards, Is, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -80,9 +81,16 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	private readonly _config: ICosmosDbEntityStorageConnectorConfig;
 
 	/**
-	 * Container user for the data storage
+	 * The Cosmos DB client.
+	 * @internal
 	 */
-	private _container?: Container;
+	private readonly _client: CosmosClient;
+
+	/**
+	 * Container user for the data storage.
+	 * @internal
+	 */
+	private readonly _container: Container;
 
 	/**
 	 * Create a new instance of CosmosDbEntityStorageConnector.
@@ -121,6 +129,16 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
 		this._config = options.config;
+
+		this._client = new CosmosClient({
+			endpoint: this._config.endpoint,
+			key: this._config.key,
+			diagnosticLevel: CosmosDbDiagnosticLevel.debug
+		});
+
+		this._container = this._client
+			.database(this._config.databaseId)
+			.container(this._config.containerId);
 	}
 
 	/**
@@ -133,15 +151,19 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 			nodeLoggingConnectorType ?? "node-logging"
 		);
 
-		// Create the Cosmos DB client
-		const client = new CosmosClient({
-			endpoint: this._config.endpoint,
-			key: this._config.key
-		});
-
 		// Create the database if it does not exist
 		try {
-			const { resource: databaseDefinition } = await client.databases.createIfNotExists({
+			await nodeLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "databaseCreating",
+				data: {
+					databaseId: this._config.databaseId
+				}
+			});
+
+			const { resource: databaseDefinition } = await this._client.databases.createIfNotExists({
 				id: this._config.databaseId
 			});
 			Guards.stringValue(this.CLASS_NAME, nameof(databaseDefinition?.id), databaseDefinition?.id);
@@ -186,7 +208,7 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		// Create the container if it does not exist
 		try {
-			const { resource: containerDefinition } = await client
+			const { resource: containerDefinition } = await this._client
 				.database(this._config.databaseId)
 				.containers.createIfNotExists(
 					{
@@ -199,48 +221,40 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 					{ offerThroughput: 400 }
 				);
 
-			if (!containerDefinition) {
-				throw new GeneralError(this.CLASS_NAME, "containerNotExisting");
+			if (containerDefinition) {
+				await nodeLogging?.log({
+					level: "info",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "containerExists",
+					data: {
+						containerId: this._config.containerId
+					}
+				});
+			} else {
+				await nodeLogging?.log({
+					level: "error",
+					source: this.CLASS_NAME,
+					ts: Date.now(),
+					message: "containerNotExisting",
+					data: {
+						containerId: this._config.containerId
+					}
+				});
+				return false;
 			}
-			this._container = client.database(this._config.databaseId).container(containerDefinition.id);
+		} catch (error) {
 			await nodeLogging?.log({
-				level: "info",
+				level: "error",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
-				message: "containerExists",
+				message: "containerCreateFailed",
+				error: BaseError.fromError(error),
 				data: {
 					containerId: this._config.containerId
 				}
 			});
-		} catch (error) {
-			if (GeneralError.isErrorCode(error, "containerNotExisting")) {
-				try {
-					await this.createContainer();
-					await nodeLogging?.log({
-						level: "info",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "containerExists",
-						data: {
-							containerId: this._config.containerId
-						}
-					});
-				} catch (err) {
-					await nodeLogging?.log({
-						level: "error",
-						source: this.CLASS_NAME,
-						ts: Date.now(),
-						message: "containerCreateFailed",
-						error: BaseError.fromError(err),
-						data: {
-							containerId: this._config.containerId
-						}
-					});
-					return false;
-				}
-			} else {
-				throw new GeneralError(this.CLASS_NAME, "containerNotCreated", undefined, error);
-			}
+			return false;
 		}
 
 		return true;
@@ -269,42 +283,48 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			// No second index
-			const container = await this.createContainer();
-			if (Is.empty(secondaryIndex) && Is.empty(conditions)) {
-				const { resource: item } = await container
+			// No secondary index or conditions
+			if (Is.empty(secondaryIndex) && !Is.arrayValue(conditions)) {
+				const { resource: item } = await this._container
 					.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE)
 					.read<ItemDefinition>();
-				return item as T | undefined;
+				return this.itemToEntity(item);
 			}
 
-			let whereQuery: string = "";
+			const whereQuery: string[] = [
+				`c.${CosmosDbEntityStorageConnector._PARTITION_ID_NAME} = @partitionKey`
+			];
 
-			// With a second index
-			if (secondaryIndex) {
+			// With a secondary index
+			if (Is.stringValue(secondaryIndex)) {
 				const secIndex = secondaryIndex.toString();
-				whereQuery = ` c.${secIndex} = @id AND`;
+				whereQuery.push(`c.${secIndex} = @id`);
+			} else {
+				whereQuery.push(`c.${this._primaryKey.property as string} = @id`);
 			}
 
-			// With a conditions
+			// With conditions
 			if (Is.arrayValue(conditions)) {
 				for (const c of conditions) {
 					const schemaProp = this._entitySchema.properties?.find(p => p.property === c.property);
-					whereQuery = ` c.${String(c.property)} = ${this.propertyToDbValue(c.value, schemaProp?.type)} AND`;
+					whereQuery.push(
+						`c.${String(c.property)} = ${this.propertyToDbValue(c.value, schemaProp?.type)}`
+					);
 				}
 			}
+
 			const query: SqlQuerySpec = {
-				query: `SELECT * FROM c WHERE ${whereQuery} c.${CosmosDbEntityStorageConnector._PARTITION_ID_NAME} = @partitionKey`,
+				query: `SELECT * FROM c WHERE ${whereQuery.join(" AND ")}`,
 				parameters: [
 					{ name: "@id", value: id },
 					{ name: "@partitionKey", value: CosmosDbEntityStorageConnector._PARTITION_ID_VALUE }
 				]
 			};
 
-			const { resources: items } = await container.items.query(query).fetchAll();
+			const { resources: items } = await this._container.items.query(query).fetchAll();
 
 			if (items.length === 1) {
-				return items[0] as T;
+				return this.itemToEntity(items[0]);
 			}
 		} catch (err) {
 			if (BaseError.isErrorCode(err, "NotFound")) {
@@ -338,26 +358,21 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
-		const id = entity[this._primaryKey.property];
+		const id = entity[this._primaryKey.property] as string;
 
 		try {
-			const container = await this.createContainer();
-
-			if (Is.string(id) && conditions) {
-				const item = await this.get(id);
-				if (!Is.undefined(item) && !this.verifyConditions(conditions, item)) {
-					throw new GeneralError(
-						this.CLASS_NAME,
-						"conditionsUnmatched",
-						{
-							id
-						},
-						undefined
-					);
+			if (Is.arrayValue(conditions)) {
+				const item = await this._container.item(
+					id,
+					CosmosDbEntityStorageConnector._PARTITION_ID_VALUE
+				);
+				const { resource: itemData } = await item.read<ItemDefinition>();
+				if (Is.notEmpty(itemData) && !this.verifyConditions(conditions, itemData as T)) {
+					return;
 				}
 			}
 
-			await container.items.upsert({
+			await this._container.items.upsert({
 				id,
 				[CosmosDbEntityStorageConnector._PARTITION_ID_NAME]:
 					CosmosDbEntityStorageConnector._PARTITION_ID_VALUE,
@@ -398,28 +413,25 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const container = await this.createContainer();
-
-			if (Is.string(id) && conditions) {
-				const item = await this.get(id);
-				if (Is.undefined(item) || !this.verifyConditions(conditions, item)) {
+			const item = await this._container.item(
+				id,
+				CosmosDbEntityStorageConnector._PARTITION_ID_VALUE
+			);
+			const { resource: itemData } = await item.read<ItemDefinition>();
+			if (Is.notEmpty(itemData)) {
+				if (Is.arrayValue(conditions) && !this.verifyConditions(conditions, itemData as T)) {
 					return;
 				}
-			}
 
-			await container.item(id, CosmosDbEntityStorageConnector._PARTITION_ID_VALUE).delete();
+				await item.delete();
+			}
 		} catch (err) {
-			if (typeof err === "object" && err !== null && "body" in err) {
-				const body = (err as { body?: unknown }).body;
-				if (typeof body === "object" && body !== null && "code" in body) {
-					if (body.code === "NotFound") {
-						body.code = "NotFoundException";
-						if (BaseError.isErrorCode(body, "NotFoundException")) {
-							return;
-						}
-					}
-				} else {
-				}
+			if (
+				BaseError.fromError(err) &&
+				Is.object<{ body?: { code?: string } }>(err) &&
+				err.body?.code === "NotFound"
+			) {
+				return;
 			}
 			throw new GeneralError(
 				this.CLASS_NAME,
@@ -472,10 +484,7 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 							property: sortProperty.property
 						});
 					}
-					const direction =
-						sortProperty.sortDirection === SortDirection.Ascending
-							? SortDirection.Ascending
-							: SortDirection.Descending;
+					const direction = sortProperty.sortDirection === SortDirection.Ascending ? "asc" : "desc";
 					orderByClause = `ORDER BY c.${String(sortProperty.property)} ${direction}`;
 				}
 			}
@@ -484,7 +493,7 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 			const attributeValues: { [id: string]: unknown } = {};
 			let queryClause = this.buildQueryParameters("", conditions, attributeNames, attributeValues);
 
-			if (queryClause.length > 1) {
+			if (queryClause.length > 0) {
 				queryClause = ` AND ${queryClause}`;
 			}
 
@@ -503,11 +512,12 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 				continuationToken: cursor
 			};
 
-			const container = await this.createContainer();
-			const feedResponse = await container.items.query(querySpecs, feedOptions).fetchNext();
-			const entities: Partial<T>[] = feedResponse.resources.map(item => ({ ...item }));
+			const feedResponse = await this._container.items.query(querySpecs, feedOptions).fetchNext();
 
-			return { entities, cursor: feedResponse.continuationToken };
+			return {
+				entities: feedResponse.resources.map(i => this.itemToEntity(i)),
+				cursor: feedResponse.continuationToken
+			};
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "queryFailed", { sql }, err);
 		}
@@ -519,32 +529,13 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 */
 	public async containerDelete(): Promise<void> {
 		try {
-			// Create the Cosmos DB client
-			const client = new CosmosClient({
-				endpoint: this._config.endpoint,
-				key: this._config.key
-			});
-
-			const { resource: containerDefinition } = await client
-				.database(this._config.databaseId)
-				.containers.createIfNotExists(
-					{
-						id: this._config.containerId,
-						partitionKey: {
-							kind: PartitionKeyKind.Hash,
-							paths: [CosmosDbEntityStorageConnector._PARTITION_ID_PATH]
-						}
-					},
-					{
-						offerThroughput: 400
-					}
-				);
-
-			const db = client.database(this._config.databaseId);
-			if (containerDefinition) {
-				await db.container(containerDefinition.id).delete();
-			}
-		} catch {}
+			await this._container.deleteAllItemsForPartitionKey(
+				CosmosDbEntityStorageConnector._PARTITION_ID_VALUE
+			);
+			await this._container.delete();
+		} catch {
+			// Ignore errors
+		}
 	}
 
 	/**
@@ -748,32 +739,28 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	 * @throws GeneralError if the container was not created.
 	 * @internal
 	 */
-	private createContainer(): Container {
-		if (this._container) {
-			return this._container;
-		}
-		const client = new CosmosClient({
-			endpoint: this._config.endpoint,
-			key: this._config.key
-		});
-
-		this._container = client.database(this._config.databaseId).container(this._config.containerId);
-		return this._container;
-	}
-
-	/**
-	 * Creates the CosmosDB container to be used if it doesn't exists in the context yet.
-	 * @returns The existing container.
-	 * @throws GeneralError if the container was not created.
-	 * @internal
-	 */
 	private verifyConditions(
 		conditions: { property: keyof T; value: unknown }[],
 		obj: { [key in keyof T]: unknown }
 	): boolean {
-		return conditions.every(condition => {
-			const { property, value } = condition;
-			return Object.prototype.hasOwnProperty.call(obj, property) && obj[property] === value;
-		});
+		return conditions.every(
+			condition => ObjectHelper.propertyGet(obj, condition.property as string) === condition.value
+		);
+	}
+
+	/**
+	 * Convert an entity to an item.
+	 * @param item The item to convert.
+	 * @returns The entity.
+	 * @internal
+	 */
+	private itemToEntity(item: (ItemDefinition & Resource) | undefined): T {
+		ObjectHelper.propertyDelete(item, "partitionId");
+		ObjectHelper.propertyDelete(item, "_attachments");
+		ObjectHelper.propertyDelete(item, "_etag");
+		ObjectHelper.propertyDelete(item, "_rid");
+		ObjectHelper.propertyDelete(item, "_self");
+		ObjectHelper.propertyDelete(item, "_ts");
+		return item as T;
 	}
 }

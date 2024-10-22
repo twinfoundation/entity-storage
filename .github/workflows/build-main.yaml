@@ -59,18 +59,6 @@ jobs:
             --platform=linux/amd64 --memory=3g --cpus=2.0 \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
 
-      - name: Wait for Emulator to Start
-        run: sleep 10
-      - name: Restore root node_modules from cache
-        id: node-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Wait for CosmosDB Emulator to be Ready
         run: |
           for i in {1..30}; do
@@ -81,6 +69,16 @@ jobs:
             echo "Waiting for CosmosDB emulator to be ready..."
             sleep 5
           done
+
+      - name: Restore root node_modules from cache
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run Lint and Dist
         run: |

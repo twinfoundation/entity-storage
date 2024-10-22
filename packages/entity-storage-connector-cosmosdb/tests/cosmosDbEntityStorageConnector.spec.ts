@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-import { I18n } from "@twin.org/core";
+import { I18n, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -97,7 +97,7 @@ describe("CosmosDbEntityStorageConnector", () => {
 		initSchema();
 	});
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		memoryEntityStorage = new MemoryEntityStorageConnector<LogEntry>({
 			entitySchema: nameof<LogEntry>()
 		});
@@ -111,9 +111,7 @@ describe("CosmosDbEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config
 		});
-		try {
-			await entityStorage.containerDelete();
-		} catch {}
+		await entityStorage.containerDelete();
 	});
 
 	test("can fail to construct when there are no options", async () => {
@@ -166,10 +164,12 @@ describe("CosmosDbEntityStorageConnector", () => {
 		await entityStorage.bootstrap();
 		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(2);
-		expect(logs?.[0].message).toEqual("databaseExists");
-		expect(logs?.[1].message).toEqual("containerExists");
+		expect(logs?.length).toEqual(3);
+		expect(logs?.[0].message).toEqual("databaseCreating");
+		expect(logs?.[1].message).toEqual("databaseExists");
+		expect(logs?.[2].message).toEqual("containerExists");
 
+		expect(I18n.hasMessage("info.cosmosDbEntityStorageConnector.databaseCreating")).toEqual(true);
 		expect(I18n.hasMessage("info.cosmosDbEntityStorageConnector.databaseExists")).toEqual(true);
 		expect(I18n.hasMessage("info.cosmosDbEntityStorageConnector.containerExists")).toEqual(true);
 	});
@@ -206,10 +206,7 @@ describe("CosmosDbEntityStorageConnector", () => {
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can set an item with a condition", async () => {
@@ -229,10 +226,7 @@ describe("CosmosDbEntityStorageConnector", () => {
 		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can set an item to update it", async () => {
@@ -255,10 +249,7 @@ describe("CosmosDbEntityStorageConnector", () => {
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can set an item to update it with a condition", async () => {
@@ -276,17 +267,16 @@ describe("CosmosDbEntityStorageConnector", () => {
 		};
 
 		await entityStorage.set(objectSet);
-		objectSet.value2 = 99;
-		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+
+		const objectUpdate = ObjectHelper.clone(objectSet);
+		objectUpdate.value2 = 99;
+		await entityStorage.set(objectUpdate, [{ property: "value1", value: "aaa" }]);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(objectUpdate);
 	});
 
-	test("can fail set an item to update it with a unmatch condition", async () => {
+	test("can fail set an item to update it with an unmatched condition", async () => {
 		const entityStorage = new CosmosDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
@@ -301,16 +291,14 @@ describe("CosmosDbEntityStorageConnector", () => {
 		};
 
 		await entityStorage.set(objectSet);
-		objectSet.value2 = 99;
+		const objectUpdate = ObjectHelper.clone(objectSet);
+		objectUpdate.value2 = 99;
 
-		await expect(
-			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
-		).rejects.toMatchObject({
-			name: "GeneralError",
-			properties: {
-				id: entityId
-			}
-		});
+		await entityStorage.set(objectUpdate, [{ property: "value1", value: "bbb" }]);
+
+		// Should still have original value set
+		const result = await entityStorage.get(entityId);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can fail to get an item with no id", async () => {
@@ -345,14 +333,12 @@ describe("CosmosDbEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set({ id: "2", value1: "vvv", value2: 35, value3: undefined });
+		const object = { id: "2", value1: "vvv", value2: 35, value3: undefined };
+		await entityStorage.set(object);
 		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("2");
-		expect(item?.value1).toEqual("vvv");
-		expect(item?.value2).toEqual(35);
-		expect(item?.value3).toBeUndefined();
+		expect(item).toEqual(object);
 	});
 
 	test("can get an item by secondary index", async () => {
@@ -363,13 +349,12 @@ describe("CosmosDbEntityStorageConnector", () => {
 
 		await entityStorage.bootstrap();
 		const secondaryValue = "zzz";
-		await entityStorage.set({ id: "300", value1: secondaryValue, value2: 55, value3: undefined });
+		const object = { id: "300", value1: secondaryValue, value2: 55, value3: undefined };
+		await entityStorage.set(object);
 		const item = await entityStorage.get(secondaryValue, "value1");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("300");
-		expect(item?.value1).toEqual("zzz");
-		expect(item?.value2).toEqual(55);
+		expect(item).toEqual(object);
 	});
 
 	test("can fail to remove an item with no id", async () => {
@@ -462,10 +447,12 @@ describe("CosmosDbEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
+		const entry = { id: "1", value1: "aaa", value2: 95, value3: undefined };
+		await entityStorage.set(entry);
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
+		expect(result.entities[0]).toEqual(entry);
 		expect(result.cursor).toBeUndefined();
 	});
 

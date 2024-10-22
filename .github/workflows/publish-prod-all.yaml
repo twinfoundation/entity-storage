@@ -79,8 +79,16 @@ jobs:
             --platform=linux/amd64 --memory=3g --cpus=2.0 \
             mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
 
-      - name: Wait for Emulator to Start
-        run: sleep 10
+      - name: Wait for CosmosDB Emulator to be Ready
+        run: |
+          for i in {1..30}; do
+            if nc -zv localhost 8081; then
+              echo "CosmosDB emulator is ready!"
+              break
+            fi
+            echo "Waiting for CosmosDB emulator to be ready..."
+            sleep 5
+          done
 
       - name: Remove Mono-Repo Node Modules
         run: |
@@ -96,17 +104,6 @@ jobs:
             echo "Error: package version contains -next"
             exit 1
           fi
-
-      - name: Wait for CosmosDB Emulator to be Ready
-        run: |
-          for i in {1..30}; do
-            if nc -zv localhost 8081; then
-              echo "CosmosDB emulator is ready!"
-              break
-            fi
-            echo "Waiting for CosmosDB emulator to be ready..."
-            sleep 5
-          done
 
       - name: Run Dist
         run: |

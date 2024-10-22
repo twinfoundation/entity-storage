@@ -66,6 +66,12 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	private readonly _firestoreClient: Firestore;
 
 	/**
+	 * The Firestore collection.
+	 * @internal
+	 */
+	private readonly _collection: CollectionReference;
+
+	/**
 	 * Create a new instance of FirestoreEntityStorageConnector.
 	 * @param options The options for the connector.
 	 * @param options.entitySchema The schema for the entity.
@@ -109,19 +115,20 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 
 		const firestoreOptions: Settings = {
 			projectId: this._config.projectId,
-			...this._config.settings
+			databaseId: this._config.databaseId,
+			collectionName: this._config.collectionName,
+			maxIdleChannels: this._config.settings?.maxIdleChannels,
+			timeout: this._config.settings?.timeout,
+			credentials
 		};
 
-		if (this._config.endpoint) {
+		if (Is.stringValue(this._config.endpoint)) {
 			firestoreOptions.host = this._config.endpoint;
 			firestoreOptions.ssl = false;
 		}
 
-		if (credentials) {
-			firestoreOptions.credentials = credentials;
-		}
-
 		this._firestoreClient = new Firestore(firestoreOptions);
+		this._collection = this._firestoreClient.collection(this._config.collectionName);
 	}
 
 	/**
@@ -135,6 +142,17 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		);
 
 		try {
+			await nodeLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "firestoreCreating",
+				data: {
+					projectId: this._config.projectId,
+					collectionName: this._config.collectionName
+				}
+			});
+
 			// Firestore doesn't require explicit collection creation
 			// Perform a small write operation to ensure connectivity
 			const testDoc = this._firestoreClient.collection(this._config.collectionName).doc("test");
@@ -145,7 +163,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
-				message: "firestoreConnected",
+				message: "firestoreCreated",
 				data: {
 					projectId: this._config.projectId,
 					collectionName: this._config.collectionName
@@ -158,7 +176,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				level: "error",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
-				message: "firestoreConnectionFailed",
+				message: "firestoreCreationFailed",
 				error: BaseError.fromError(err),
 				data: {
 					projectId: this._config.projectId,
@@ -193,7 +211,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 
 		try {
 			if (!Is.stringValue(secondaryIndex) && !Is.arrayValue(conditions)) {
-				const docRef = this.getCollection().doc(id);
+				const docRef = this._collection.doc(id);
 				const doc = await docRef.get();
 
 				if (doc.exists) {
@@ -202,7 +220,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			}
 
 			// Use secondaryIndex and/or conditions to construct a query
-			let query: Query = this.getCollection();
+			let query: Query = this._collection;
 
 			if (secondaryIndex) {
 				query = query.where(secondaryIndex as string, "==", id);
@@ -211,7 +229,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				query = query.where(this._primaryKey.property as string, "==", id);
 			}
 
-			if (conditions && conditions.length > 0) {
+			if (Is.arrayValue(conditions)) {
 				for (const condition of conditions) {
 					query = query.where(condition.property as string, "==", condition.value);
 				}
@@ -248,7 +266,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				entityCopy.valueArrayFields = valueArrayFields;
 			}
 
-			const docRef = this.getCollection().doc(id);
+			const docRef = this._collection.doc(id);
 
 			if (!Is.arrayValue(conditions)) {
 				await docRef.set(entityCopy as DocumentData);
@@ -271,16 +289,11 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 
 						if (conditionsMet) {
 							transaction.set(docRef, entityCopy as DocumentData);
-						} else {
-							throw new GeneralError(this.CLASS_NAME, "conditionNotMet", { id, conditions });
 						}
 					}
 				});
 			}
 		} catch (err) {
-			if (err instanceof GeneralError) {
-				throw err;
-			}
 			throw new GeneralError(this.CLASS_NAME, "setEntityFailed", { entity }, err);
 		}
 	}
@@ -298,7 +311,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const docRef = this.getCollection().doc(id);
+			const docRef = this._collection.doc(id);
 
 			if (!Is.arrayValue(conditions)) {
 				await docRef.delete();
@@ -306,30 +319,23 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				await this._firestoreClient.runTransaction(async transaction => {
 					const docSnapshot = await transaction.get(docRef);
 
-					if (!docSnapshot.exists) {
-						throw new GeneralError(this.CLASS_NAME, "documentDoesNotExist", { id });
-					}
-
-					const data = docSnapshot.data() as T;
-					let conditionsMet = true;
-					for (const condition of conditions) {
-						if (data[condition.property] !== condition.value) {
-							conditionsMet = false;
-							break;
+					if (docSnapshot.exists) {
+						const data = docSnapshot.data() as T;
+						let conditionsMet = true;
+						for (const condition of conditions) {
+							if (data[condition.property] !== condition.value) {
+								conditionsMet = false;
+								break;
+							}
 						}
-					}
 
-					if (conditionsMet) {
-						transaction.delete(docRef);
-					} else {
-						throw new GeneralError(this.CLASS_NAME, "conditionNotMet", { id, conditions });
+						if (conditionsMet) {
+							transaction.delete(docRef);
+						}
 					}
 				});
 			}
 		} catch (err) {
-			if (err instanceof GeneralError) {
-				throw err;
-			}
 			throw new GeneralError(this.CLASS_NAME, "removeEntityFailed", { id }, err);
 		}
 	}
@@ -362,14 +368,14 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 		const queryDescription: string[] = [];
 
 		try {
-			let query = this.getCollection() as Query;
+			let query = this._collection as Query;
 
 			if (conditions) {
 				query = this.applyConditions(query, conditions);
 				queryDescription.push(`Conditions: ${JSON.stringify(conditions)}`);
 			}
 
-			if (sortProperties) {
+			if (Is.arrayValue(sortProperties)) {
 				for (const { property, sortDirection } of sortProperties) {
 					query = query.orderBy(
 						property as string,
@@ -379,8 +385,8 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 				queryDescription.push(`Sort: ${JSON.stringify(sortProperties)}`);
 			}
 
-			if (cursor) {
-				const cursorDoc = await this._firestoreClient?.doc(cursor).get();
+			if (Is.stringValue(cursor)) {
+				const cursorDoc = await this._firestoreClient.doc(cursor).get();
 				if (cursorDoc?.exists) {
 					query = query.startAfter(cursorDoc);
 				}
@@ -424,7 +430,7 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	 * @internal
 	 */
 	public async collectionDelete(): Promise<void> {
-		const collection = this.getCollection();
+		const collection = this._collection;
 		const batchSize = 500;
 		const query = collection.limit(batchSize);
 
@@ -480,18 +486,6 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	}
 
 	/**
-	 * Get the Firestore collection for this entity.
-	 * @returns The Firestore collection.
-	 * @internal
-	 */
-	private getCollection(): CollectionReference {
-		if (!this._firestoreClient) {
-			throw new GeneralError(this.CLASS_NAME, "firestoreClientNotInitialized");
-		}
-		return this._firestoreClient.collection(this._config.collectionName);
-	}
-
-	/**
 	 * Delete all entities in the collection.
 	 * @returns Nothing.
 	 * @internal
@@ -503,12 +497,12 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 			return;
 		}
 
-		const batch = this._firestoreClient?.batch();
+		const batch = this._firestoreClient.batch();
 		for (const doc of snapshot.docs) {
-			batch?.delete(doc.ref);
+			batch.delete(doc.ref);
 		}
 
-		await batch?.commit();
+		await batch.commit();
 
 		if (snapshot.size === batchSize) {
 			await this.deleteQueryBatch(query, batchSize);

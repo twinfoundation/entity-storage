@@ -605,7 +605,7 @@ describe("ScyllaDBTableConnector", () => {
 		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
-	test("can fail set an item to update it with a unmatch condition", async () => {
+	test("can fail set an item to update it with an unmatched condition", async () => {
 		const entityStorage = new ScyllaDBTableConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: TEST_SCYLLA_CONFIG
