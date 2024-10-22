@@ -12,6 +12,14 @@ The GCP project ID.
 
 ***
 
+### databaseId?
+
+> `optional` **databaseId**: `string`
+
+The database ID, if omitted default database will be used.
+
+***
+
 ### collectionName
 
 > **collectionName**: `string`

@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-import { I18n } from "@twin.org/core";
+import { I18n, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -653,7 +653,7 @@ describe("DynamoDbEntityStorageConnector", () => {
 		expect(result?.value3).toEqual(objectSet.value3);
 	});
 
-	test("can fail set an item to update it with a unmatch condition", async () => {
+	test("can fail set an item to update it with an unmatched condition", async () => {
 		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config: TEST_DYNAMODB_CONFIG
@@ -668,15 +668,13 @@ describe("DynamoDbEntityStorageConnector", () => {
 		};
 
 		await entityStorage.set(objectSet);
-		objectSet.value2 = 99;
 
-		await expect(
-			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
-		).rejects.toMatchObject({
-			name: "GeneralError",
-			properties: {
-				id: entityId
-			}
-		});
+		const objectUpdate = ObjectHelper.clone(objectSet);
+		objectUpdate.value2 = 99;
+
+		await entityStorage.set(objectUpdate, [{ property: "value1", value: "bbb" }]);
+
+		const item = await entityStorage.get(entityId);
+		expect(item).toEqual(objectSet);
 	});
 });

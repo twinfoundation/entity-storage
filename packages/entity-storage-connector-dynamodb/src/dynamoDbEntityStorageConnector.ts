@@ -416,6 +416,10 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 			await docClient.send(putCommand);
 		} catch (err) {
+			if (BaseError.isErrorName(err, "ConditionalCheckFailedException")) {
+				return;
+			}
+
 			if (BaseError.isErrorCode(err, "ResourceNotFoundException")) {
 				throw new GeneralError(
 					this.CLASS_NAME,

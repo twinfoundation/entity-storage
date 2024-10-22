@@ -1,12 +1,13 @@
 {
 	"info": {
 		"firestoreEntityStorageConnector": {
-			"firestoreConnected": "Connected to Firestore"
+			"firestoreCreating": "Creating Firestore",
+			"firestoreCreated": "Created Firestore"
 		}
 	},
 	"error": {
 		"firestoreEntityStorageConnector": {
-			"firestoreConnectionFailed": "Failed to connect to Firestore",
+			"firestoreCreationFailed": "Failed to connect to Firestore",
 			"setEntityFailed": "Failed to set entity \"{id}\"",
 			"getEntityFailed": "Failed to get entity \"{id}\"",
 			"removeEntityFailed": "Failed to remove entity \"{id}\"",
@@ -16,7 +17,6 @@
 			"firestoreClientNotInitialized": "Firestore client not initialized",
 			"undefinedProperty": "Property \"{key}\" is undefined. Firestore does not support undefined values.",
 			"missingProjectId": "Project ID is required",
-			"conditionNotMet": "The specified conditions were not met for document {id, conditions}.",
 			"documentDoesNotExist": "The document with id {id} does not exist."
 		}
 	}

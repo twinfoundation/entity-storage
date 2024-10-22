@@ -11,6 +11,11 @@ export interface IFirestoreEntityStorageConnectorConfig {
 	projectId: string;
 
 	/**
+	 * The database ID, if omitted default database will be used.
+	 */
+	databaseId?: string;
+
+	/**
 	 * The name of the collection for the storage.
 	 */
 	collectionName: string;

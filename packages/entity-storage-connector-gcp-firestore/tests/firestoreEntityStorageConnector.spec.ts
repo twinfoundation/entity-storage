@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-import { I18n } from "@twin.org/core";
+import { I18n, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -182,12 +182,12 @@ describe("FirestoreEntityStorageConnector", () => {
 	test("can construct and bootstrap", async () => {
 		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
-		expect(logs?.length).toEqual(1);
-		expect(logs?.[0].message).toEqual("firestoreConnected");
+		expect(logs?.length).toEqual(2);
+		expect(logs?.[0].message).toEqual("firestoreCreating");
+		expect(logs?.[1].message).toEqual("firestoreCreated");
 
-		expect(I18n.hasMessage("info.firestoreEntityStorageConnector.firestoreConnected")).toEqual(
-			true
-		);
+		expect(I18n.hasMessage("info.firestoreEntityStorageConnector.firestoreCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.firestoreEntityStorageConnector.firestoreCreated")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
@@ -212,10 +212,7 @@ describe("FirestoreEntityStorageConnector", () => {
 		await entityStorage.set(objectSet);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can set an item to update it with a condition", async () => {
@@ -229,14 +226,12 @@ describe("FirestoreEntityStorageConnector", () => {
 
 		await entityStorage.set(objectSet);
 
-		objectSet.value2 = 99;
-		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+		const updateSet = ObjectHelper.clone(objectSet);
+		updateSet.value2 = 99;
+		await entityStorage.set(updateSet, [{ property: "value1", value: "aaa" }]);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(updateSet);
 	});
 
 	test("can fail to set an item with conditions not met", async () => {
@@ -246,19 +241,15 @@ describe("FirestoreEntityStorageConnector", () => {
 			value1: "aaa",
 			value2: 35
 		};
+
 		await entityStorage.set(objectSet);
 
-		objectSet.value2 = 99;
-		await expect(
-			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
-		).rejects.toMatchObject({
-			name: "GeneralError",
-			message: "firestoreEntityStorageConnector.conditionNotMet",
-			properties: {
-				id: entityId,
-				conditions: [{ property: "value1", value: "bbb" }]
-			}
-		});
+		const updateSet = ObjectHelper.clone(objectSet);
+		updateSet.value2 = 99;
+		await entityStorage.set(updateSet, [{ property: "value1", value: "bbb" }]);
+
+		const result = await entityStorage.get(entityId);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can set an item with conditions met", async () => {
@@ -270,11 +261,12 @@ describe("FirestoreEntityStorageConnector", () => {
 		};
 		await entityStorage.set(objectSet);
 
-		objectSet.value2 = 99;
-		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+		const updateSet = ObjectHelper.clone(objectSet);
+		updateSet.value2 = 99;
+		await entityStorage.set(updateSet, [{ property: "value1", value: "aaa" }]);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.value2).toEqual(99);
+		expect(result).toEqual(updateSet);
 	});
 
 	test("can set an item to update it", async () => {
@@ -287,14 +279,12 @@ describe("FirestoreEntityStorageConnector", () => {
 		};
 		await entityStorage.set(objectSet);
 
-		objectSet.value2 = 99;
-		await entityStorage.set(objectSet);
+		const updateSet = ObjectHelper.clone(objectSet);
+		updateSet.value2 = 99;
+		await entityStorage.set(updateSet);
 
 		const result = await entityStorage.get(entityId);
-		expect(result?.id).toEqual(objectSet.id);
-		expect(result?.value1).toEqual(objectSet.value1);
-		expect(result?.value2).toEqual(objectSet.value2);
-		expect(result?.value3).toEqual(objectSet.value3);
+		expect(result).toEqual(updateSet);
 	});
 
 	test("can fail to update an item with a condition", async () => {
@@ -308,19 +298,12 @@ describe("FirestoreEntityStorageConnector", () => {
 
 		await entityStorage.set(objectSet);
 
-		objectSet.value2 = 99;
-		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
+		const updateSet = ObjectHelper.clone(objectSet);
+		updateSet.value2 = 99;
+		await entityStorage.set(updateSet, [{ property: "value1", value: "bbb" }]);
 
-		await expect(
-			entityStorage.set(objectSet, [{ property: "value1", value: "bbb" }])
-		).rejects.toMatchObject({
-			name: "GeneralError",
-			message: expect.stringContaining("conditionNotMet"),
-			properties: {
-				id: entityId,
-				conditions: [{ property: "value1", value: "bbb" }]
-			}
-		});
+		const result = await entityStorage.get(entityId);
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can fail to get an item with no id", async () => {
@@ -341,43 +324,40 @@ describe("FirestoreEntityStorageConnector", () => {
 	});
 
 	test("can get an item", async () => {
-		await entityStorage.set({ id: "2", value1: "vvv", value2: 35 });
+		const objectSet = { id: "2", value1: "vvv", value2: 35 };
+		await entityStorage.set(objectSet);
 		const item = await entityStorage.get("2");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("2");
-		expect(item?.value1).toEqual("vvv");
-		expect(item?.value2).toEqual(35);
-		expect(item?.value3).toBeUndefined();
+		expect(item).toEqual(objectSet);
 	});
 
 	test("can get an item using secondary index", async () => {
-		await entityStorage.set({ id: "2", value1: "vvv", value2: 35 });
+		const objectSet = { id: "2", value1: "vvv", value2: 35 };
+		await entityStorage.set(objectSet);
 
 		const item = await entityStorage.get("vvv", "value1");
 
 		expect(item).toBeDefined();
-		expect(item?.id).toEqual("2");
-		expect(item?.value1).toEqual("vvv");
-		expect(item?.value2).toEqual(35);
+		expect(item).toEqual(objectSet);
 	});
 
 	test("can get an item with conditions met", async () => {
-		const entityId = "1";
-		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+		const objectSet = { id: "1", value1: "aaa", value2: 35 };
+		await entityStorage.set(objectSet);
 
-		const result = await entityStorage.get(entityId, undefined, [
+		const result = await entityStorage.get(objectSet.id, undefined, [
 			{ property: "value1", value: "aaa" }
 		]);
 		expect(result).toBeDefined();
-		expect(result?.value1).toEqual("aaa");
+		expect(result).toEqual(objectSet);
 	});
 
 	test("can fail to get an item with conditions not met", async () => {
-		const entityId = "1";
-		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
+		const objectSet = { id: "1", value1: "aaa", value2: 35 };
+		await entityStorage.set(objectSet);
 
-		const result = await entityStorage.get(entityId, "value1", [
+		const result = await entityStorage.get(objectSet.id, "value1", [
 			{ property: "value1", value: "bbb" }
 		]);
 		expect(result).toBeUndefined();
@@ -416,16 +396,7 @@ describe("FirestoreEntityStorageConnector", () => {
 		await entityStorage.set({ id: entityId, value1: "aaa", value2: 35 });
 
 		// Try to remove with a condition that value1 is "bbb" (which is not true)
-		await expect(
-			entityStorage.remove(entityId, [{ property: "value1", value: "bbb" }])
-		).rejects.toMatchObject({
-			name: "GeneralError",
-			message: "firestoreEntityStorageConnector.conditionNotMet",
-			properties: {
-				id: entityId,
-				conditions: [{ property: "value1", value: "bbb" }]
-			}
-		});
+		await entityStorage.remove(entityId, [{ property: "value1", value: "bbb" }]);
 
 		// The document should still exist
 		const result = await entityStorage.get(entityId);
@@ -452,10 +423,12 @@ describe("FirestoreEntityStorageConnector", () => {
 	});
 
 	test("can find items with single entry", async () => {
-		await entityStorage.set({ id: "1", value1: "aaa", value2: 95 });
+		const objectSet = { id: "1", value1: "aaa", value2: 95 };
+		await entityStorage.set(objectSet);
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(1);
+		expect(result.entities[0]).toEqual(objectSet);
 		expect(result.cursor).toBeUndefined();
 	});
 
