@@ -161,6 +161,7 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 		const entities = [];
 		const finalPageSize = pageSize ?? MemoryEntityStorageConnector._DEFAULT_PAGE_SIZE;
 		let nextCursor: string | undefined;
+
 		if (allEntities.length > 0) {
 			const finalSortKeys = EntitySchemaHelper.buildSortProperties<T>(
 				this._entitySchema,
@@ -174,7 +175,10 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 				if (EntityConditions.check(allEntities[i], conditions) && entities.length < finalPageSize) {
 					entities.push(ObjectHelper.pick(allEntities[i], properties));
 					if (entities.length >= finalPageSize) {
-						nextCursor = (i + 1).toString();
+						if (i < allEntities.length - 1) {
+							nextCursor = (i + 1).toString();
+						}
+						break;
 					}
 				}
 			}

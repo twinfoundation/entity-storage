@@ -335,6 +335,17 @@ describe("MemoryEntityStorageConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
+	test("can find items with single entry and single page with no resulting cursor", async () => {
+		const entityStorage = new MemoryEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>()
+		});
+		await entityStorage.set({ id: "1", value1: "aaa", value2: 95, value3: undefined });
+		const result = await entityStorage.query(undefined, undefined, undefined, undefined, 1);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.cursor).toBeUndefined();
+	});
+
 	test("can find items with multiple entries", async () => {
 		const entityStorage = new MemoryEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>()

@@ -249,7 +249,10 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 				if (EntityConditions.check(allEntities[i], conditions) && entities.length < finalPageSize) {
 					entities.push(ObjectHelper.pick(allEntities[i], properties));
 					if (entities.length >= finalPageSize) {
-						nextCursor = (i + 1).toString();
+						if (i < allEntities.length - 1) {
+							nextCursor = (i + 1).toString();
+						}
+						break;
 					}
 				}
 			}

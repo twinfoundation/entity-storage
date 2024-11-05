@@ -454,6 +454,19 @@ describe("FileEntityStorageConnector", () => {
 		expect(result.cursor).toBeUndefined();
 	});
 
+	test("can find items with single entry and single page with no resulting cursor", async () => {
+		const entityStorage = new FileEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: { directory: TEST_DIRECTORY }
+		});
+		await entityStorage.bootstrap();
+		await entityStorage.set({ id: "1", value1: "aaa", value2: "bbb" });
+		const result = await entityStorage.query(undefined, undefined, undefined, undefined, 1);
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.cursor).toBeUndefined();
+	});
+
 	test("can query items with multiple entries", async () => {
 		const entityStorage = new FileEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
