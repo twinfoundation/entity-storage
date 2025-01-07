@@ -14,7 +14,7 @@ import {
 	type IEntityStorageConnector
 } from "@twin.org/entity-storage-models";
 import { nameof } from "@twin.org/nameof";
-import type { IEntityStorageConfig } from "./models/IEntityStorageConfig";
+import type { IEntityStorageServiceConstructorOptions } from "./models/IEntityStorageServiceConstructorOptions";
 
 /**
  * Class for performing entity service operations.
@@ -47,10 +47,8 @@ export class EntityStorageService<T = any> implements IEntityStorageComponent<T>
 	/**
 	 * Create a new instance of EntityStorageService.
 	 * @param options The dependencies for the entity storage service.
-	 * @param options.config The configuration for the service.
-	 * @param options.entityStorageType The entity storage type.
 	 */
-	constructor(options: { entityStorageType: string; config?: IEntityStorageConfig }) {
+	constructor(options: IEntityStorageServiceConstructorOptions) {
 		Guards.string(this.CLASS_NAME, nameof(options.entityStorageType), options.entityStorageType);
 		this._entityStorage = EntityStorageConnectorFactory.get<IEntityStorageConnector<T>>(
 			options.entityStorageType

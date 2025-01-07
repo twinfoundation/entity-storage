@@ -6,7 +6,7 @@ import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
-import type { IScyllaDBViewConfig } from "./models/IScyllaDBViewConfig";
+import type { IScyllaDBViewConnectorConstructorOptions } from "./models/IScyllaDBViewConnectorConstructorOptions";
 
 /**
  * Manage entities using ScyllaDB Views.
@@ -35,17 +35,8 @@ export class ScyllaDBViewConnector<T>
 	/**
 	 * Create a new instance of ScyllaDBViewConnector.
 	 * @param options The options for the connector.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
-	 * @param options.entitySchema The name of the entity schema.
-	 * @param options.viewSchema The name of the view schema.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		loggingConnectorType?: string;
-		entitySchema: string;
-		viewSchema: string;
-		config: IScyllaDBViewConfig;
-	}) {
+	constructor(options: IScyllaDBViewConnectorConstructorOptions) {
 		// We need this conversion so that types can match in the superclass and reuse the get method
 		super(
 			{

@@ -17,7 +17,7 @@ import {
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import type { IFileEntityStorageConnectorConfig } from "./models/IFileEntityStorageConnectorConfig";
+import type { IFileEntityStorageConnectorConstructorOptions } from "./models/IFileEntityStorageConnectorConstructorOptions";
 
 /**
  * Class for performing entity storage operations in file.
@@ -55,10 +55,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	/**
 	 * Create a new instance of FileEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.entitySchema The name of the entity schema.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: { entitySchema: string; config: IFileEntityStorageConnectorConfig }) {
+	constructor(options: IFileEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object(this.CLASS_NAME, nameof(options.config), options.config);

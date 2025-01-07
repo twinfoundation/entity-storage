@@ -40,6 +40,7 @@ import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IDynamoDbEntityStorageConnectorConfig } from "./models/IDynamoDbEntityStorageConnectorConfig";
+import type { IDynamoDbEntityStorageConnectorConstructorOptions } from "./models/IDynamoDbEntityStorageConnectorConstructorOptions";
 
 /**
  * Class for performing entity storage operations using Dynamo DB.
@@ -89,15 +90,8 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Create a new instance of DynamoDbEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.entitySchema The schema for the entity.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to no logging.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		entitySchema: string;
-		loggingConnectorType?: string;
-		config: IDynamoDbEntityStorageConnectorConfig;
-	}) {
+	constructor(options: IDynamoDbEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object<IDynamoDbEntityStorageConnectorConfig>(

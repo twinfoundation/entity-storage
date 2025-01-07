@@ -24,6 +24,7 @@ import { nameof } from "@twin.org/nameof";
 import type { JWTInput } from "google-auth-library";
 import type { IEntityWithIndexing } from "./models/IEntityWithIndexing";
 import type { IFirestoreEntityStorageConnectorConfig } from "./models/IFirestoreEntityStorageConnectorConfig";
+import type { IFirestoreEntityStorageConnectorConstructorOptions } from "./models/IFirestoreEntityStorageConnectorConstructorOptions";
 import type { IValueType } from "./models/IValueType";
 
 /**
@@ -74,15 +75,8 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	/**
 	 * Create a new instance of FirestoreEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.entitySchema The schema for the entity.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to no logging.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		entitySchema: string;
-		loggingConnectorType?: string;
-		config: IFirestoreEntityStorageConnectorConfig;
-	}) {
+	constructor(options: IFirestoreEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object<IFirestoreEntityStorageConnectorConfig>(

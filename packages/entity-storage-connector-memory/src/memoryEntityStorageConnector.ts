@@ -14,6 +14,7 @@ import {
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { nameof } from "@twin.org/nameof";
+import type { IMemoryEntityStorageConnectorConstructorOptions } from "./models/IMemoryEntityStorageConnectorConstructorOptions";
 
 /**
  * Class for performing entity storage operations in-memory.
@@ -51,9 +52,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	/**
 	 * Create a new instance of MemoryEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.entitySchema The schema for the entity.
 	 */
-	constructor(options: { entitySchema: string }) {
+	constructor(options: IMemoryEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);

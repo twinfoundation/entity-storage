@@ -28,6 +28,7 @@ import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { ICosmosDbEntityStorageConnectorConfig } from "./models/ICosmosDbEntityStorageConnectorConfig";
+import type { ICosmosDbEntityStorageConnectorConstructorOptions } from "./models/ICosmosDbEntityStorageConnectorConstructorOptions";
 
 /**
  * Class for performing entity storage operations using Cosmos DB.
@@ -95,15 +96,8 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	/**
 	 * Create a new instance of CosmosDbEntityStorageConnector.
 	 * @param options The options for the connector.
-	 * @param options.entitySchema The schema for the entity.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to no logging.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		entitySchema: string;
-		loggingConnectorType?: string;
-		config: ICosmosDbEntityStorageConnectorConfig;
-	}) {
+	constructor(options: ICosmosDbEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
 		Guards.object<ICosmosDbEntityStorageConnectorConfig>(

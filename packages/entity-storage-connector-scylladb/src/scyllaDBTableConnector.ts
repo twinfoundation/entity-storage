@@ -11,7 +11,7 @@ import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import { AbstractScyllaDBConnector } from "./abstractScyllaDBConnector";
-import type { IScyllaDBTableConfig } from "./models/IScyllaDBTableConfig";
+import type { IScyllaDBTableConnectorConstructorOptions } from "./models/IScyllaDBTableConnectorConstructorOptions";
 
 /**
  * Store entities using ScyllaDB.
@@ -28,15 +28,8 @@ export class ScyllaDBTableConnector<T = unknown>
 	/**
 	 * Create a new instance of ScyllaDBTableConnector.
 	 * @param options The options for the connector.
-	 * @param options.loggingConnectorType The type of logging connector to use, defaults to "logging".
-	 * @param options.entitySchema The name of the entity schema.
-	 * @param options.config The configuration for the connector.
 	 */
-	constructor(options: {
-		loggingConnectorType?: string;
-		entitySchema: string;
-		config: IScyllaDBTableConfig;
-	}) {
+	constructor(options: IScyllaDBTableConnectorConstructorOptions) {
 		super(options, nameof(ScyllaDBTableConnector));
 	}
 
