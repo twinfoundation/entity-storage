@@ -728,9 +728,8 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	}
 
 	/**
-	 * Creates the CosmosDB container to be used if it doesn't exists in the context yet.
-	 * @returns The existing container.
-	 * @throws GeneralError if the container was not created.
+	 * Verify the conditions for the entity.
+	 * @param conditions The conditions to verify.
 	 * @internal
 	 */
 	private verifyConditions(

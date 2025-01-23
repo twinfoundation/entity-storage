@@ -1,6 +1,6 @@
-# Class: MySqlEntityStorageConnector\<T\>
+# Class: MemoryEntityStorageConnector\<T\>
 
-Class for performing entity storage operations using MySql.
+Class for performing entity storage operations in-memory.
 
 ## Type Parameters
 
@@ -12,23 +12,23 @@ Class for performing entity storage operations using MySql.
 
 ## Constructors
 
-### new MySqlEntityStorageConnector()
+### new MemoryEntityStorageConnector()
 
-> **new MySqlEntityStorageConnector**\<`T`\>(`options`): [`MySqlEntityStorageConnector`](MySqlEntityStorageConnector.md)\<`T`\>
+> **new MemoryEntityStorageConnector**\<`T`\>(`options`): [`MemoryEntityStorageConnector`](MemoryEntityStorageConnector.md)\<`T`\>
 
-Create a new instance of MySqlEntityStorageConnector.
+Create a new instance of MemoryEntityStorageConnector.
 
 #### Parameters
 
 ##### options
 
-[`IMySqlEntityStorageConnectorConstructorOptions`](../interfaces/IMySqlEntityStorageConnectorConstructorOptions.md)
+[`IMemoryEntityStorageConnectorConstructorOptions`](../interfaces/IMemoryEntityStorageConnectorConstructorOptions.md)
 
 The options for the connector.
 
 #### Returns
 
-[`MySqlEntityStorageConnector`](MySqlEntityStorageConnector.md)\<`T`\>
+[`MemoryEntityStorageConnector`](MemoryEntityStorageConnector.md)\<`T`\>
 
 ## Properties
 
@@ -43,32 +43,6 @@ Runtime name for the class.
 `IEntityStorageConnector.CLASS_NAME`
 
 ## Methods
-
-### bootstrap()
-
-> **bootstrap**(`nodeLoggingConnectorType`?): `Promise`\<`boolean`\>
-
-Initialize the MySql environment.
-
-#### Parameters
-
-##### nodeLoggingConnectorType?
-
-`string`
-
-Optional type of the logging connector.
-
-#### Returns
-
-`Promise`\<`boolean`\>
-
-A promise that resolves to a boolean indicating success.
-
-#### Implementation of
-
-`IEntityStorageConnector.bootstrap`
-
-***
 
 ### getSchema()
 
@@ -92,7 +66,7 @@ The schema for the entities.
 
 > **get**(`id`, `secondaryIndex`?, `conditions`?): `Promise`\<`undefined` \| `T`\>
 
-Get an entity from MySql.
+Get an entity.
 
 #### Parameters
 
@@ -241,14 +215,14 @@ and a cursor which can be used to request more entities.
 
 ***
 
-### tableDrop()
+### getStore()
 
-> **tableDrop**(): `Promise`\<`void`\>
+> **getStore**(): `T`[]
 
-Drop the table.
+Get the memory store.
 
 #### Returns
 
-`Promise`\<`void`\>
+`T`[]
 
-Nothing.
+The store.

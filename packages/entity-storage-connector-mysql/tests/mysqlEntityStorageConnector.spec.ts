@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
-import { I18n, ObjectHelper } from "@twin.org/core";
+import { GeneralError, I18n, ObjectHelper } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -106,7 +106,14 @@ describe("MySqlEntityStorageConnector", () => {
 		LoggingConnectorFactory.register("node-logging", () => new EntityStorageLoggingConnector());
 	});
 
-	afterEach(async () => {});
+	afterEach(async () => {
+		const entityStorage = new MySqlEntityStorageConnector({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		await entityStorage.tableDrop();
+	});
 
 	test("can fail to construct when there are no options", async () => {
 		expect(
@@ -184,6 +191,27 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 	});
 
+	test("can fail to set an item with an entity that do not match the table", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const entityId = "1";
+		const objectSet = {
+			id: entityId,
+			value1: "aaa",
+			value2: 35
+		};
+
+		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
+			new GeneralError("MySqlEntityStorageConnector", "invalidEntity", {
+				entity: objectSet,
+				entitySchema: entityStorage.getSchema()
+			})
+		);
+	});
+
 	test("can set an item", async () => {
 		const entityStorage = new MySqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
@@ -195,7 +223,18 @@ describe("MySqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
 		};
 
 		await entityStorage.set(objectSet);
@@ -215,7 +254,18 @@ describe("MySqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
 		};
 
 		await entityStorage.set(objectSet, [{ property: "value1", value: "aaa" }]);
@@ -236,7 +286,18 @@ describe("MySqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
 		};
 		await entityStorage.set(objectSet);
 
@@ -258,7 +319,18 @@ describe("MySqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
 		};
 
 		await entityStorage.set(objectSet);
@@ -282,7 +354,18 @@ describe("MySqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() }
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
 		};
 
 		await entityStorage.set(objectSet);
@@ -328,7 +411,23 @@ describe("MySqlEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		const object = { id: "2", value1: "vvv", value2: 35, value3: undefined };
+		const object = {
+			id: "2",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
 		await entityStorage.set(object);
 		const item = await entityStorage.get("2");
 
@@ -344,7 +443,23 @@ describe("MySqlEntityStorageConnector", () => {
 
 		await entityStorage.bootstrap();
 		const secondaryValue = "zzz";
-		const object = { id: "300", value1: secondaryValue, value2: 55, value3: undefined };
+		const object = {
+			id: "2",
+			value1: "zzz",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
 		await entityStorage.set(object);
 		const item = await entityStorage.get(secondaryValue, "value1");
 
@@ -375,7 +490,24 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 
-		await entityStorage.set({ id: "10001", value1: "aaa", value2: 5555, value3: undefined });
+		const object = {
+			id: "2",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
+		await entityStorage.set(object);
 
 		const idToRemove = "1000999";
 		await entityStorage.remove(idToRemove);
@@ -389,7 +521,24 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const idToRemove = "65432";
-		await entityStorage.set({ id: idToRemove, value1: "aaa", value2: 99, value3: undefined });
+		const object = {
+			id: "65432",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
+		await entityStorage.set(object);
 		await entityStorage.remove(idToRemove);
 
 		const result = await entityStorage.get(idToRemove);
@@ -403,7 +552,24 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 
 		await entityStorage.bootstrap();
-		await entityStorage.set({ id: "1", value1: "aaa", value2: 99, value3: undefined });
+		const object = {
+			id: "1",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
+		await entityStorage.set(object);
 		await entityStorage.remove("1", [{ property: "value1", value: "aaa1" }]);
 
 		const result = await entityStorage.get("1");
@@ -417,7 +583,24 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 
 		await entityStorage.bootstrap();
-		await entityStorage.set({ id: "1", value1: "aaa", value2: 99, value3: undefined });
+		const object = {
+			id: "1",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
+		await entityStorage.set(object);
 		await entityStorage.remove("1", [{ property: "value1", value: "aaa" }]);
 
 		const result = await entityStorage.get("1");
@@ -442,7 +625,23 @@ describe("MySqlEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		const entry = { id: "1", value1: "aaa", value2: 95, value3: undefined };
+		const entry = {
+			id: "1",
+			value1: "aaa",
+			value2: 35,
+			value3: { field1: new Date().toISOString() },
+			valueObject: {
+				"1": {
+					value: "bob"
+				}
+			},
+			valueArray: [
+				{
+					field: "name",
+					value: "bob"
+				}
+			]
+		};
 		await entityStorage.set(entry);
 		const result = await entityStorage.query();
 		expect(result).toBeDefined();
@@ -462,7 +661,18 @@ describe("MySqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 999,
-				value3: undefined
+				value3: undefined,
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		const result = await entityStorage.query();
@@ -481,7 +691,18 @@ describe("MySqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 5555,
-				value3: undefined
+				value3: undefined,
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		const result = await entityStorage.query();
@@ -502,7 +723,18 @@ describe("MySqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: { field1: new Date().toISOString() }
+				value3: { field1: new Date().toISOString() },
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 
@@ -528,7 +760,18 @@ describe("MySqlEntityStorageConnector", () => {
 				id: (30 - i).toString(),
 				value1: (30 - i).toString(),
 				value2: 7777,
-				value3: undefined
+				value3: undefined,
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		const result = await entityStorage.query(
@@ -548,6 +791,7 @@ describe("MySqlEntityStorageConnector", () => {
 				}
 			]
 		);
+
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(2);
 		expect(result.entities[0].value1).toEqual("20");
@@ -565,7 +809,18 @@ describe("MySqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined
+				value3: undefined,
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		const result = await entityStorage.query(undefined, undefined, ["id", "value1"]);
@@ -591,7 +846,13 @@ describe("MySqlEntityStorageConnector", () => {
 					name: {
 						value: "bob"
 					}
-				}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		for (let i = 0; i < 5; i++) {
@@ -604,7 +865,13 @@ describe("MySqlEntityStorageConnector", () => {
 					name: {
 						value: "fred"
 					}
-				}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
 			});
 		}
 		const result = await entityStorage.query({
@@ -628,6 +895,11 @@ describe("MySqlEntityStorageConnector", () => {
 				value1: "aaa",
 				value2: 7777,
 				value3: undefined,
+				valueObject: {
+					name: {
+						value: "fred"
+					}
+				},
 				valueArray: [
 					{
 						field: "name",
@@ -642,6 +914,11 @@ describe("MySqlEntityStorageConnector", () => {
 				value1: "aaa",
 				value2: 7777,
 				value3: undefined,
+				valueObject: {
+					name: {
+						value: "fred"
+					}
+				},
 				valueArray: [
 					{
 						field: "name",

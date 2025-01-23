@@ -1,11 +1,15 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BaseError, GeneralError, Guards } from "@twin.org/core";
+import { BaseError, GeneralError, Guards, Is, ObjectHelper } from "@twin.org/core";
 import {
+	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
+	type EntitySchemaPropertyType,
+	type IComparator,
 	type IEntitySchema,
-	type SortDirection
+	LogicalOperator,
+	SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
@@ -23,24 +27,6 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @internal
 	 */
 	private static readonly _PAGE_SIZE: number = 40;
-
-	/**
-	 * Partition id field name.
-	 * @internal
-	 */
-	private static readonly _PARTITION_ID_NAME: string = "partitionId";
-
-	/**
-	 * Partition id field path.
-	 * @internal
-	 */
-	private static readonly _PARTITION_ID_PATH: string = "/partitionId";
-
-	/**
-	 * Partition id field value.
-	 * @internal
-	 */
-	private static readonly _PARTITION_ID_VALUE: string = "1";
 
 	/**
 	 * Runtime name for the class.
@@ -132,7 +118,9 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 
-			await this._client.query(`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapSqlProperties(this._entitySchema)})`);
+			await this._client.query(
+				`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapMySqlProperties(this._entitySchema)})`
+			);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -184,6 +172,46 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		conditions?: { property: keyof T; value: unknown }[]
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
+
+		try {
+			if (!this._client) {
+				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
+			}
+
+			const whereClauses: string[] = [];
+			const values: unknown[] = [];
+
+			if (secondaryIndex) {
+				whereClauses.push(`\`${String(secondaryIndex)}\` = ?`);
+				values.push(id);
+			} else {
+				whereClauses.push("`id` = ?");
+				values.push(id);
+			}
+
+			if (conditions) {
+				for (const condition of conditions) {
+					whereClauses.push(`\`${String(condition.property)}\` = ?`);
+					values.push(condition.value);
+				}
+			}
+
+			const query = `SELECT * FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
+			const [rows] = await this._client.query(query, values);
+
+			if (Array.isArray(rows) && rows.length === 1) {
+				return rows[0] as T;
+			}
+		} catch (err) {
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"getFailed",
+				{
+					id
+				},
+				err
+			);
+		}
 		return undefined;
 	}
 
@@ -196,28 +224,34 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
+		// Validate that the entity matches the schema
+		this.entitySqlVerification(entity);
 		const id = entity["id" as keyof T] as unknown as string;
 
 		try {
-			const columns = Object.keys(entity as object).map(key => `\`${key}\``).join(", ");
+			if (Is.arrayValue(conditions)) {
+				const itemData = await this.get(id);
+				if (Is.notEmpty(itemData) && !this.verifyConditions(conditions, itemData as T)) {
+					return;
+				}
+			}
+			const columns = Object.keys(entity as object)
+				.map(key => `\`${key}\``)
+				.join(", ");
 			const values = Object.values(entity as object);
 			const placeholders = values.map(() => "?").join(", ");
 
 			if (!this._client) {
 				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
 			}
-			const queryResponse = await this._client.query(
+			await this._client.query(
 				`INSERT INTO \`${this._config.database}\`.\`${this._config.table}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
 					.split(", ")
 					.map(col => `${col} = VALUES(${col})`)
 					.join(", ")};`,
-				values
+				values.map(value => (typeof value === "object" ? JSON.stringify(value) : value))
 			);
-			// eslint-disable-next-line no-console
-			console.log(queryResponse);
 		} catch (err) {
-			// eslint-disable-next-line no-console
-			console.log(err);
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"setFailed",
@@ -241,7 +275,30 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	): Promise<void> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
-		return undefined;
+		try {
+			if (!this._client) {
+				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
+			}
+
+			const itemData = await this.get(id);
+			if (Is.notEmpty(itemData)) {
+				if (Is.arrayValue(conditions) && !this.verifyConditions(conditions, itemData as T)) {
+					return;
+				}
+
+				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?`;
+				await this._client.query(query, [id]);
+			}
+		} catch (err) {
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"removeFailed",
+				{
+					id
+				},
+				err
+			);
+		}
 	}
 
 	/**
@@ -261,16 +318,230 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		cursor?: string,
 		pageSize?: number
 	): Promise<{ entities: Partial<T>[]; cursor?: string }> {
-		return { entities: [] };
+		const sql = "";
+		try {
+			const returnSize = pageSize ?? MySqlEntityStorageConnector._PAGE_SIZE;
+
+			let orderByClause: string = "";
+			if (Array.isArray(sortProperties)) {
+				if (sortProperties.length > 1) {
+					throw new GeneralError(this.CLASS_NAME, "sortSingle");
+				}
+				for (const sortProperty of sortProperties) {
+					const propertySchema = this._entitySchema.properties?.find(
+						e => e.property === sortProperty.property
+					);
+					if (
+						!propertySchema ||
+						(!propertySchema.isPrimary &&
+							!propertySchema.isSecondary &&
+							!propertySchema.sortDirection)
+					) {
+						throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
+							property: sortProperty.property
+						});
+					}
+					const direction = sortProperty.sortDirection === SortDirection.Ascending ? "ASC" : "DESC";
+					orderByClause = `ORDER BY \`${String(sortProperty.property)}\` ${direction}`;
+				}
+			}
+
+			const whereClauses: string[] = [];
+			const values: unknown[] = [];
+
+			if (conditions) {
+				this.buildQueryParameters("", conditions, whereClauses, values);
+			}
+
+			const query = `SELECT ${properties ? properties.map(p => `\`${String(p)}\``).join(", ") : "*"} FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.length > 0 ? whereClauses.join(" AND ") : "1"} ${orderByClause} LIMIT ${returnSize} OFFSET ${cursor ? Number(cursor) : 0}`;
+			const [rows] = (await this._client?.query(query, values)) ?? [];
+
+			return {
+				entities: rows as Partial<T>[],
+				cursor:
+					Array.isArray(rows) && rows.length === returnSize
+						? String((cursor ? Number(cursor) : 0) + returnSize)
+						: undefined
+			};
+		} catch (err) {
+			throw new GeneralError(this.CLASS_NAME, "queryFailed", { sql }, err);
+		}
 	}
 
-	// eslint-disable-next-line jsdoc/require-throws
+	/**
+	 * Drop the table.
+	 * @returns Nothing.
+	 */
+	public async tableDrop(): Promise<void> {
+		try {
+			await this._client?.query(
+				`DROP TABLE \`${this._config.database}\`.\`${this._config.table}\`;`
+			);
+		} catch {
+			// Ignore errors
+		}
+	}
+
+	/**
+	 * Create an SQL condition clause.
+	 * @param objectPath The path for the nested object.
+	 * @param condition The conditions to create the query from.
+	 * @param whereClauses The where clauses to use in the query.
+	 * @param values The values to use in the query.
+	 * @internal
+	 */
+	private buildQueryParameters(
+		objectPath: string,
+		condition: EntityCondition<T> | undefined,
+		whereClauses: string[],
+		values: unknown[]
+	): void {
+		if (Is.undefined(condition)) {
+			return;
+		}
+
+		if ("conditions" in condition) {
+			if (condition.conditions.length === 0) {
+				return;
+			}
+			const joinConditions: string[] = condition.conditions.map(c => {
+				const subWhereClauses: string[] = [];
+				const subValues: unknown[] = [];
+				this.buildQueryParameters(objectPath, c, subWhereClauses, subValues);
+				values.push(...subValues);
+				return subWhereClauses.join(" AND ");
+			});
+
+			const logicalOperator = this.mapConditionalOperator(condition.logicalOperator);
+			const queryClause = joinConditions.filter(j => j.length > 0).join(` ${logicalOperator} `);
+
+			if (queryClause.length > 0) {
+				whereClauses.push(`(${queryClause})`);
+			}
+			return;
+		}
+
+		const schemaProp = this._entitySchema.properties?.find(p => p.property === condition.property);
+		const comparison = this.mapComparisonOperator(objectPath, condition, schemaProp?.type, values);
+		whereClauses.push(comparison);
+	}
+
+	/**
+	 * Map the framework comparison operators to those in MySQL.
+	 * @param objectPath The prefix to use for the condition.
+	 * @param comparator The operator to map.
+	 * @param type The type of the property.
+	 * @param values The values to use in the query.
+	 * @returns The comparison expression.
+	 * @throws GeneralError if the comparison operator is not supported.
+	 * @internal
+	 */
+	private mapComparisonOperator(
+		objectPath: string,
+		comparator: IComparator,
+		type: EntitySchemaPropertyType | undefined,
+		values: unknown[]
+	): string {
+		let prop = objectPath;
+		if (prop.length > 0) {
+			prop += ".";
+		}
+
+		prop += comparator.property as string;
+		// prop = prop.replace(/\./g, "->");
+		if (comparator.comparison === ComparisonOperator.In) {
+			const inValues = Array.isArray(comparator.value) ? comparator.value : [comparator.value];
+			values.push(...inValues.map(val => this.propertyToDbValue(val, type)));
+			const placeholders = inValues.map(() => "?").join(", ");
+			return `\`${prop}\` IN (${placeholders})`;
+		}
+		const dbValue = this.propertyToDbValue(comparator.value, type);
+		values.push(dbValue);
+
+		if (comparator.property.split(".").length > 1) {
+			return `JSON_UNQUOTE(JSON_EXTRACT(\`${comparator.property.split(".")[0]}\`, '$.${comparator.property.split(".").slice(1).join(".")}')) = ?`;
+		} else if (comparator.comparison === ComparisonOperator.Equals) {
+			return `\`${prop}\` = ?`;
+		} else if (comparator.comparison === ComparisonOperator.NotEquals) {
+			return `\`${prop}\` <> ?`;
+		} else if (comparator.comparison === ComparisonOperator.GreaterThan) {
+			return `\`${prop}\` > ?`;
+		} else if (comparator.comparison === ComparisonOperator.LessThan) {
+			return `\`${prop}\` < ?`;
+		} else if (comparator.comparison === ComparisonOperator.GreaterThanOrEqual) {
+			return `\`${prop}\` >= ?`;
+		} else if (comparator.comparison === ComparisonOperator.LessThanOrEqual) {
+			return `\`${prop}\` <= ?`;
+		} else if (comparator.comparison === ComparisonOperator.Includes) {
+			return `JSON_CONTAINS(\`${prop}\`, ?)`;
+		}
+
+		throw new GeneralError(this.CLASS_NAME, "comparisonNotSupported", {
+			comparison: comparator.comparison
+		});
+	}
+
+	/**
+	 * Format a value to insert into DB.
+	 * @param value The value to format.
+	 * @param type The type for the property.
+	 * @returns The value after conversion.
+	 * @internal
+	 */
+	private propertyToDbValue(value: unknown, type?: EntitySchemaPropertyType): unknown {
+		if (Is.object(value)) {
+			return JSON.stringify(value);
+		}
+
+		if (type === "string") {
+			return String(value);
+		} else if (type === "number") {
+			return Number(value);
+		} else if (type === "boolean") {
+			return Boolean(value);
+		}
+
+		return value;
+	}
+
+	/**
+	 * Map the framework conditional operators to those in MySQL.
+	 * @param operator The operator to map.
+	 * @returns The conditional operator.
+	 * @throws GeneralError if the conditional operator is not supported.
+	 * @internal
+	 */
+	private mapConditionalOperator(operator?: LogicalOperator): string {
+		if ((operator ?? LogicalOperator.And) === LogicalOperator.And) {
+			return "AND";
+		} else if (operator === LogicalOperator.Or) {
+			return "OR";
+		}
+
+		throw new GeneralError(this.CLASS_NAME, "conditionalNotSupported", { operator });
+	}
+
+	/**
+	 * Verify the conditions for the entity.
+	 * @param conditions The conditions to verify.
+	 * @internal
+	 */
+	private verifyConditions(
+		conditions: { property: keyof T; value: unknown }[],
+		obj: { [key in keyof T]: unknown }
+	): boolean {
+		return conditions.every(
+			condition => ObjectHelper.propertyGet(obj, condition.property as string) === condition.value
+		);
+	}
+
 	/**
 	 * Map entity schema properties to SQL properties.
 	 * @param entitySchema The schema of the entity.
 	 * @returns The SQL properties as a string.
+	 * @throws GeneralError if the entity properties do not exist.
 	 */
-	private mapSqlProperties(entitySchema: IEntitySchema<T>): string {
+	private mapMySqlProperties(entitySchema: IEntitySchema<T>): string {
 		const sqlTypeMap: { [key: string]: string } = {
 			string: "VARCHAR(255)",
 			number: "INT",
@@ -289,5 +560,33 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				return `${String(prop.property)} ${sqlType}${primaryKey}${nullable}`;
 			})
 			.join(", ");
+	}
+
+	/**
+	 * Validate that the entity matches the schema.
+	 * @param entity The entity to validate.
+	 * @throws GeneralError if the entity schema properties are undefined or if the entity does not match the schema.
+	 */
+	private entitySqlVerification(entity: T): void {
+		// Validate that the entity matches the schema
+		if (!this._entitySchema.properties) {
+			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
+		}
+		for (const prop of this._entitySchema.properties) {
+			const value = entity[prop.property as keyof T];
+			if (value === undefined || value === null) {
+				if (!prop.optional) {
+					throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
+						entity,
+						entitySchema: this._entitySchema
+					});
+				}
+			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
+				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
+					entity,
+					entitySchema: this._entitySchema
+				});
+			}
+		}
 	}
 }
