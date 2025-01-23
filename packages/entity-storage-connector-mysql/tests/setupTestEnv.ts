@@ -14,6 +14,7 @@ Guards.stringValue("TestEnv", "TEST_MYSQL_PORT", process.env.TEST_MYSQL_PORT);
 Guards.stringValue("TestEnv", "TEST_MYSQL_USER", process.env.TEST_MYSQL_USER);
 Guards.stringValue("TestEnv", "TEST_MYSQL_KEY", process.env.TEST_MYSQL_KEY);
 Guards.stringValue("TestEnv", "TEST_MYSQL_DATABASE", process.env.TEST_MYSQL_DATABASE);
+Guards.stringValue("TestEnv", "TEST_MYSQL_TABLE", process.env.TEST_MYSQL_TABLE);
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -22,5 +23,6 @@ export const TEST_MYSQL_CONFIG: IMySqlEntityStorageConnectorConfig = {
 	port: process.env.TEST_MYSQL_PORT,
 	user: process.env.TEST_MYSQL_USER,
 	password: process.env.TEST_MYSQL_KEY,
-	database: process.env.TEST_MYSQL_DATABASE
+	database: process.env.TEST_MYSQL_DATABASE,
+	table: process.env.TEST_MYSQL_TABLE
 };

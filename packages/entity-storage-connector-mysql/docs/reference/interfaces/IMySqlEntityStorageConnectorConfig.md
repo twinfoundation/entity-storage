@@ -36,8 +36,16 @@ The password for the MySql instance.
 
 ***
 
-### database?
+### database
 
-> `optional` **database**: `string`
+> **database**: `string`
 
 The name of the database to be used.
+
+***
+
+### table
+
+> **table**: `string`
+
+The name of the table to be used.

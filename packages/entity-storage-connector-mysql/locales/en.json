@@ -2,7 +2,8 @@
 	"info": {
 		"mysqlEntityStorageConnector": {
 			"databaseCreating": "Database \"{databaseName}\" creating",
-			"databaseExists": "Database \"{databaseName}\" created or it already exists"
+			"databaseExists": "Database \"{databaseName}\" created or it already exists",
+			"tableExists": "Database \"{tableName}\" created or it already exists"
 		}
 	},
 	"error": {

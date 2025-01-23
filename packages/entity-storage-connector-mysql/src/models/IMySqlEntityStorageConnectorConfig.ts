@@ -28,5 +28,10 @@ export interface IMySqlEntityStorageConnectorConfig {
 	/**
 	 * The name of the database to be used.
 	 */
-	database?: string;
+	database: string;
+
+	/**
+	 * The name of the table to be used.
+	 */
+	table: string;
 }

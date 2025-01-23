@@ -159,12 +159,14 @@ describe("MySqlEntityStorageConnector", () => {
 		const logs = memoryEntityStorage.getStore();
 		expect(logs).toBeDefined();
 
-		expect(logs?.length).toEqual(2);
+		expect(logs?.length).toEqual(3);
 		expect(logs?.[0].message).toEqual("databaseCreating");
 		expect(logs?.[1].message).toEqual("databaseExists");
+		expect(logs?.[2].message).toEqual("tableExists");
 
 		expect(I18n.hasMessage("info.mysqlEntityStorageConnector.databaseCreating")).toEqual(true);
 		expect(I18n.hasMessage("info.mysqlEntityStorageConnector.databaseExists")).toEqual(true);
+		expect(I18n.hasMessage("info.mysqlEntityStorageConnector.tableExists")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {

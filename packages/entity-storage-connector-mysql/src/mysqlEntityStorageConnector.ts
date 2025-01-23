@@ -81,6 +81,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.user), options.config.user);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.password), options.config.password);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.database), options.config.database);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.config.table), options.config.table);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 
@@ -128,6 +129,18 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				message: "databaseExists",
 				data: {
 					database: this._config.database
+				}
+			});
+
+			await this._client.query(`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapSqlProperties(this._entitySchema)})`);
+
+			await nodeLogging?.log({
+				level: "info",
+				source: this.CLASS_NAME,
+				ts: Date.now(),
+				message: "tableExists",
+				data: {
+					table: this._config.table
 				}
 			});
 		} catch (error) {
@@ -182,6 +195,38 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 */
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
+
+		const id = entity["id" as keyof T] as unknown as string;
+
+		try {
+			const columns = Object.keys(entity as object).map(key => `\`${key}\``).join(", ");
+			const values = Object.values(entity as object);
+			const placeholders = values.map(() => "?").join(", ");
+
+			if (!this._client) {
+				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
+			}
+			const queryResponse = await this._client.query(
+				`INSERT INTO \`${this._config.database}\`.\`${this._config.table}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
+					.split(", ")
+					.map(col => `${col} = VALUES(${col})`)
+					.join(", ")};`,
+				values
+			);
+			// eslint-disable-next-line no-console
+			console.log(queryResponse);
+		} catch (err) {
+			// eslint-disable-next-line no-console
+			console.log(err);
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"setFailed",
+				{
+					id
+				},
+				err
+			);
+		}
 	}
 
 	/**
@@ -217,5 +262,32 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		pageSize?: number
 	): Promise<{ entities: Partial<T>[]; cursor?: string }> {
 		return { entities: [] };
+	}
+
+	// eslint-disable-next-line jsdoc/require-throws
+	/**
+	 * Map entity schema properties to SQL properties.
+	 * @param entitySchema The schema of the entity.
+	 * @returns The SQL properties as a string.
+	 */
+	private mapSqlProperties(entitySchema: IEntitySchema<T>): string {
+		const sqlTypeMap: { [key: string]: string } = {
+			string: "VARCHAR(255)",
+			number: "INT",
+			object: "JSON",
+			array: "JSON"
+		};
+
+		if (!entitySchema.properties) {
+			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
+		}
+		return entitySchema.properties
+			.map(prop => {
+				const sqlType = sqlTypeMap[prop.type] || "TEXT";
+				const primaryKey = prop.isPrimary ? " PRIMARY KEY" : "";
+				const nullable = prop.optional ? " NULL" : " NOT NULL";
+				return `${String(prop.property)} ${sqlType}${primaryKey}${nullable}`;
+			})
+			.join(", ");
 	}
 }
