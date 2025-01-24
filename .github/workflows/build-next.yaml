@@ -23,6 +23,14 @@ jobs:
         ports:
           - 8000:8000
 
+      mysql:
+        image: mysql:latest
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_PASSWORD: password
+        hostname: mysql
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

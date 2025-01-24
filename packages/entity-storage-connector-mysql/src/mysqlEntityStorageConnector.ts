@@ -46,10 +46,10 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	private readonly _config: IMySqlEntityStorageConnectorConfig;
 
 	/**
-	 * The MySql client.
+	 * The configuration for the connector.
 	 * @internal
 	 */
-	private _client: mysql.Connection | undefined;
+	private _connection: mysql.Connection | undefined;
 
 	/**
 	 * Create a new instance of MySqlEntityStorageConnector.
@@ -84,12 +84,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			nodeLoggingConnectorType ?? "node-logging"
 		);
 
-		this._client = await mysql.createConnection({
-			host: this._config.host,
-			port: Number.parseInt(this._config.port ?? "3306", 10),
-			user: this._config.user,
-			password: this._config.password
-		});
+		const dbConnection = await this.createConnection();
 
 		// Create the database if it does not exist
 		try {
@@ -103,10 +98,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 
-			if (!this._client) {
-				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
-			}
-			await this._client.query(`CREATE DATABASE IF NOT EXISTS \`${this._config.database}\``);
+			await dbConnection.query(`CREATE DATABASE IF NOT EXISTS \`${this._config.database}\``);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -118,7 +110,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 
-			await this._client.query(
+			await dbConnection.query(
 				`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapMySqlProperties(this._entitySchema)})`
 			);
 
@@ -174,9 +166,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			if (!this._client) {
-				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
-			}
+			const dbConnection = await this.createConnection();
 
 			const whereClauses: string[] = [];
 			const values: unknown[] = [];
@@ -197,7 +187,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			}
 
 			const query = `SELECT * FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
-			const [rows] = await this._client.query(query, values);
+			const [rows] = await dbConnection.query(query, values);
 
 			if (Array.isArray(rows) && rows.length === 1) {
 				return rows[0] as T;
@@ -241,10 +231,8 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			const values = Object.values(entity as object);
 			const placeholders = values.map(() => "?").join(", ");
 
-			if (!this._client) {
-				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
-			}
-			await this._client.query(
+			const dbConnection = await this.createConnection();
+			await dbConnection.query(
 				`INSERT INTO \`${this._config.database}\`.\`${this._config.table}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
 					.split(", ")
 					.map(col => `${col} = VALUES(${col})`)
@@ -276,9 +264,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			if (!this._client) {
-				throw new GeneralError(this.CLASS_NAME, "clientNotInitialized");
-			}
+			const dbConnection = await this.createConnection();
 
 			const itemData = await this.get(id);
 			if (Is.notEmpty(itemData)) {
@@ -287,7 +273,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 
 				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?`;
-				await this._client.query(query, [id]);
+				await dbConnection.query(query, [id]);
 			}
 		} catch (err) {
 			throw new GeneralError(
@@ -354,7 +340,8 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			}
 
 			const query = `SELECT ${properties ? properties.map(p => `\`${String(p)}\``).join(", ") : "*"} FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.length > 0 ? whereClauses.join(" AND ") : "1"} ${orderByClause} LIMIT ${returnSize} OFFSET ${cursor ? Number(cursor) : 0}`;
-			const [rows] = (await this._client?.query(query, values)) ?? [];
+			const dbConnection = await this.createConnection();
+			const [rows] = (await dbConnection?.query(query, values)) ?? [];
 
 			return {
 				entities: rows as Partial<T>[],
@@ -374,12 +361,46 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 */
 	public async tableDrop(): Promise<void> {
 		try {
-			await this._client?.query(
+			const dbConnection = await this.createConnection();
+			await dbConnection?.query(
 				`DROP TABLE \`${this._config.database}\`.\`${this._config.table}\`;`
 			);
 		} catch {
 			// Ignore errors
 		}
+	}
+
+	/**
+	 * Create a new DB connection.
+	 * @returns The dynamo db connection.
+	 * @internal
+	 */
+	private async createConnection(): Promise<mysql.Connection> {
+		if (this._connection) {
+			return this._connection;
+		}
+		const newConnection = await mysql.createConnection(this.createConnectionConfig());
+		this._connection = newConnection;
+		return newConnection;
+	}
+
+	/**
+	 * Create a new DB connection configuration.
+	 * @returns The dynamo db connection configuration.
+	 * @internal
+	 */
+	private createConnectionConfig(): {
+		host: string;
+		port: number;
+		user: string;
+		password: string;
+	} {
+		return {
+			host: this._config.host,
+			port: Number.parseInt(this._config.port ?? "3306", 10),
+			user: this._config.user,
+			password: this._config.password
+		};
 	}
 
 	/**

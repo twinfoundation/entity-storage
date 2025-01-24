@@ -24,6 +24,14 @@ jobs:
         ports:
           - 8000:8000
 
+      mysql:
+        image: mysql:latest
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_PASSWORD: password
+        hostname: mysql
+
     strategy:
       max-parallel: 1
       matrix:
@@ -37,7 +45,8 @@ jobs:
             'packages/entity-storage-service',
             'packages/entity-storage-rest-client',
             'packages/entity-storage-connector-gcp-firestore',
-            'packages/entity-storage-connector-cosmosdb'
+            'packages/entity-storage-connector-cosmosdb',
+            'packages/entity-storage-connector-mysql'
           ]
 
     steps:

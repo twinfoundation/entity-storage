@@ -111,7 +111,6 @@ describe("MySqlEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			config
 		});
-		await entityStorage.bootstrap();
 		await entityStorage.tableDrop();
 	});
 
