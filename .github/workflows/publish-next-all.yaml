@@ -30,7 +30,6 @@ jobs:
           - 3306:3306
         env:
           MYSQL_PASSWORD: password
-        hostname: mysql
 
     strategy:
       max-parallel: 1

@@ -46,7 +46,6 @@ jobs:
           - 3306:3306
         env:
           MYSQL_PASSWORD: password
-        hostname: mysql
 
     steps:
       - name: Checkout
