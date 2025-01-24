@@ -84,10 +84,9 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			nodeLoggingConnectorType ?? "node-logging"
 		);
 
-		const dbConnection = await this.createConnection();
-
-		// Create the database if it does not exist
 		try {
+			const dbConnection = await this.createConnection();
+
 			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
@@ -98,6 +97,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 
+			// Create the database if it does not exist
 			await dbConnection.query(`CREATE DATABASE IF NOT EXISTS \`${this._config.database}\``);
 
 			await nodeLogging?.log({
@@ -268,12 +268,18 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 			const itemData = await this.get(id);
 			if (Is.notEmpty(itemData)) {
-				if (Is.arrayValue(conditions) && !this.verifyConditions(conditions, itemData as T)) {
-					return;
+				const values: unknown[] = [id];
+				let whereClauses: string[] = [];
+
+				if (Is.arrayValue(conditions)) {
+					whereClauses = conditions.map(condition => {
+						values.push(condition.value);
+						return `\`${String(condition.property)}\` = ?`;
+					});
 				}
 
-				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?`;
-				await dbConnection.query(query, [id]);
+				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
+				await dbConnection.query(query, values);
 			}
 		} catch (err) {
 			throw new GeneralError(
@@ -310,26 +316,12 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 			let orderByClause: string = "";
 			if (Array.isArray(sortProperties)) {
-				if (sortProperties.length > 1) {
-					throw new GeneralError(this.CLASS_NAME, "sortSingle");
-				}
+				const orderClauses: string[] = [];
 				for (const sortProperty of sortProperties) {
-					const propertySchema = this._entitySchema.properties?.find(
-						e => e.property === sortProperty.property
-					);
-					if (
-						!propertySchema ||
-						(!propertySchema.isPrimary &&
-							!propertySchema.isSecondary &&
-							!propertySchema.sortDirection)
-					) {
-						throw new GeneralError(this.CLASS_NAME, "sortNotIndexed", {
-							property: sortProperty.property
-						});
-					}
 					const direction = sortProperty.sortDirection === SortDirection.Ascending ? "ASC" : "DESC";
-					orderByClause = `ORDER BY \`${String(sortProperty.property)}\` ${direction}`;
+					orderClauses.push(`\`${String(sortProperty.property)}\` ${direction}`);
 				}
+				orderByClause = `ORDER BY ${orderClauses.join(", ")}`;
 			}
 
 			const whereClauses: string[] = [];

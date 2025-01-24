@@ -797,6 +797,59 @@ describe("MySqlEntityStorageConnector", () => {
 		expect(result.entities[1].value1).toEqual("26");
 	});
 
+	test("can find items with multiple entries and apply custom sort on multiple properties", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		for (let i = 0; i < 30; i++) {
+			await entityStorage.set({
+				id: (30 - i).toString(),
+				value1: (30 - i).toString(),
+				value2: i % 2 === 0 ? 100 : 200,
+				value3: undefined,
+				valueObject: {
+					"1": {
+						value: "bob"
+					}
+				},
+				valueArray: [
+					{
+						field: "name",
+						value: "bob"
+					}
+				]
+			});
+		}
+		const result = await entityStorage.query(
+			{
+				conditions: [
+					{
+						property: "value1",
+						value: ["26", "20"],
+						comparison: ComparisonOperator.In
+					}
+				]
+			},
+			[
+				{
+					property: "value1",
+					sortDirection: SortDirection.Descending
+				},
+				{
+					property: "id",
+					sortDirection: SortDirection.Ascending
+				}
+			]
+		);
+
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(2);
+		expect(result.entities[0].value1).toEqual("26");
+		expect(result.entities[1].value1).toEqual("20");
+	});
+
 	test("can query items and get a reduced data set", async () => {
 		const entityStorage = new MySqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
