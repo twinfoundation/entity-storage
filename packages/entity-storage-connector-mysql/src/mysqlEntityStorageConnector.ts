@@ -5,7 +5,7 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
-	type EntitySchemaPropertyType,
+	EntitySchemaPropertyType,
 	type IComparator,
 	type IEntitySchema,
 	LogicalOperator,
@@ -557,15 +557,13 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @throws GeneralError if the entity properties do not exist.
 	 */
 	private mapMySqlProperties(entitySchema: IEntitySchema<T>): string {
-		const sqlTypeMap: { [key: string]: string } = {
-			string: "LONGTEXT",
-			number: "FLOAT",
-			integer: "INT",
-			object: "JSON",
-			array: "JSON",
-			boolean: "TINYINT(1)",
-			date: "DATE",
-			datetime: "DATETIME"
+		const sqlTypeMap: { [key in EntitySchemaPropertyType]: string } = {
+			[EntitySchemaPropertyType.String]: "LONGTEXT",
+			[EntitySchemaPropertyType.Number]: "FLOAT",
+			[EntitySchemaPropertyType.Integer]: "INT",
+			[EntitySchemaPropertyType.Object]: "JSON",
+			[EntitySchemaPropertyType.Array]: "JSON",
+			[EntitySchemaPropertyType.Boolean]: "TINYINT(1)"
 		};
 
 		if (!entitySchema.properties) {
