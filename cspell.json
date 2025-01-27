@@ -19,9 +19,10 @@
 	],
 	"words": [
 		"cloudsdktool",
-		"cosmosdb",
 		"conds",
+		"cosmosdb",
 		"Firestore",
+		"LONGTEXT",
 		"nameof",
 		"scylladb",
 		"Stiftung",

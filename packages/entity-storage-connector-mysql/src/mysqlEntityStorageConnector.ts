@@ -124,6 +124,8 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.log("error", error);
 			const errors = error instanceof AggregateError ? error.errors : [error];
 			for (const err of errors) {
 				await nodeLogging?.log({
@@ -556,23 +558,43 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 */
 	private mapMySqlProperties(entitySchema: IEntitySchema<T>): string {
 		const sqlTypeMap: { [key: string]: string } = {
-			string: "VARCHAR(255)",
-			number: "INT",
+			string: "LONGTEXT",
+			number: "FLOAT",
+			integer: "INT",
 			object: "JSON",
-			array: "JSON"
+			array: "JSON",
+			boolean: "TINYINT(1)",
+			date: "DATE",
+			datetime: "DATETIME"
 		};
 
 		if (!entitySchema.properties) {
 			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
 		}
-		return entitySchema.properties
+
+		const primaryKeys: string[] = [];
+
+		const columnDefinitions = entitySchema.properties
 			.map(prop => {
 				const sqlType = sqlTypeMap[prop.type] || "TEXT";
-				const primaryKey = prop.isPrimary ? " PRIMARY KEY" : "";
+				const columnName = String(prop.property);
 				const nullable = prop.optional ? " NULL" : " NOT NULL";
-				return `${String(prop.property)} ${sqlType}${primaryKey}${nullable}`;
+
+				if (prop.isPrimary) {
+					if (sqlType === "LONGTEXT" || sqlType === "TEXT") {
+						primaryKeys.push(`${columnName}(255)`);
+					} else {
+						primaryKeys.push(columnName);
+					}
+				}
+
+				return `${columnName} ${sqlType}${nullable}`;
 			})
 			.join(", ");
+
+		const primaryKeyDefinition =
+			primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
+		return columnDefinitions + primaryKeyDefinition;
 	}
 
 	/**
