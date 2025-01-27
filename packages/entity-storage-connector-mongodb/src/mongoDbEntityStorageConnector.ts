@@ -9,19 +9,19 @@ import {
 	type IComparator,
 	type IEntitySchema,
 	LogicalOperator,
-	SortDirection
+	type SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import mysql from "mysql2/promise";
-import type { IMySqlEntityStorageConnectorConfig } from "./models/IMySqlEntityStorageConnectorConfig";
-import type { IMySqlEntityStorageConnectorConstructorOptions } from "./models/IMySqlEntityStorageConnectorConstructorOptions";
+import { MongoClient, type Db, type Collection } from "mongodb";
+import type { IMongoDbEntityStorageConnectorConfig } from "./models/IMongoDbEntityStorageConnectorConfig";
+import type { IMongoDbEntityStorageConnectorConstructorOptions } from "./models/IMongoDbEntityStorageConnectorConstructorOptions";
 
 /**
- * Class for performing entity storage operations using MySql.
+ * Class for performing entity storage operations using MongoDb.
  */
-export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
+export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
 	/**
 	 * Limit the number of entities when finding.
 	 * @internal
@@ -31,7 +31,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	/**
 	 * Runtime name for the class.
 	 */
-	public readonly CLASS_NAME: string = nameof<MySqlEntityStorageConnector>();
+	public readonly CLASS_NAME: string = nameof<MongoDbEntityStorageConnector>();
 
 	/**
 	 * The schema for the entity.
@@ -43,39 +43,51 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * The configuration for the connector.
 	 * @internal
 	 */
-	private readonly _config: IMySqlEntityStorageConnectorConfig;
+	private readonly _config: IMongoDbEntityStorageConnectorConfig;
 
 	/**
-	 * The configuration for the connector.
+	 * The MongoDb client.
 	 * @internal
 	 */
-	private _connection: mysql.Connection | undefined;
+	private readonly _client: MongoClient;
 
 	/**
-	 * Create a new instance of MySqlEntityStorageConnector.
+	 * The MongoDb database.
+	 * @internal
+	 */
+	private _database: Db | undefined;
+
+	/**
+	 * The MongoDb collection.
+	 * @internal
+	 */
+	private _collection: Collection | undefined;
+
+	/**
+	 * Create a new instance of MongoDbEntityStorageConnector.
 	 * @param options The options for the connector.
 	 */
-	constructor(options: IMySqlEntityStorageConnectorConstructorOptions) {
+	constructor(options: IMongoDbEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
-		Guards.object<IMySqlEntityStorageConnectorConfig>(
+		Guards.object<IMongoDbEntityStorageConnectorConfig>(
 			this.CLASS_NAME,
 			nameof(options.config),
 			options.config
 		);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.host), options.config.host);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.user), options.config.user);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.password), options.config.password);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.database), options.config.database);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.table), options.config.table);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.config.collection), options.config.collection);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 
 		this._config = options.config;
+
+		this._client = new MongoClient(this.createConnectionConfig());
 	}
 
 	/**
-	 * Initialize the MySql environment.
+	 * Initialize the MongoDb environment.
 	 * @param nodeLoggingConnectorType Optional type of the logging connector.
 	 * @returns A promise that resolves to a boolean indicating success.
 	 */
@@ -85,7 +97,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		);
 
 		try {
-			const dbConnection = await this.createConnection();
+			await this._client.connect();
 
 			await nodeLogging?.log({
 				level: "info",
@@ -98,7 +110,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			});
 
 			// Create the database if it does not exist
-			await dbConnection.query(`CREATE DATABASE IF NOT EXISTS \`${this._config.database}\``);
+			this._database = this._client.db(this._config.database);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -110,20 +122,20 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			});
 
-			await dbConnection.query(
-				`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapMySqlProperties(this._entitySchema)})`
-			);
+			this._collection = await this._database.collection(this._config.collection);
 
 			await nodeLogging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				ts: Date.now(),
-				message: "tableExists",
+				message: "collectionExists",
 				data: {
-					table: this._config.table
+					collection: this._config.collection
 				}
 			});
 		} catch (error) {
+			// eslint-disable-next-line no-console
+			console.log("error", error);
 			const errors = error instanceof AggregateError ? error.errors : [error];
 			for (const err of errors) {
 				await nodeLogging?.log({
@@ -152,7 +164,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	}
 
 	/**
-	 * Get an entity from MySql.
+	 * Get an entity from MongoDb.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
 	 * @param conditions The optional conditions to match for the entities.
@@ -164,35 +176,24 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		conditions?: { property: keyof T; value: unknown }[]
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
-
 		try {
-			const dbConnection = await this.createConnection();
+			const query: { [key: string]: unknown } = secondaryIndex
+				? { [secondaryIndex]: id }
+				: { id };
 
-			const whereClauses: string[] = [];
-			const values: unknown[] = [];
-
-			if (secondaryIndex) {
-				whereClauses.push(`\`${String(secondaryIndex)}\` = ?`);
-				values.push(id);
-			} else {
-				whereClauses.push("`id` = ?");
-				values.push(id);
-			}
-
+			// eslint-disable-next-line no-console
+			console.log("query", query);
 			if (conditions) {
 				for (const condition of conditions) {
-					whereClauses.push(`\`${String(condition.property)}\` = ?`);
-					values.push(condition.value);
+					query[condition.property as string] = condition.value;
 				}
 			}
 
-			const query = `SELECT * FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
-			const [rows] = await dbConnection.query(query, values);
-
-			if (Array.isArray(rows) && rows.length === 1) {
-				return rows[0] as T;
-			}
+			const result = await this._collection?.findOne(query);
+			return result as T | undefined;
 		} catch (err) {
+			// eslint-disable-next-line no-console
+			console.log("err", err);
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"getFailed",
@@ -202,7 +203,6 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				err
 			);
 		}
-		return undefined;
 	}
 
 	/**
@@ -213,9 +213,6 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 */
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-
-		// Validate that the entity matches the schema
-		this.entitySqlVerification(entity);
 		const id = entity["id" as keyof T] as unknown as string;
 
 		try {
@@ -225,19 +222,11 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 					return;
 				}
 			}
-			const columns = Object.keys(entity as object)
-				.map(key => `\`${key}\``)
-				.join(", ");
-			const values = Object.values(entity as object);
-			const placeholders = values.map(() => "?").join(", ");
 
-			const dbConnection = await this.createConnection();
-			await dbConnection.query(
-				`INSERT INTO \`${this._config.database}\`.\`${this._config.table}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
-					.split(", ")
-					.map(col => `${col} = VALUES(${col})`)
-					.join(", ")};`,
-				values.map(value => (typeof value === "object" ? JSON.stringify(value) : value))
+			await this._collection?.findOneAndUpdate(
+				{ id },
+				{ $set: entity as Partial<Document> },
+				{ upsert: true, returnDocument: "after" }
 			);
 		} catch (err) {
 			throw new GeneralError(
@@ -264,32 +253,19 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const dbConnection = await this.createConnection();
+			const query: { [key: string]: unknown } = { id };
 
-			const itemData = await this.get(id);
-			if (Is.notEmpty(itemData)) {
-				const values: unknown[] = [id];
-				let whereClauses: string[] = [];
-
-				if (Is.arrayValue(conditions)) {
-					whereClauses = conditions.map(condition => {
-						values.push(condition.value);
-						return `\`${String(condition.property)}\` = ?`;
-					});
+			if (conditions) {
+				for (const condition of conditions) {
+					query[condition.property as string] = condition.value;
 				}
-
-				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
-				await dbConnection.query(query, values);
 			}
+
+			await this._collection?.deleteOne(query);
 		} catch (err) {
-			throw new GeneralError(
-				this.CLASS_NAME,
-				"removeFailed",
-				{
-					id
-				},
-				err
-			);
+			// eslint-disable-next-line no-console
+			console.log("err", err);
+			throw new GeneralError(this.CLASS_NAME, "removeFailed", { id }, err);
 		}
 	}
 
@@ -310,70 +286,21 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		cursor?: string,
 		pageSize?: number
 	): Promise<{ entities: Partial<T>[]; cursor?: string }> {
-		const sql = "";
-		try {
-			const returnSize = pageSize ?? MySqlEntityStorageConnector._PAGE_SIZE;
-
-			let orderByClause: string = "";
-			if (Array.isArray(sortProperties)) {
-				const orderClauses: string[] = [];
-				for (const sortProperty of sortProperties) {
-					const direction = sortProperty.sortDirection === SortDirection.Ascending ? "ASC" : "DESC";
-					orderClauses.push(`\`${String(sortProperty.property)}\` ${direction}`);
-				}
-				orderByClause = `ORDER BY ${orderClauses.join(", ")}`;
-			}
-
-			const whereClauses: string[] = [];
-			const values: unknown[] = [];
-
-			if (conditions) {
-				this.buildQueryParameters("", conditions, whereClauses, values);
-			}
-
-			const query = `SELECT ${properties ? properties.map(p => `\`${String(p)}\``).join(", ") : "*"} FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.length > 0 ? whereClauses.join(" AND ") : "1"} ${orderByClause} LIMIT ${returnSize} OFFSET ${cursor ? Number(cursor) : 0}`;
-			const dbConnection = await this.createConnection();
-			const [rows] = (await dbConnection?.query(query, values)) ?? [];
-
-			return {
-				entities: rows as Partial<T>[],
-				cursor:
-					Array.isArray(rows) && rows.length === returnSize
-						? String((cursor ? Number(cursor) : 0) + returnSize)
-						: undefined
-			};
-		} catch (err) {
-			throw new GeneralError(this.CLASS_NAME, "queryFailed", { sql }, err);
-		}
+		return { entities: [] };
 	}
 
 	/**
-	 * Drop the table.
+	 * Drop the collection.
 	 * @returns Nothing.
 	 */
-	public async tableDrop(): Promise<void> {
+	public async collectionDrop(): Promise<void> {
 		try {
-			const dbConnection = await this.createConnection();
-			await dbConnection?.query(
-				`DROP TABLE \`${this._config.database}\`.\`${this._config.table}\`;`
-			);
+			if (this._collection) {
+				await this._collection.drop();
+			}
 		} catch {
 			// Ignore errors
 		}
-	}
-
-	/**
-	 * Create a new DB connection.
-	 * @returns The dynamo db connection.
-	 * @internal
-	 */
-	private async createConnection(): Promise<mysql.Connection> {
-		if (this._connection) {
-			return this._connection;
-		}
-		const newConnection = await mysql.createConnection(this.createConnectionConfig());
-		this._connection = newConnection;
-		return newConnection;
 	}
 
 	/**
@@ -381,18 +308,12 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The dynamo db connection configuration.
 	 * @internal
 	 */
-	private createConnectionConfig(): {
-		host: string;
-		port: number;
-		user: string;
-		password: string;
-	} {
-		return {
-			host: this._config.host,
-			port: Number.parseInt(this._config.port ?? "3306", 10),
-			user: this._config.user,
-			password: this._config.password
-		};
+	private createConnectionConfig(): string {
+		const { host, user, password, database } = this._config;
+		if (user && password) {
+			return `mongodb://${user}:${password}@${host}/${database}`;
+		}
+		return `mongodb://${host}/${database}`;
 	}
 
 	/**
@@ -554,7 +475,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The SQL properties as a string.
 	 * @throws GeneralError if the entity properties do not exist.
 	 */
-	private mapMySqlProperties(entitySchema: IEntitySchema<T>): string {
+	private mapMongoDbProperties(entitySchema: IEntitySchema<T>): string {
 		const sqlTypeMap: { [key in EntitySchemaPropertyType]: string } = {
 			[EntitySchemaPropertyType.String]: "LONGTEXT",
 			[EntitySchemaPropertyType.Number]: "FLOAT",
