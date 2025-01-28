@@ -14,7 +14,7 @@ import {
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import mysql from "mysql2/promise";
+import { createConnection, type Connection, type ConnectionOptions } from "mysql2/promise";
 import type { IMySqlEntityStorageConnectorConfig } from "./models/IMySqlEntityStorageConnectorConfig";
 import type { IMySqlEntityStorageConnectorConstructorOptions } from "./models/IMySqlEntityStorageConnectorConstructorOptions";
 
@@ -49,7 +49,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * The configuration for the connector.
 	 * @internal
 	 */
-	private _connection: mysql.Connection | undefined;
+	private _connection?: Connection;
 
 	/**
 	 * Create a new instance of MySqlEntityStorageConnector.
@@ -67,7 +67,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.user), options.config.user);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.password), options.config.password);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.database), options.config.database);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.table), options.config.table);
+		Guards.stringValue(this.CLASS_NAME, nameof(options.config.tableName), options.config.tableName);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 
@@ -111,7 +111,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 			});
 
 			await dbConnection.query(
-				`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.table}\` (${this.mapMySqlProperties(this._entitySchema)})`
+				`CREATE TABLE IF NOT EXISTS \`${this._config.database}\`.\`${this._config.tableName}\` (${this.mapMySqlProperties(this._entitySchema)})`
 			);
 
 			await nodeLogging?.log({
@@ -120,7 +120,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				ts: Date.now(),
 				message: "tableExists",
 				data: {
-					table: this._config.table
+					table: this._config.tableName
 				}
 			});
 		} catch (error) {
@@ -186,7 +186,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				}
 			}
 
-			const query = `SELECT * FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
+			const query = `SELECT * FROM \`${this._config.database}\`.\`${this._config.tableName}\` WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
 			const [rows] = await dbConnection.query(query, values);
 
 			if (Array.isArray(rows) && rows.length === 1) {
@@ -233,7 +233,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 			const dbConnection = await this.createConnection();
 			await dbConnection.query(
-				`INSERT INTO \`${this._config.database}\`.\`${this._config.table}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
+				`INSERT INTO \`${this._config.database}\`.\`${this._config.tableName}\` (${columns}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${columns
 					.split(", ")
 					.map(col => `${col} = VALUES(${col})`)
 					.join(", ")};`,
@@ -278,7 +278,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 					});
 				}
 
-				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE \`id\` = ?${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
+				const query = `DELETE FROM \`${this._config.database}\`.\`${this._config.tableName}\` WHERE \`id\` = ?${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
 				await dbConnection.query(query, values);
 			}
 		} catch (err) {
@@ -331,7 +331,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				this.buildQueryParameters("", conditions, whereClauses, values);
 			}
 
-			const query = `SELECT ${properties ? properties.map(p => `\`${String(p)}\``).join(", ") : "*"} FROM \`${this._config.database}\`.\`${this._config.table}\` WHERE ${whereClauses.length > 0 ? whereClauses.join(" AND ") : "1"} ${orderByClause} LIMIT ${returnSize} OFFSET ${cursor ? Number(cursor) : 0}`;
+			const query = `SELECT ${properties ? properties.map(p => `\`${String(p)}\``).join(", ") : "*"} FROM \`${this._config.database}\`.\`${this._config.tableName}\` WHERE ${whereClauses.length > 0 ? whereClauses.join(" AND ") : "1"} ${orderByClause} LIMIT ${returnSize} OFFSET ${cursor ? Number(cursor) : 0}`;
 			const dbConnection = await this.createConnection();
 			const [rows] = (await dbConnection?.query(query, values)) ?? [];
 
@@ -355,7 +355,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		try {
 			const dbConnection = await this.createConnection();
 			await dbConnection?.query(
-				`DROP TABLE \`${this._config.database}\`.\`${this._config.table}\`;`
+				`DROP TABLE \`${this._config.database}\`.\`${this._config.tableName}\`;`
 			);
 		} catch {
 			// Ignore errors
@@ -367,11 +367,11 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The dynamo db connection.
 	 * @internal
 	 */
-	private async createConnection(): Promise<mysql.Connection> {
+	private async createConnection(): Promise<Connection> {
 		if (this._connection) {
 			return this._connection;
 		}
-		const newConnection = await mysql.createConnection(this.createConnectionConfig());
+		const newConnection = await createConnection(this.createConnectionConfig());
 		this._connection = newConnection;
 		return newConnection;
 	}
@@ -381,15 +381,10 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The dynamo db connection configuration.
 	 * @internal
 	 */
-	private createConnectionConfig(): {
-		host: string;
-		port: number;
-		user: string;
-		password: string;
-	} {
+	private createConnectionConfig(): ConnectionOptions {
 		return {
 			host: this._config.host,
-			port: Number.parseInt(this._config.port ?? "3306", 10),
+			port: this._config.port ?? 3306,
 			user: this._config.user,
 			password: this._config.password
 		};

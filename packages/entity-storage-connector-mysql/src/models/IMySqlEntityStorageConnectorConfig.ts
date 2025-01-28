@@ -13,7 +13,7 @@ export interface IMySqlEntityStorageConnectorConfig {
 	/**
 	 * The port for the MySql instance.
 	 */
-	port?: string;
+	port?: number;
 
 	/**
 	 * The user for the MySql instance.
@@ -33,5 +33,5 @@ export interface IMySqlEntityStorageConnectorConfig {
 	/**
 	 * The name of the table to be used.
 	 */
-	table: string;
+	tableName: string;
 }

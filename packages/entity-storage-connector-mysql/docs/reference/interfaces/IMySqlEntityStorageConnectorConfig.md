@@ -14,7 +14,7 @@ The host for the MySql instance.
 
 ### port?
 
-> `optional` **port**: `string`
+> `optional` **port**: `number`
 
 The port for the MySql instance.
 
@@ -44,8 +44,8 @@ The name of the database to be used.
 
 ***
 
-### table
+### tableName
 
-> **table**: `string`
+> **tableName**: `string`
 
 The name of the table to be used.
