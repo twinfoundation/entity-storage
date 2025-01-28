@@ -31,6 +31,11 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: password
 
+      mongo:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+
     strategy:
       max-parallel: 1
       matrix:
@@ -45,7 +50,8 @@ jobs:
             'packages/entity-storage-rest-client',
             'packages/entity-storage-connector-gcp-firestore',
             'packages/entity-storage-connector-cosmosdb',
-            'packages/entity-storage-connector-mysql'
+            'packages/entity-storage-connector-mysql',
+            'packages/entity-storage-connector-mongodb'
           ]
 
     steps:

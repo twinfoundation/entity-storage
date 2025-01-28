@@ -18,6 +18,7 @@ on:
           - 'packages/entity-storage-connector-gcp-firestore'
           - 'packages/entity-storage-connector-cosmosdb'
           - 'packages/entity-storage-connector-mysql'
+          - 'packages/entity-storage-connector-mongodb'
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -46,6 +47,11 @@ jobs:
           - 3306:3306
         env:
           MYSQL_ROOT_PASSWORD: password
+
+      mongo:
+        image: mongo:latest
+        ports:
+          - 27017:27017
 
     steps:
       - name: Checkout

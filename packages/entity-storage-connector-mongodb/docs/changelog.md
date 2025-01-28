@@ -1,4 +1,4 @@
-# @twin.org/entity-storage-connector-mysql - Changelog
+# @twin.org/entity-storage-connector-mongodb - Changelog
 
 ## v0.0.1-next.16
 

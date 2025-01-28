@@ -221,9 +221,9 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			const filter: { [key: string]: unknown } = { id };
 
 			if (Is.arrayValue(conditions)) {
-					for (const condition of conditions) {
-							filter[condition.property as string] = condition.value;
-					}
+				for (const condition of conditions) {
+					filter[condition.property as string] = condition.value;
+				}
 			}
 
 			await this._collection?.findOneAndUpdate(

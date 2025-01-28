@@ -48,7 +48,8 @@
 		"packages/entity-storage-connector-dynamodb",
 		"packages/entity-storage-connector-gcp-firestore",
 		"packages/entity-storage-connector-cosmosdb",
-		"packages/entity-storage-connector-mysql"
+		"packages/entity-storage-connector-mysql",
+		"packages/entity-storage-connector-mongodb"
 	],
 	"type": "module"
 }
