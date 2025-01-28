@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BaseError, GeneralError, Guards, Is, ObjectHelper } from "@twin.org/core";
+import { BaseError, GeneralError, Guards, Is } from "@twin.org/core";
 import {
 	ComparisonOperator,
 	type EntityCondition,
@@ -14,7 +14,6 @@ import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import {
 	MongoClient,
-	type Db,
 	type Collection,
 	type WithId,
 	type Sort,
@@ -56,12 +55,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	 * @internal
 	 */
 	private readonly _client: MongoClient;
-
-	/**
-	 * The MongoDb database.
-	 * @internal
-	 */
-	private _database: Db | undefined;
 
 	/**
 	 * The MongoDb collection.
@@ -120,7 +113,7 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			});
 
 			// Create the database if it does not exist
-			this._database = this._client.db(this._config.database);
+			const database = this._client.db(this._config.database);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -132,7 +125,7 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			});
 
-			this._collection = await this._database.collection(this._config.collection);
+			this._collection = await database.collection(this._config.collection);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -416,19 +409,5 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			default:
 				throw new GeneralError(this.CLASS_NAME, "unsupportedComparisonOperator", { comparison });
 		}
-	}
-
-	/**
-	 * Verify the conditions for the entity.
-	 * @param conditions The conditions to verify.
-	 * @internal
-	 */
-	private verifyConditions(
-		conditions: { property: keyof T; value: unknown }[],
-		obj: { [key in keyof T]: unknown }
-	): boolean {
-		return conditions.every(
-			condition => ObjectHelper.propertyGet(obj, condition.property as string) === condition.value
-		);
 	}
 }
