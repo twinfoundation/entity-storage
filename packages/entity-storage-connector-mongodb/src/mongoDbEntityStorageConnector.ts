@@ -5,16 +5,22 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
-	EntitySchemaPropertyType,
-	type IComparator,
 	type IEntitySchema,
 	LogicalOperator,
-	type SortDirection
+	SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import { MongoClient, type Db, type Collection } from "mongodb";
+import {
+	MongoClient,
+	type Db,
+	type Collection,
+	type WithId,
+	type Sort,
+	type Filter,
+	type Document
+} from "mongodb";
 import type { IMongoDbEntityStorageConnectorConfig } from "./models/IMongoDbEntityStorageConnectorConfig";
 import type { IMongoDbEntityStorageConnectorConstructorOptions } from "./models/IMongoDbEntityStorageConnectorConstructorOptions";
 
@@ -77,7 +83,11 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.host), options.config.host);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.config.database), options.config.database);
-		Guards.stringValue(this.CLASS_NAME, nameof(options.config.collection), options.config.collection);
+		Guards.stringValue(
+			this.CLASS_NAME,
+			nameof(options.config.collection),
+			options.config.collection
+		);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 
@@ -134,8 +144,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			});
 		} catch (error) {
-			// eslint-disable-next-line no-console
-			console.log("error", error);
 			const errors = error instanceof AggregateError ? error.errors : [error];
 			for (const err of errors) {
 				await nodeLogging?.log({
@@ -177,12 +185,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 		try {
-			const query: { [key: string]: unknown } = secondaryIndex
-				? { [secondaryIndex]: id }
-				: { id };
+			const query: { [key: string]: unknown } = secondaryIndex ? { [secondaryIndex]: id } : { id };
 
-			// eslint-disable-next-line no-console
-			console.log("query", query);
 			if (conditions) {
 				for (const condition of conditions) {
 					query[condition.property as string] = condition.value;
@@ -192,8 +196,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			const result = await this._collection?.findOne(query);
 			return result as T | undefined;
 		} catch (err) {
-			// eslint-disable-next-line no-console
-			console.log("err", err);
 			throw new GeneralError(
 				this.CLASS_NAME,
 				"getFailed",
@@ -216,15 +218,16 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		const id = entity["id" as keyof T] as unknown as string;
 
 		try {
+			const filter: { [key: string]: unknown } = { id };
+
 			if (Is.arrayValue(conditions)) {
-				const itemData = await this.get(id);
-				if (Is.notEmpty(itemData) && !this.verifyConditions(conditions, itemData as T)) {
-					return;
-				}
+					for (const condition of conditions) {
+							filter[condition.property as string] = condition.value;
+					}
 			}
 
 			await this._collection?.findOneAndUpdate(
-				{ id },
+				filter,
 				{ $set: entity as Partial<Document> },
 				{ upsert: true, returnDocument: "after" }
 			);
@@ -263,8 +266,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 
 			await this._collection?.deleteOne(query);
 		} catch (err) {
-			// eslint-disable-next-line no-console
-			console.log("err", err);
 			throw new GeneralError(this.CLASS_NAME, "removeFailed", { id }, err);
 		}
 	}
@@ -286,7 +287,40 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		cursor?: string,
 		pageSize?: number
 	): Promise<{ entities: Partial<T>[]; cursor?: string }> {
-		return { entities: [] };
+		const returnSize = pageSize ?? MongoDbEntityStorageConnector._PAGE_SIZE;
+
+		const filter: Filter<T> = {};
+		if (conditions) {
+			this.buildQueryParameters("", conditions, filter);
+		}
+
+		const sort: Sort = {};
+		if (Array.isArray(sortProperties)) {
+			for (const sortProperty of sortProperties) {
+				const direction = sortProperty.sortDirection === SortDirection.Ascending ? 1 : -1;
+				sort[sortProperty.property as string] = direction;
+			}
+		}
+
+		const projection: { [key: string]: number } = {};
+		if (properties) {
+			for (const property of properties) {
+				projection[property as string] = 1;
+			}
+		}
+
+		const cursorValue = cursor ? Number(cursor) : 0;
+		const entities = await this._collection
+			?.find(filter as Filter<Document>, { projection })
+			.sort(sort)
+			.skip(cursorValue)
+			.limit(returnSize)
+			.toArray();
+
+		return {
+			entities: (entities as unknown as Partial<T>[]) ?? [],
+			cursor: entities?.length === returnSize ? String(cursorValue + returnSize) : undefined
+		};
 	}
 
 	/**
@@ -317,142 +351,71 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	}
 
 	/**
-	 * Create an SQL condition clause.
+	 * Create an MongoDB filter query.
 	 * @param objectPath The path for the nested object.
 	 * @param condition The conditions to create the query from.
-	 * @param whereClauses The where clauses to use in the query.
-	 * @param values The values to use in the query.
+	 * @param filter The filter query to use.
 	 * @internal
 	 */
 	private buildQueryParameters(
 		objectPath: string,
-		condition: EntityCondition<T> | undefined,
-		whereClauses: string[],
-		values: unknown[]
+		condition: EntityCondition<T>,
+		filter: Filter<T>
 	): void {
-		if (Is.undefined(condition)) {
+		if (!condition) {
 			return;
 		}
 
 		if ("conditions" in condition) {
-			if (condition.conditions.length === 0) {
-				return;
-			}
-			const joinConditions: string[] = condition.conditions.map(c => {
-				const subWhereClauses: string[] = [];
-				const subValues: unknown[] = [];
-				this.buildQueryParameters(objectPath, c, subWhereClauses, subValues);
-				values.push(...subValues);
-				return subWhereClauses.join(" AND ");
+			const subConditions: Filter<T>[] = condition.conditions.map(c => {
+				const subFilter: Filter<T> = {};
+				this.buildQueryParameters(objectPath, c, subFilter);
+				return subFilter;
 			});
 
-			const logicalOperator = this.mapConditionalOperator(condition.logicalOperator);
-			const queryClause = joinConditions.filter(j => j.length > 0).join(` ${logicalOperator} `);
-
-			if (queryClause.length > 0) {
-				whereClauses.push(`(${queryClause})`);
+			if (condition.logicalOperator === LogicalOperator.And) {
+				filter.$and = subConditions as Filter<WithId<T>>[];
+			} else if (condition.logicalOperator === LogicalOperator.Or) {
+				filter.$or = subConditions as Filter<WithId<T>>[];
+			} else {
+				Object.assign(filter, subConditions[0]);
 			}
-			return;
-		}
+		} else {
+			const prop = objectPath ? `${objectPath}.${condition.property}` : String(condition.property);
+			const comparison = this.mapComparisonOperator(condition.comparison, condition.value);
 
-		const schemaProp = this._entitySchema.properties?.find(p => p.property === condition.property);
-		const comparison = this.mapComparisonOperator(objectPath, condition, schemaProp?.type, values);
-		whereClauses.push(comparison);
+			(filter as { [key: string]: unknown })[prop] = comparison;
+		}
 	}
 
 	/**
-	 * Map the framework comparison operators to those in MySQL.
-	 * @param objectPath The prefix to use for the condition.
-	 * @param comparator The operator to map.
-	 * @param type The type of the property.
-	 * @param values The values to use in the query.
-	 * @returns The comparison expression.
-	 * @throws GeneralError if the comparison operator is not supported.
+	 * Map the framework comparison operators to those in MongoDB.
+	 * @param comparison The comparison operator.
+	 * @param value The value to compare.
+	 * @returns The MongoDB comparison expression.
 	 * @internal
 	 */
-	private mapComparisonOperator(
-		objectPath: string,
-		comparator: IComparator,
-		type: EntitySchemaPropertyType | undefined,
-		values: unknown[]
-	): string {
-		let prop = objectPath;
-		if (prop.length > 0) {
-			prop += ".";
+	private mapComparisonOperator(comparison: ComparisonOperator, value: unknown): unknown {
+		switch (comparison) {
+			case ComparisonOperator.Equals:
+				return value;
+			case ComparisonOperator.NotEquals:
+				return { $ne: value };
+			case ComparisonOperator.GreaterThan:
+				return { $gt: value };
+			case ComparisonOperator.LessThan:
+				return { $lt: value };
+			case ComparisonOperator.GreaterThanOrEqual:
+				return { $gte: value };
+			case ComparisonOperator.LessThanOrEqual:
+				return { $lte: value };
+			case ComparisonOperator.In:
+				return { $in: Array.isArray(value) ? value : [value] };
+			case ComparisonOperator.Includes:
+				return { $elemMatch: { $eq: value } };
+			default:
+				throw new GeneralError(this.CLASS_NAME, "unsupportedComparisonOperator", { comparison });
 		}
-
-		prop += comparator.property as string;
-		// prop = prop.replace(/\./g, "->");
-		if (comparator.comparison === ComparisonOperator.In) {
-			const inValues = Array.isArray(comparator.value) ? comparator.value : [comparator.value];
-			values.push(...inValues.map(val => this.propertyToDbValue(val, type)));
-			const placeholders = inValues.map(() => "?").join(", ");
-			return `\`${prop}\` IN (${placeholders})`;
-		}
-		const dbValue = this.propertyToDbValue(comparator.value, type);
-		values.push(dbValue);
-
-		if (comparator.property.split(".").length > 1) {
-			return `JSON_UNQUOTE(JSON_EXTRACT(\`${comparator.property.split(".")[0]}\`, '$.${comparator.property.split(".").slice(1).join(".")}')) = ?`;
-		} else if (comparator.comparison === ComparisonOperator.Equals) {
-			return `\`${prop}\` = ?`;
-		} else if (comparator.comparison === ComparisonOperator.NotEquals) {
-			return `\`${prop}\` <> ?`;
-		} else if (comparator.comparison === ComparisonOperator.GreaterThan) {
-			return `\`${prop}\` > ?`;
-		} else if (comparator.comparison === ComparisonOperator.LessThan) {
-			return `\`${prop}\` < ?`;
-		} else if (comparator.comparison === ComparisonOperator.GreaterThanOrEqual) {
-			return `\`${prop}\` >= ?`;
-		} else if (comparator.comparison === ComparisonOperator.LessThanOrEqual) {
-			return `\`${prop}\` <= ?`;
-		} else if (comparator.comparison === ComparisonOperator.Includes) {
-			return `JSON_CONTAINS(\`${prop}\`, ?)`;
-		}
-
-		throw new GeneralError(this.CLASS_NAME, "comparisonNotSupported", {
-			comparison: comparator.comparison
-		});
-	}
-
-	/**
-	 * Format a value to insert into DB.
-	 * @param value The value to format.
-	 * @param type The type for the property.
-	 * @returns The value after conversion.
-	 * @internal
-	 */
-	private propertyToDbValue(value: unknown, type?: EntitySchemaPropertyType): unknown {
-		if (Is.object(value)) {
-			return JSON.stringify(value);
-		}
-
-		if (type === "string") {
-			return String(value);
-		} else if (type === "number") {
-			return Number(value);
-		} else if (type === "boolean") {
-			return Boolean(value);
-		}
-
-		return value;
-	}
-
-	/**
-	 * Map the framework conditional operators to those in MySQL.
-	 * @param operator The operator to map.
-	 * @returns The conditional operator.
-	 * @throws GeneralError if the conditional operator is not supported.
-	 * @internal
-	 */
-	private mapConditionalOperator(operator?: LogicalOperator): string {
-		if ((operator ?? LogicalOperator.And) === LogicalOperator.And) {
-			return "AND";
-		} else if (operator === LogicalOperator.Or) {
-			return "OR";
-		}
-
-		throw new GeneralError(this.CLASS_NAME, "conditionalNotSupported", { operator });
 	}
 
 	/**
@@ -467,78 +430,5 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		return conditions.every(
 			condition => ObjectHelper.propertyGet(obj, condition.property as string) === condition.value
 		);
-	}
-
-	/**
-	 * Map entity schema properties to SQL properties.
-	 * @param entitySchema The schema of the entity.
-	 * @returns The SQL properties as a string.
-	 * @throws GeneralError if the entity properties do not exist.
-	 */
-	private mapMongoDbProperties(entitySchema: IEntitySchema<T>): string {
-		const sqlTypeMap: { [key in EntitySchemaPropertyType]: string } = {
-			[EntitySchemaPropertyType.String]: "LONGTEXT",
-			[EntitySchemaPropertyType.Number]: "FLOAT",
-			[EntitySchemaPropertyType.Integer]: "INT",
-			[EntitySchemaPropertyType.Object]: "JSON",
-			[EntitySchemaPropertyType.Array]: "JSON",
-			[EntitySchemaPropertyType.Boolean]: "TINYINT(1)"
-		};
-
-		if (!entitySchema.properties) {
-			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
-		}
-
-		const primaryKeys: string[] = [];
-
-		const columnDefinitions = entitySchema.properties
-			.map(prop => {
-				const sqlType = sqlTypeMap[prop.type] || "TEXT";
-				const columnName = String(prop.property);
-				const nullable = prop.optional ? " NULL" : " NOT NULL";
-
-				if (prop.isPrimary) {
-					if (sqlType === "LONGTEXT" || sqlType === "TEXT") {
-						primaryKeys.push(`${columnName}(255)`);
-					} else {
-						primaryKeys.push(columnName);
-					}
-				}
-
-				return `${columnName} ${sqlType}${nullable}`;
-			})
-			.join(", ");
-
-		const primaryKeyDefinition =
-			primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
-		return columnDefinitions + primaryKeyDefinition;
-	}
-
-	/**
-	 * Validate that the entity matches the schema.
-	 * @param entity The entity to validate.
-	 * @throws GeneralError if the entity schema properties are undefined or if the entity does not match the schema.
-	 */
-	private entitySqlVerification(entity: T): void {
-		// Validate that the entity matches the schema
-		if (!this._entitySchema.properties) {
-			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
-		}
-		for (const prop of this._entitySchema.properties) {
-			const value = entity[prop.property as keyof T];
-			if (value === undefined || value === null) {
-				if (!prop.optional) {
-					throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-						entity,
-						entitySchema: this._entitySchema
-					});
-				}
-			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
-				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-					entity,
-					entitySchema: this._entitySchema
-				});
-			}
-		}
 	}
 }
