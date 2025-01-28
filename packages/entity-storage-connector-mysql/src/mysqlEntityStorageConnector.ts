@@ -14,7 +14,7 @@ import {
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import mysql from "mysql2/promise";
+import { createConnection, type Connection, type ConnectionOptions } from "mysql2/promise";
 import type { IMySqlEntityStorageConnectorConfig } from "./models/IMySqlEntityStorageConnectorConfig";
 import type { IMySqlEntityStorageConnectorConstructorOptions } from "./models/IMySqlEntityStorageConnectorConstructorOptions";
 
@@ -49,7 +49,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * The configuration for the connector.
 	 * @internal
 	 */
-	private _connection: mysql.Connection | undefined;
+	private _connection?: Connection;
 
 	/**
 	 * Create a new instance of MySqlEntityStorageConnector.
@@ -369,11 +369,11 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The dynamo db connection.
 	 * @internal
 	 */
-	private async createConnection(): Promise<mysql.Connection> {
+	private async createConnection(): Promise<Connection> {
 		if (this._connection) {
 			return this._connection;
 		}
-		const newConnection = await mysql.createConnection(this.createConnectionConfig());
+		const newConnection = await createConnection(this.createConnectionConfig());
 		this._connection = newConnection;
 		return newConnection;
 	}
@@ -383,15 +383,10 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	 * @returns The dynamo db connection configuration.
 	 * @internal
 	 */
-	private createConnectionConfig(): {
-		host: string;
-		port: number;
-		user: string;
-		password: string;
-	} {
+	private createConnectionConfig(): ConnectionOptions {
 		return {
 			host: this._config.host,
-			port: Number.parseInt(this._config.port ?? "3306", 10),
+			port: this._config.port ?? 3306,
 			user: this._config.user,
 			password: this._config.password
 		};
