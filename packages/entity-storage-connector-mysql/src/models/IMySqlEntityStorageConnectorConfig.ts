@@ -33,5 +33,5 @@ export interface IMySqlEntityStorageConnectorConfig {
 	/**
 	 * The name of the table to be used.
 	 */
-	table: string;
+	tableName: string;
 }

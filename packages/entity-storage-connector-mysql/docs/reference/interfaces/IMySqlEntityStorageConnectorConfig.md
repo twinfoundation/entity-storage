@@ -44,8 +44,8 @@ The name of the database to be used.
 
 ***
 
-### table
+### tableName
 
-> **table**: `string`
+> **tableName**: `string`
 
 The name of the table to be used.

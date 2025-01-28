@@ -24,5 +24,5 @@ export const TEST_MYSQL_CONFIG: IMySqlEntityStorageConnectorConfig = {
 	user: process.env.TEST_MYSQL_USER,
 	password: process.env.TEST_MYSQL_PASSWORD,
 	database: process.env.TEST_MYSQL_DATABASE,
-	table: process.env.TEST_MYSQL_TABLE
+	tableName: process.env.TEST_MYSQL_TABLE
 };
