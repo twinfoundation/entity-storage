@@ -364,7 +364,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 	/**
 	 * Create a new DB connection.
-	 * @returns The dynamo db connection.
+	 * @returns The MySql connection.
 	 * @internal
 	 */
 	private async createConnection(): Promise<Connection> {
@@ -378,7 +378,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 	/**
 	 * Create a new DB connection configuration.
-	 * @returns The dynamo db connection configuration.
+	 * @returns The MySql connection configuration.
 	 * @internal
 	 */
 	private createConnectionConfig(): ConnectionOptions {

@@ -57,12 +57,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	private readonly _client: MongoClient;
 
 	/**
-	 * The MongoDb collection.
-	 * @internal
-	 */
-	private _collection: Collection | undefined;
-
-	/**
 	 * Create a new instance of MongoDbEntityStorageConnector.
 	 * @param options The options for the connector.
 	 */
@@ -113,7 +107,7 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			});
 
 			// Create the database if it does not exist
-			const database = this._client.db(this._config.database);
+			this._client.db(this._config.database);
 
 			await nodeLogging?.log({
 				level: "info",
@@ -125,7 +119,7 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			});
 
-			this._collection = await database.collection(this._config.collection);
+			await this.getCollection();
 
 			await nodeLogging?.log({
 				level: "info",
@@ -178,7 +172,10 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 		try {
-			const query: { [key: string]: unknown } = secondaryIndex ? { [secondaryIndex]: id } : { id };
+			const primaryKey = this.getPrimaryKey();
+			const query: { [key: string]: unknown } = secondaryIndex
+				? { [secondaryIndex]: id }
+				: { [primaryKey]: id };
 
 			if (conditions) {
 				for (const condition of conditions) {
@@ -186,7 +183,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			}
 
-			const result = await this._collection?.findOne(query);
+			const collection = await this.getCollection();
+			const result = await collection.findOne(query);
 			return result as T | undefined;
 		} catch (err) {
 			throw new GeneralError(
@@ -208,7 +206,9 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	 */
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
-		const id = entity["id" as keyof T] as unknown as string;
+
+		const primaryKey = this.getPrimaryKey();
+		const id = (entity as { [key: string]: unknown })[primaryKey] as string;
 
 		try {
 			const filter: { [key: string]: unknown } = { id };
@@ -219,10 +219,11 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			}
 
-			await this._collection?.findOneAndUpdate(
+			const collection = await this.getCollection();
+			await collection.findOneAndUpdate(
 				filter,
 				{ $set: entity as Partial<Document> },
-				{ upsert: true, returnDocument: "after" }
+				{ upsert: true }
 			);
 		} catch (err) {
 			throw new GeneralError(
@@ -249,7 +250,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const query: { [key: string]: unknown } = { id };
+			const primaryKey = this.getPrimaryKey();
+			const query: { [key: string]: unknown } = { [primaryKey]: id };
 
 			if (conditions) {
 				for (const condition of conditions) {
@@ -257,7 +259,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 				}
 			}
 
-			await this._collection?.deleteOne(query);
+			const collection = await this.getCollection();
+			await collection.deleteOne(query);
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "removeFailed", { id }, err);
 		}
@@ -303,7 +306,9 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		}
 
 		const cursorValue = cursor ? Number(cursor) : 0;
-		const entities = await this._collection
+
+		const collection = await this.getCollection();
+		const entities = await collection
 			?.find(filter as Filter<Document>, { projection })
 			.sort(sort)
 			.skip(cursorValue)
@@ -322,9 +327,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	 */
 	public async collectionDrop(): Promise<void> {
 		try {
-			if (this._collection) {
-				await this._collection.drop();
-			}
+			const collection = await this.getCollection();
+			await collection.drop();
 		} catch {
 			// Ignore errors
 		}
@@ -332,15 +336,44 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 
 	/**
 	 * Create a new DB connection configuration.
-	 * @returns The dynamo db connection configuration.
+	 * @returns The MongoDb connection configuration.
 	 * @internal
 	 */
 	private createConnectionConfig(): string {
-		const { host, user, password, database } = this._config;
+		const { host, port, user, password, database } = this._config;
+		const portPart = port ? `:${port}` : "";
 		if (user && password) {
-			return `mongodb://${user}:${password}@${host}/${database}`;
+			return `mongodb://${user}:${password}@${host}${portPart}/${database}`;
 		}
-		return `mongodb://${host}/${database}`;
+		return `mongodb://${host}${portPart}/${database}`;
+	}
+
+	/**
+	 * Return a Mongo DB collection.
+	 * @returns The MongoDb collection.
+	 * @internal
+	 */
+	private async getCollection(): Promise<Collection<Document>> {
+		const { database, collection } = this._config;
+		return this._client.db(database).collection(collection);
+	}
+
+	/**
+	 * Return the primary key from the schema.
+	 * @returns The primaryKey.
+	 * @internal
+	 */
+	private getPrimaryKey(): string {
+		const schema = this.getSchema();
+		const primaryKeyProperty = schema?.properties?.find(p => p.isPrimary);
+		if (!primaryKeyProperty) {
+			throw new GeneralError(this.CLASS_NAME, "primaryKeyNotFound", {});
+		}
+		const primaryKey = primaryKeyProperty.property as unknown as keyof T;
+		if (!primaryKey) {
+			throw new GeneralError(this.CLASS_NAME, "primaryKeyNotFound", {});
+		}
+		return primaryKey as string;
 	}
 
 	/**

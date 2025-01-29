@@ -13,7 +13,7 @@ export interface IMongoDbEntityStorageConnectorConfig {
 	/**
 	 * The port for the MongoDb instance.
 	 */
-	port?: string;
+	port?: number;
 
 	/**
 	 * The user for the MongoDb instance.

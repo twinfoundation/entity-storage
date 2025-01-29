@@ -14,7 +14,7 @@ The host for the MongoDb instance.
 
 ### port?
 
-> `optional` **port**: `string`
+> `optional` **port**: `number`
 
 The port for the MongoDb instance.
 
