@@ -5,6 +5,7 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
+	EntitySchemaHelper,
 	type IEntitySchema,
 	LogicalOperator,
 	SortDirection
@@ -172,10 +173,10 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	): Promise<T | undefined> {
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 		try {
-			const primaryKey = this.getPrimaryKey();
+			const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
 			const query: { [key: string]: unknown } = secondaryIndex
 				? { [secondaryIndex]: id }
-				: { [primaryKey]: id };
+				: { [primaryKey.property]: id };
 
 			if (conditions) {
 				for (const condition of conditions) {
@@ -207,8 +208,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
-		const primaryKey = this.getPrimaryKey();
-		const id = (entity as { [key: string]: unknown })[primaryKey] as string;
+		const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
+		const id = (entity as { [key: string]: unknown })[primaryKey.property as string] as string;
 
 		try {
 			const filter: { [key: string]: unknown } = { id };
@@ -250,8 +251,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-			const primaryKey = this.getPrimaryKey();
-			const query: { [key: string]: unknown } = { [primaryKey]: id };
+			const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
+			const query: { [key: string]: unknown } = { [primaryKey.property as string]: id };
 
 			if (conditions) {
 				for (const condition of conditions) {
@@ -356,24 +357,6 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	private async getCollection(): Promise<Collection<Document>> {
 		const { database, collection } = this._config;
 		return this._client.db(database).collection(collection);
-	}
-
-	/**
-	 * Return the primary key from the schema.
-	 * @returns The primaryKey.
-	 * @internal
-	 */
-	private getPrimaryKey(): string {
-		const schema = this.getSchema();
-		const primaryKeyProperty = schema?.properties?.find(p => p.isPrimary);
-		if (!primaryKeyProperty) {
-			throw new GeneralError(this.CLASS_NAME, "primaryKeyNotFound", {});
-		}
-		const primaryKey = primaryKeyProperty.property as unknown as keyof T;
-		if (!primaryKey) {
-			throw new GeneralError(this.CLASS_NAME, "primaryKeyNotFound", {});
-		}
-		return primaryKey as string;
 	}
 
 	/**
