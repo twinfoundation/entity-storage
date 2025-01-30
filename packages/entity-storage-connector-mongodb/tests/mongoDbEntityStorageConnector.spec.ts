@@ -204,7 +204,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
-		const objectSet = {
+		const objectSet: TestType = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
@@ -238,7 +238,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
-		const objectSet = {
+		const objectSet: TestType = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
@@ -273,7 +273,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		await entityStorage.bootstrap();
 
 		const entityId = "1";
-		const objectSet = {
+		const objectSet: TestType = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
@@ -309,7 +309,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
-		const objectSet = {
+		const objectSet: TestType = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
@@ -347,7 +347,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const entityId = "1";
-		const objectSet = {
+		const objectSet: TestType = {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
@@ -411,7 +411,7 @@ describe("MongoDbEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		const object = {
+		const object: TestType = {
 			id: "2",
 			value1: "aaa",
 			value2: 35,
@@ -446,7 +446,7 @@ describe("MongoDbEntityStorageConnector", () => {
 
 		await entityStorage.bootstrap();
 		const secondaryValue = "zzz";
-		const object = {
+		const object: TestType = {
 			id: "2",
 			value1: "zzz",
 			value2: 35,
@@ -496,7 +496,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 
-		const object = {
+		const object: TestType = {
 			id: "2",
 			value1: "aaa",
 			value2: 35,
@@ -527,7 +527,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 		await entityStorage.bootstrap();
 		const idToRemove = "65432";
-		const object = {
+		const object: TestType = {
 			id: "65432",
 			value1: "aaa",
 			value2: 35,
@@ -558,7 +558,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 
 		await entityStorage.bootstrap();
-		const object = {
+		const object: TestType = {
 			id: "1",
 			value1: "aaa",
 			value2: 35,
@@ -589,7 +589,7 @@ describe("MongoDbEntityStorageConnector", () => {
 		});
 
 		await entityStorage.bootstrap();
-		const object = {
+		const object: TestType = {
 			id: "1",
 			value1: "aaa",
 			value2: 35,
@@ -631,7 +631,7 @@ describe("MongoDbEntityStorageConnector", () => {
 			config
 		});
 		await entityStorage.bootstrap();
-		const entry = {
+		const entry: TestType = {
 			id: "1",
 			value1: "aaa",
 			value2: 35,

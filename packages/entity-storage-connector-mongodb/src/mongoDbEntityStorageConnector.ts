@@ -174,13 +174,13 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 		try {
 			const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
-			const query: { [key: string]: unknown } = secondaryIndex
-				? { [secondaryIndex]: id }
-				: { [primaryKey.property]: id };
+			const query: { [key in keyof T]?: unknown } = Is.empty(secondaryIndex)
+				? { [primaryKey.property]: id }
+				: { [secondaryIndex]: id };
 
 			if (conditions) {
 				for (const condition of conditions) {
-					query[condition.property as string] = condition.value;
+					query[condition.property] = condition.value;
 				}
 			}
 
@@ -209,14 +209,14 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
 		const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
-		const id = entity[primaryKey.property as keyof T] as unknown as string;
+		const id = entity[primaryKey.property];
 
 		try {
-			const filter: { [key: string]: unknown } = { id };
+			const filter: { [key in keyof T]?: unknown } = { [primaryKey.property]: id };
 
 			if (Is.arrayValue(conditions)) {
 				for (const condition of conditions) {
-					filter[condition.property as string] = condition.value;
+					filter[condition.property] = condition.value;
 				}
 			}
 
