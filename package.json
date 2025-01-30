@@ -23,7 +23,7 @@
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "7.13.1",
-		"cspell": "8.17.2",
+		"cspell": "8.17.3",
 		"eslint": "8.57.0",
 		"eslint-config-prettier": "10.0.1",
 		"eslint-plugin-header": "3.1.1",
@@ -48,7 +48,8 @@
 		"packages/entity-storage-connector-dynamodb",
 		"packages/entity-storage-connector-gcp-firestore",
 		"packages/entity-storage-connector-cosmosdb",
-		"packages/entity-storage-connector-mysql"
+		"packages/entity-storage-connector-mysql",
+		"packages/entity-storage-connector-mongodb"
 	],
 	"type": "module"
 }
