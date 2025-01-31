@@ -660,7 +660,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 999,
-				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
@@ -690,7 +689,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 5555,
-				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
@@ -759,7 +757,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (30 - i).toString(),
 				value1: (30 - i).toString(),
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
@@ -808,7 +805,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (30 - i).toString(),
 				value1: (30 - i).toString(),
 				value2: i % 2 === 0 ? 100 : 200,
-				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
@@ -861,7 +857,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
@@ -893,7 +888,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					name: {
 						value: "bob"
@@ -912,7 +906,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 10).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					name: {
 						value: "fred"
@@ -946,7 +939,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					name: {
 						value: "fred"
@@ -965,7 +957,6 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 10).toString(),
 				value1: "aaa",
 				value2: 7777,
-				value3: undefined,
 				valueObject: {
 					name: {
 						value: "fred"
