@@ -16,13 +16,13 @@ import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import postgres from "postgres";
-import type { IPostgresSqlEntityStorageConnectorConfig } from "./models/IPostgresSqlEntityStorageConnectorConfig";
-import type { IPostgresSqlEntityStorageConnectorConstructorOptions } from "./models/IPostgresSqlEntityStorageConnectorConstructorOptions";
+import type { IPostgreSqlEntityStorageConnectorConfig } from "./models/IPostgreSqlEntityStorageConnectorConfig";
+import type { IPostgreSqlEntityStorageConnectorConstructorOptions } from "./models/IPostgreSqlEntityStorageConnectorConstructorOptions";
 
 /**
- * Class for performing entity storage operations using PostgresSql.
+ * Class for performing entity storage operations using ql.
  */
-export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
+export class PostgreSqlEntityStorageConnector<T = unknown> implements IEntityStorageConnector<T> {
 	/**
 	 * Limit the number of entities when finding.
 	 * @internal
@@ -32,7 +32,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	/**
 	 * Runtime name for the class.
 	 */
-	public readonly CLASS_NAME: string = nameof<PostgresSqlEntityStorageConnector>();
+	public readonly CLASS_NAME: string = nameof<PostgreSqlEntityStorageConnector>();
 
 	/**
 	 * The schema for the entity.
@@ -44,7 +44,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	 * The configuration for the connector.
 	 * @internal
 	 */
-	private readonly _config: IPostgresSqlEntityStorageConnectorConfig;
+	private readonly _config: IPostgreSqlEntityStorageConnectorConfig;
 
 	/**
 	 * The configuration for the connector.
@@ -53,13 +53,13 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	private _connection?: postgres.Sql;
 
 	/**
-	 * Create a new instance of PostgresSqlEntityStorageConnector.
+	 * Create a new instance of PostgreSqlEntityStorageConnector.
 	 * @param options The options for the connector.
 	 */
-	constructor(options: IPostgresSqlEntityStorageConnectorConstructorOptions) {
+	constructor(options: IPostgreSqlEntityStorageConnectorConstructorOptions) {
 		Guards.object(this.CLASS_NAME, nameof(options), options);
 		Guards.stringValue(this.CLASS_NAME, nameof(options.entitySchema), options.entitySchema);
-		Guards.object<IPostgresSqlEntityStorageConnectorConfig>(
+		Guards.object<IPostgreSqlEntityStorageConnectorConfig>(
 			this.CLASS_NAME,
 			nameof(options.config),
 			options.config
@@ -76,7 +76,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	}
 
 	/**
-	 * Initialize the PostgresSql environment.
+	 * Initialize the PostgreSql environment.
 	 * @param nodeLoggingConnectorType Optional type of the logging connector.
 	 * @returns A promise that resolves to a boolean indicating success.
 	 */
@@ -119,7 +119,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 			const tableExistsResult = await dbConnection.unsafe(tableExistsQuery);
 
 			if (!tableExistsResult[0].to_regclass) {
-				const createTableQuery = `CREATE TABLE IF NOT EXISTS ${this._config.tableName} (${this.mapPostgresSqlProperties(this._entitySchema)})`;
+				const createTableQuery = `CREATE TABLE IF NOT EXISTS ${this._config.tableName} (${this.mapPostgreSqlProperties(this._entitySchema)})`;
 				await dbConnection.unsafe(createTableQuery);
 			}
 
@@ -161,7 +161,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	}
 
 	/**
-	 * Get an entity from PostgresSql.
+	 * Get an entity from PostgreSql.
 	 * @param id The id of the entity to get, or the index value if secondaryIndex is set.
 	 * @param secondaryIndex Get the item using a secondary index.
 	 * @param conditions The optional conditions to match for the entities.
@@ -348,7 +348,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	): Promise<{ entities: Partial<T>[]; cursor?: string }> {
 		const sql = "";
 		try {
-			const returnSize = pageSize ?? PostgresSqlEntityStorageConnector._PAGE_SIZE;
+			const returnSize = pageSize ?? PostgreSqlEntityStorageConnector._PAGE_SIZE;
 
 			let orderByClause: string = "";
 			if (Array.isArray(sortProperties)) {
@@ -418,7 +418,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 
 	/**
 	 * Create a new DB connection.
-	 * @returns The PostgresSql connection.
+	 * @returns The PostgreSql connection.
 	 * @internal
 	 */
 	private async createConnection(): Promise<postgres.Sql> {
@@ -432,7 +432,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 
 	/**
 	 * Create a new DB connection configuration.
-	 * @returns The PostgresSql connection configuration.
+	 * @returns The PostgreSql connection configuration.
 	 * @internal
 	 */
 	private createConnectionConfig(): postgres.Options<{ [key: string]: postgres.PostgresType }> {
@@ -612,7 +612,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 	 * @returns The SQL properties as a string.
 	 * @throws GeneralError if the entity properties do not exist.
 	 */
-	private mapPostgresSqlProperties(entitySchema: IEntitySchema<T>): string {
+	private mapPostgreSqlProperties(entitySchema: IEntitySchema<T>): string {
 		const sqlTypeMap: { [key in EntitySchemaPropertyType]: string } = {
 			[EntitySchemaPropertyType.String]: "TEXT",
 			[EntitySchemaPropertyType.Number]: "REAL",

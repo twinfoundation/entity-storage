@@ -36,7 +36,7 @@ jobs:
         ports:
           - 27017:27017
 
-      postgressql:
+      postgresql:
         image: postgres:latest
         ports:
           - 5432:5432
@@ -60,7 +60,7 @@ jobs:
             'packages/entity-storage-connector-cosmosdb',
             'packages/entity-storage-connector-mysql',
             'packages/entity-storage-connector-mongodb',
-            'packages/entity-storage-connector-postgressql'
+            'packages/entity-storage-connector-postgresql'
           ]
 
     steps:

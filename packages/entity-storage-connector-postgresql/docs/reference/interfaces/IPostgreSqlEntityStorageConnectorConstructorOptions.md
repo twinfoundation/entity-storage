@@ -1,6 +1,6 @@
-# Interface: IPostgresSqlEntityStorageConnectorConstructorOptions
+# Interface: IPostgreSqlEntityStorageConnectorConstructorOptions
 
-The options for the PostgresSql entity storage connector constructor.
+The options for the PostgreSql entity storage connector constructor.
 
 ## Properties
 
@@ -28,6 +28,6 @@ logging
 
 ### config
 
-> **config**: [`IPostgresSqlEntityStorageConnectorConfig`](IPostgresSqlEntityStorageConnectorConfig.md)
+> **config**: [`IPostgreSqlEntityStorageConnectorConfig`](IPostgreSqlEntityStorageConnectorConfig.md)
 
 The configuration for the connector.

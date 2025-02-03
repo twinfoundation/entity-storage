@@ -19,9 +19,9 @@ import {
 } from "@twin.org/logging-connector-entity-storage";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import { TEST_POSTGRESSQL_CONFIG } from "./setupTestEnv";
-import type { IPostgresSqlEntityStorageConnectorConfig } from "../src/models/IPostgresSqlEntityStorageConnectorConfig";
-import { PostgresSqlEntityStorageConnector } from "../src/postgresSqlEntityStorageConnector";
+import { TEST_POSTGRESQL_CONFIG } from "./setupTestEnv";
+import type { IPostgreSqlEntityStorageConnectorConfig } from "../src/models/IPostgreSqlEntityStorageConnectorConfig";
+import { PostgreSqlEntityStorageConnector } from "../src/postgreSqlEntityStorageConnector";
 
 /**
  * Test SubType Definition.
@@ -85,9 +85,9 @@ class TestType {
 }
 
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
-const config: IPostgresSqlEntityStorageConnectorConfig = TEST_POSTGRESSQL_CONFIG;
+const config: IPostgreSqlEntityStorageConnectorConfig = TEST_POSTGRESQL_CONFIG;
 
-describe("PostgresSqlEntityStorageConnector", () => {
+describe("PostgreSqlEntityStorageConnector", () => {
 	beforeAll(async () => {
 		I18n.addDictionary("en", await import("../locales/en.json"));
 
@@ -107,7 +107,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	afterEach(async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector({
+		const entityStorage = new PostgreSqlEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -117,10 +117,10 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	test("can fail to construct when there are no options", async () => {
 		expect(
 			() =>
-				new PostgresSqlEntityStorageConnector(
+				new PostgreSqlEntityStorageConnector(
 					undefined as unknown as {
 						entitySchema: string;
-						config: IPostgresSqlEntityStorageConnectorConfig;
+						config: IPostgreSqlEntityStorageConnectorConfig;
 					}
 				)
 		).toThrow(
@@ -138,10 +138,10 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	test("can fail to construct when there is no schema", async () => {
 		expect(
 			() =>
-				new PostgresSqlEntityStorageConnector(
+				new PostgreSqlEntityStorageConnector(
 					{} as unknown as {
 						entitySchema: string;
-						config: IPostgresSqlEntityStorageConnectorConfig;
+						config: IPostgreSqlEntityStorageConnectorConfig;
 					}
 				)
 		).toThrow(
@@ -157,7 +157,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can construct and bootstrap", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector({
+		const entityStorage = new PostgreSqlEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -170,15 +170,13 @@ describe("PostgresSqlEntityStorageConnector", () => {
 		expect(logs?.[1].message).toEqual("databaseExists");
 		expect(logs?.[2].message).toEqual("tableExists");
 
-		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.databaseCreating")).toEqual(
-			true
-		);
-		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.databaseExists")).toEqual(true);
-		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.tableExists")).toEqual(true);
+		expect(I18n.hasMessage("info.postgreSqlEntityStorageConnector.databaseCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.postgreSqlEntityStorageConnector.databaseExists")).toEqual(true);
+		expect(I18n.hasMessage("info.postgreSqlEntityStorageConnector.tableExists")).toEqual(true);
 	});
 
 	test("can fail to set an item with no entity", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -193,7 +191,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can fail to set an item with an entity that do not match the table", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -206,7 +204,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 		};
 
 		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
-			new GeneralError("PostgresSqlEntityStorageConnector", "invalidEntity", {
+			new GeneralError("PostgreSqlEntityStorageConnector", "invalidEntity", {
 				entity: objectSet,
 				entitySchema: entityStorage.getSchema()
 			})
@@ -214,7 +212,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can set an item", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -245,7 +243,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can set an item with a condition", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -276,7 +274,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can set an item to update it", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -310,7 +308,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can set an item to update it with a condition", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -345,7 +343,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can fail set an item to update it with an unmatched condition", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -381,7 +379,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can fail to get an item with no id", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -396,7 +394,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can not get an item", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -407,7 +405,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can get an item", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -437,7 +435,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can get an item by secondary index", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -469,7 +467,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with no id", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -485,7 +483,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can not remove an item", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -516,7 +514,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can remove an item", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -547,7 +545,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can fail to remove an item with conditions", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -578,7 +576,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can remove an item with conditions", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -609,7 +607,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with empty store", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -621,7 +619,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with single entry", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -652,7 +650,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -682,7 +680,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and cursor", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -713,7 +711,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and apply conditions", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -750,7 +748,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and apply custom sort", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -798,7 +796,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can find items with multiple entries and apply custom sort on multiple properties", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -850,7 +848,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can query items and get a reduced data set", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -881,7 +879,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can query sub items in object", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});
@@ -932,7 +930,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 	});
 
 	test("can query sub items in array", async () => {
-		const entityStorage = new PostgresSqlEntityStorageConnector<TestType>({
+		const entityStorage = new PostgreSqlEntityStorageConnector<TestType>({
 			entitySchema: nameof<TestType>(),
 			config
 		});

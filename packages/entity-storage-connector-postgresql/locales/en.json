@@ -1,13 +1,13 @@
 {
 	"info": {
-		"postgresSqlEntityStorageConnector": {
+		"postgreSqlEntityStorageConnector": {
 			"databaseCreating": "Database \"{databaseName}\" creating",
 			"databaseExists": "Database \"{databaseName}\" created or it already exists",
 			"tableExists": "Database \"{tableName}\" created or it already exists"
 		}
 	},
 	"error": {
-		"postgresSqlEntityStorageConnector": {
+		"postgreSqlEntityStorageConnector": {
 			"setFailed": "Unable to set entity \"{id}\"",
 			"getFailed": "Unable to get entity \"{id}\"",
 			"removeFailed": "Unable to remove entity \"{id}\"",

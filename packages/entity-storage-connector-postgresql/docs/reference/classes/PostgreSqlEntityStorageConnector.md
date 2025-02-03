@@ -1,6 +1,6 @@
-# Class: PostgresSqlEntityStorageConnector\<T\>
+# Class: PostgreSqlEntityStorageConnector\<T\>
 
-Class for performing entity storage operations using PostgresSql.
+Class for performing entity storage operations using ql.
 
 ## Type Parameters
 
@@ -12,23 +12,23 @@ Class for performing entity storage operations using PostgresSql.
 
 ## Constructors
 
-### new PostgresSqlEntityStorageConnector()
+### new PostgreSqlEntityStorageConnector()
 
-> **new PostgresSqlEntityStorageConnector**\<`T`\>(`options`): [`PostgresSqlEntityStorageConnector`](PostgresSqlEntityStorageConnector.md)\<`T`\>
+> **new PostgreSqlEntityStorageConnector**\<`T`\>(`options`): [`PostgreSqlEntityStorageConnector`](PostgreSqlEntityStorageConnector.md)\<`T`\>
 
-Create a new instance of PostgresSqlEntityStorageConnector.
+Create a new instance of PostgreSqlEntityStorageConnector.
 
 #### Parameters
 
 ##### options
 
-[`IPostgresSqlEntityStorageConnectorConstructorOptions`](../interfaces/IPostgresSqlEntityStorageConnectorConstructorOptions.md)
+[`IPostgreSqlEntityStorageConnectorConstructorOptions`](../interfaces/IPostgreSqlEntityStorageConnectorConstructorOptions.md)
 
 The options for the connector.
 
 #### Returns
 
-[`PostgresSqlEntityStorageConnector`](PostgresSqlEntityStorageConnector.md)\<`T`\>
+[`PostgreSqlEntityStorageConnector`](PostgreSqlEntityStorageConnector.md)\<`T`\>
 
 ## Properties
 
@@ -48,7 +48,7 @@ Runtime name for the class.
 
 > **bootstrap**(`nodeLoggingConnectorType`?): `Promise`\<`boolean`\>
 
-Initialize the PostgresSql environment.
+Initialize the PostgreSql environment.
 
 #### Parameters
 
@@ -92,7 +92,7 @@ The schema for the entities.
 
 > **get**(`id`, `secondaryIndex`?, `conditions`?): `Promise`\<`undefined` \| `T`\>
 
-Get an entity from PostgresSql.
+Get an entity from PostgreSql.
 
 #### Parameters
 

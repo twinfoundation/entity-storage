@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0.
 
 /**
- * Configuration for the PostgresSql Entity Storage Connector.
+ * Configuration for the PostgreSql Entity Storage Connector.
  */
-export interface IPostgresSqlEntityStorageConnectorConfig {
+export interface IPostgreSqlEntityStorageConnectorConfig {
 	/**
-	 * The host for the PostgresSql instance.
+	 * The host for the PostgreSql instance.
 	 */
 	host: string;
 
 	/**
-	 * The port for the PostgresSql instance.
+	 * The port for the PostgreSql instance.
 	 */
 	port?: number;
 
 	/**
-	 * The user for the PostgresSql instance.
+	 * The user for the PostgreSql instance.
 	 */
 	user: string;
 
 	/**
-	 * The password for the PostgresSql instance.
+	 * The password for the PostgreSql instance.
 	 */
 	password: string;
 

@@ -1,11 +1,11 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { IPostgresSqlEntityStorageConnectorConfig } from "./IPostgresSqlEntityStorageConnectorConfig";
+import type { IPostgreSqlEntityStorageConnectorConfig } from "./IPostgreSqlEntityStorageConnectorConfig";
 
 /**
- * The options for the PostgresSql entity storage connector constructor.
+ * The options for the PostgreSql entity storage connector constructor.
  */
-export interface IPostgresSqlEntityStorageConnectorConstructorOptions {
+export interface IPostgreSqlEntityStorageConnectorConstructorOptions {
 	/**
 	 * The schema for the entity.
 	 */
@@ -20,5 +20,5 @@ export interface IPostgresSqlEntityStorageConnectorConstructorOptions {
 	/**
 	 * The configuration for the connector.
 	 */
-	config: IPostgresSqlEntityStorageConnectorConfig;
+	config: IPostgreSqlEntityStorageConnectorConfig;
 }

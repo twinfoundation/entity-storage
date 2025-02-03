@@ -1,6 +1,6 @@
-# Interface: IPostgresSqlEntityStorageConnectorConfig
+# Interface: IPostgreSqlEntityStorageConnectorConfig
 
-Configuration for the PostgresSql Entity Storage Connector.
+Configuration for the PostgreSql Entity Storage Connector.
 
 ## Properties
 
@@ -8,7 +8,7 @@ Configuration for the PostgresSql Entity Storage Connector.
 
 > **host**: `string`
 
-The host for the PostgresSql instance.
+The host for the PostgreSql instance.
 
 ***
 
@@ -16,7 +16,7 @@ The host for the PostgresSql instance.
 
 > `optional` **port**: `number`
 
-The port for the PostgresSql instance.
+The port for the PostgreSql instance.
 
 ***
 
@@ -24,7 +24,7 @@ The port for the PostgresSql instance.
 
 > **user**: `string`
 
-The user for the PostgresSql instance.
+The user for the PostgreSql instance.
 
 ***
 
@@ -32,7 +32,7 @@ The user for the PostgresSql instance.
 
 > **password**: `string`
 
-The password for the PostgresSql instance.
+The password for the PostgreSql instance.
 
 ***
 
