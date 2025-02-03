@@ -35,6 +35,14 @@ jobs:
         ports:
           - 27017:27017
 
+      postgressql:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

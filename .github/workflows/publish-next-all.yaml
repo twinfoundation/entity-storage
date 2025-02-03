@@ -36,6 +36,14 @@ jobs:
         ports:
           - 27017:27017
 
+      postgressql:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+
     strategy:
       max-parallel: 1
       matrix:
@@ -51,7 +59,8 @@ jobs:
             'packages/entity-storage-connector-gcp-firestore',
             'packages/entity-storage-connector-cosmosdb',
             'packages/entity-storage-connector-mysql',
-            'packages/entity-storage-connector-mongodb'
+            'packages/entity-storage-connector-mongodb',
+            'packages/entity-storage-connector-postgressql'
           ]
 
     steps:
