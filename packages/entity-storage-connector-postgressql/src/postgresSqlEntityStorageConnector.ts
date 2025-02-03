@@ -97,7 +97,9 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 				}
 			});
 
-			const res = await dbConnection.unsafe(`SELECT datname FROM pg_catalog.pg_database WHERE datname = '${this._config.database}'`);
+			const res = await dbConnection.unsafe(
+				`SELECT datname FROM pg_catalog.pg_database WHERE datname = '${this._config.database}'`
+			);
 			if (res.length === 0) {
 				await dbConnection.unsafe(`CREATE DATABASE "${this._config.database}";`);
 			}
@@ -196,15 +198,24 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 			const rows = await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
 
 			if (Array.isArray(rows) && rows.length === 1) {
-				if(this._entitySchema.properties) {
+				if (this._entitySchema.properties) {
 					for (const prop of this._entitySchema.properties) {
 						const row = rows[0] as unknown as { [key: string]: unknown };
 						let propColumn = prop.property as string;
 						propColumn = propColumn.toLowerCase();
-						if ((prop.type === EntitySchemaPropertyType.Object || prop.type === EntitySchemaPropertyType.Array) && typeof row[propColumn] === "string") {
-							const rowValue = JSON.parse((rows[0] as { [key: string]: unknown })[propColumn] as string);
+						if (
+							(prop.type === EntitySchemaPropertyType.Object ||
+								prop.type === EntitySchemaPropertyType.Array) &&
+							typeof row[propColumn] === "string"
+						) {
+							const rowValue = JSON.parse(
+								(rows[0] as { [key: string]: unknown })[propColumn] as string
+							);
 							delete (rows[0] as { [key: string]: unknown })[propColumn];
 							(rows[0] as { [key: string]: unknown })[prop.property as string] = rowValue;
+						}
+						if (row[propColumn] === null) {
+							(rows[0] as { [key: string]: unknown })[prop.property as string] = undefined;
 						}
 					}
 				}
@@ -246,7 +257,10 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 			const columns = Object.keys(entity as object)
 				.map(key => `"${key}"`)
 				.join(", ");
-			const values = Object.values(entity as object);
+			// eslint-disable-next-line no-confusing-arrow
+			const values = Object.values(entity as object).map(value =>
+				value === undefined ? null : value
+			);
 			const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
 
 			const dbConnection = await this.createConnection();
@@ -282,32 +296,32 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 		Guards.stringValue(this.CLASS_NAME, nameof(id), id);
 
 		try {
-				const dbConnection = await this.createConnection();
+			const dbConnection = await this.createConnection();
 
-				const itemData = await this.get(id);
-				if (Is.notEmpty(itemData)) {
-			const values: unknown[] = [id];
-			let whereClauses: string[] = [];
+			const itemData = await this.get(id);
+			if (Is.notEmpty(itemData)) {
+				const values: unknown[] = [id];
+				let whereClauses: string[] = [];
 
-			if (Is.arrayValue(conditions)) {
+				if (Is.arrayValue(conditions)) {
 					whereClauses = conditions.map(condition => {
-				values.push(condition.value);
-				return `"${String(condition.property)}" = $${values.length}`;
+						values.push(condition.value);
+						return `"${String(condition.property)}" = $${values.length}`;
 					});
-			}
-
-			const query = `DELETE FROM "${this._config.tableName}" WHERE "id" = $1${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
-			await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
 				}
+
+				const query = `DELETE FROM "${this._config.tableName}" WHERE "id" = $1${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
+				await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
+			}
 		} catch (err) {
-				throw new GeneralError(
-			this.CLASS_NAME,
-			"removeFailed",
-			{
+			throw new GeneralError(
+				this.CLASS_NAME,
+				"removeFailed",
+				{
 					id
-			},
-			err
-				);
+				},
+				err
+			);
 		}
 	}
 
@@ -358,18 +372,27 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 					for (const prop of this._entitySchema.properties) {
 						let propColumn = prop.property as string;
 						propColumn = propColumn.toLowerCase();
-						if ((prop.type === EntitySchemaPropertyType.Object || prop.type === EntitySchemaPropertyType.Array) && typeof row[propColumn] === "string") {
+						if (
+							(prop.type === EntitySchemaPropertyType.Object ||
+								prop.type === EntitySchemaPropertyType.Array) &&
+							typeof row[propColumn] === "string"
+						) {
 							const rowValue = JSON.parse(row[propColumn] as string);
 							delete row[propColumn];
 							row[prop.property as string] = rowValue;
+						}
+						if (row[propColumn] === null) {
+							row[prop.property as string] = undefined;
 						}
 					}
 				}
 			}
 			return {
 				entities: rows as unknown as Partial<T>[],
-				cursor: Array.isArray(rows) && rows.length === returnSize
-				? String((cursor ? Number(cursor) : 0) + returnSize) : undefined
+				cursor:
+					Array.isArray(rows) && rows.length === returnSize
+						? String((cursor ? Number(cursor) : 0) + returnSize)
+						: undefined
 			};
 		} catch (err) {
 			throw new GeneralError(this.CLASS_NAME, "queryFailed", { sql }, err);
@@ -384,7 +407,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 		try {
 			const dbConnection = await this.createConnection();
 			await dbConnection.unsafe(`DROP TABLE ${this._config.tableName};`);
-		} catch{
+		} catch {
 			// Ignore errors
 		}
 	}
@@ -487,14 +510,20 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 		if (comparator.comparison === ComparisonOperator.In) {
 			const inValues = Array.isArray(comparator.value) ? comparator.value : [comparator.value];
 			values.push(...inValues.map(val => this.propertyToDbValue(val, type)));
-			const placeholders = inValues.map((_, index) => `$${values.length - inValues.length + index + 1}`).join(", ");
+			const placeholders = inValues
+				.map((_, index) => `$${values.length - inValues.length + index + 1}`)
+				.join(", ");
 			return `"${prop}" IN (${placeholders})`;
 		}
 		const dbValue = this.propertyToDbValue(comparator.value, type);
 		values.push(dbValue);
 
 		if (comparator.property.split(".").length > 1) {
-			const jsonPath = comparator.property.split(".").slice(1).map((p, i, arr) => (i === arr.length - 1 ? `->> '${p}'` : `-> '${p}'`)).join("");
+			const jsonPath = comparator.property
+				.split(".")
+				.slice(1)
+				.map((p, i, arr) => (i === arr.length - 1 ? `->> '${p}'` : `-> '${p}'`))
+				.join("");
 			return `("${comparator.property.split(".")[0]}"::jsonb ${jsonPath}) = $${values.length}`;
 		} else if (comparator.comparison === ComparisonOperator.Equals) {
 			return `"${prop}" = $${values.length}`;
@@ -531,8 +560,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 			return Number(value);
 		} else if (type === "boolean") {
 			return Boolean(value);
-		}
-		else if (type === "array") {
+		} else if (type === "array") {
 			return value;
 		}
 
@@ -591,27 +619,27 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 		};
 
 		if (!entitySchema.properties) {
-				throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
+			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
 		}
 
 		const primaryKeys: string[] = [];
 
 		const columnDefinitions = entitySchema.properties
-				.map(prop => {
-						const sqlType = sqlTypeMap[prop.type] || "TEXT";
-						const columnName = String(prop.property);
-						const nullable = prop.optional ? " NULL" : " NOT NULL";
+			.map(prop => {
+				const sqlType = sqlTypeMap[prop.type] || "TEXT";
+				const columnName = String(prop.property);
+				const nullable = prop.optional ? " NULL" : " NOT NULL";
 
-						if (prop.isPrimary) {
-								primaryKeys.push(columnName);
-						}
+				if (prop.isPrimary) {
+					primaryKeys.push(columnName);
+				}
 
-						return `"${columnName}" ${sqlType}${nullable}`;
-				})
-				.join(", ");
+				return `"${columnName}" ${sqlType}${nullable}`;
+			})
+			.join(", ");
 
 		const primaryKeyDefinition =
-				primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
+			primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
 		return columnDefinitions + primaryKeyDefinition;
 	}
 

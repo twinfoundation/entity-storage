@@ -170,7 +170,9 @@ describe("PostgresSqlEntityStorageConnector", () => {
 		expect(logs?.[1].message).toEqual("databaseExists");
 		expect(logs?.[2].message).toEqual("tableExists");
 
-		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.databaseCreating")).toEqual(true);
+		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.databaseCreating")).toEqual(
+			true
+		);
 		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.databaseExists")).toEqual(true);
 		expect(I18n.hasMessage("info.postgresSqlEntityStorageConnector.tableExists")).toEqual(true);
 	});
@@ -222,7 +224,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 			id: entityId,
 			value1: "aaa",
 			value2: 35,
-			value3: { field1: new Date().toISOString() },
+			value3: undefined,
 			valueObject: {
 				"1": {
 					value: "bob"
@@ -660,6 +662,7 @@ describe("PostgresSqlEntityStorageConnector", () => {
 				id: (i + 1).toString(),
 				value1: "aaa",
 				value2: 999,
+				value3: undefined,
 				valueObject: {
 					"1": {
 						value: "bob"
