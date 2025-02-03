@@ -5,6 +5,7 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
+	EntitySchemaHelper,
 	EntitySchemaPropertyType,
 	type IComparator,
 	type IEntitySchema,
@@ -176,14 +177,15 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 		try {
 			const dbConnection = await this.createConnection();
 
-			const whereClauses: string[] = ["1 = 1"];
+			const whereClauses: string[] = [];
 			const values: unknown[] = [];
 
 			if (secondaryIndex) {
 				whereClauses.push(`"${String(secondaryIndex)}" = $1`);
 				values.push(id);
 			} else {
-				whereClauses.push('"id" = $1');
+				const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
+				whereClauses.push(`"${primaryKey.property}" = $1`);
 				values.push(id);
 			}
 
@@ -194,7 +196,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 				}
 			}
 
-			const query = `SELECT * FROM "${this._config.tableName}" WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
+			const query = `SELECT * FROM "${this._config.tableName}"${whereClauses.length > 0 ? ` WHERE ${whereClauses.join(" AND ")}` : ""} LIMIT 1`;
 			const rows = await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
 
 			if (Array.isArray(rows) && rows.length === 1) {
@@ -245,7 +247,8 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 
 		// Validate that the entity matches the schema
 		this.entitySqlVerification(entity);
-		const id = entity["id" as keyof T] as unknown as string;
+		const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
+		const id = entity[primaryKey.property as keyof T] as unknown as string;
 
 		try {
 			if (Is.arrayValue(conditions)) {
@@ -265,7 +268,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 
 			const dbConnection = await this.createConnection();
 			await dbConnection.unsafe(
-				`INSERT INTO "${this._config.tableName}" (${columns}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${columns
+				`INSERT INTO "${this._config.tableName}" (${columns}) VALUES (${placeholders}) ON CONFLICT ("${primaryKey.property}") DO UPDATE SET ${columns
 					.split(", ")
 					.map(col => `${col} = EXCLUDED.${col}`)
 					.join(", ")};`,
@@ -310,7 +313,8 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 					});
 				}
 
-				const query = `DELETE FROM "${this._config.tableName}" WHERE "id" = $1${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
+				const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
+				const query = `DELETE FROM "${this._config.tableName}" WHERE "${primaryKey.property}" = $1${whereClauses.length > 0 ? ` AND ${whereClauses.join(" AND ")}` : ""}`;
 				await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
 			}
 		} catch (err) {
