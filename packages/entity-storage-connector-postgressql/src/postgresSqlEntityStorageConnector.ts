@@ -196,7 +196,7 @@ export class PostgresSqlEntityStorageConnector<T = unknown> implements IEntitySt
 				}
 			}
 
-			const query = `SELECT * FROM "${this._config.tableName}"${whereClauses.length > 0 ? ` WHERE ${whereClauses.join(" AND ")}` : ""} LIMIT 1`;
+			const query = `SELECT * FROM "${this._config.tableName}" WHERE ${whereClauses.join(" AND ")} LIMIT 1`;
 			const rows = await dbConnection.unsafe(query, values as postgres.ParameterOrJSON<never>[]);
 
 			if (Array.isArray(rows) && rows.length === 1) {
