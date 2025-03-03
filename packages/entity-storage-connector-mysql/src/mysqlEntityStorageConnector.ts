@@ -175,7 +175,12 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				whereClauses.push(`\`${String(secondaryIndex)}\` = ?`);
 				values.push(id);
 			} else {
-				whereClauses.push("`id` = ?");
+				const primaryKeyProp = this._entitySchema.properties?.find(prop => prop.isPrimary);
+				if (primaryKeyProp) {
+					whereClauses.push(`\`${String(primaryKeyProp.property)}\` = ?`);
+				} else {
+					whereClauses.push("`id` = ?");
+				}
 				values.push(id);
 			}
 
@@ -573,13 +578,12 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 				if (prop.isPrimary) {
 					if (sqlType === "LONGTEXT" || sqlType === "TEXT") {
-						primaryKeys.push(`${columnName}(255)`);
+						primaryKeys.push(`\`${columnName}\`(255)`);
 					} else {
-						primaryKeys.push(columnName);
+						primaryKeys.push(`\`${columnName}\``);
 					}
 				}
-
-				return `${columnName} ${sqlType}${nullable}`;
+				return `\`${columnName}\` ${sqlType}${nullable}`;
 			})
 			.join(", ");
 
@@ -607,6 +611,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 						entitySchema: this._entitySchema
 					});
 				}
+			} else if (typeof value !== prop.type && prop.type === "object") {
 			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
 				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
 					entity,
