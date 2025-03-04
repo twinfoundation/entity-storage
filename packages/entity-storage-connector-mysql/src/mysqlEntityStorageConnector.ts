@@ -622,6 +622,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 					});
 				}
 			} else if (typeof value !== prop.type && prop.type === "object") {
+			} else if (typeof value === "number" && prop.type === "integer") {
 			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
 				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
 					entity,
