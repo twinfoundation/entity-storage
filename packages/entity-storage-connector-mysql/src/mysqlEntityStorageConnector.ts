@@ -234,6 +234,16 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				.map(key => `\`${key}\``)
 				.join(", ");
 			const values = Object.values(entity as object);
+			for (const [index, value] of values.entries()) {
+				const property = Object.keys(entity as object)[index];
+				const schemaProp = this._entitySchema.properties?.find(p => p.property === property);
+				if (
+					schemaProp?.type === EntitySchemaPropertyType.Object ||
+					schemaProp?.type === EntitySchemaPropertyType.Array
+				) {
+					values[index] = JSON.stringify(value);
+				}
+			}
 			const placeholders = values.map(() => "?").join(", ");
 
 			const dbConnection = await this.createConnection();
@@ -242,7 +252,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 					.split(", ")
 					.map(col => `${col} = VALUES(${col})`)
 					.join(", ")};`,
-				values.map(value => (typeof value === "object" ? JSON.stringify(value) : value))
+				values
 			);
 		} catch (err) {
 			throw new GeneralError(

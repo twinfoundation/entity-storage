@@ -268,11 +268,7 @@ describe("MySqlEntityStorageConnector", () => {
 			value1: "aaa",
 			value2: 35,
 			value3: { field1: new Date().toISOString() },
-			valueObject: {
-				"1": {
-					value: "bob"
-				}
-			},
+			valueObject: "data test asd" as unknown as { [id: string]: { value: string } },
 			valueArray: [
 				{
 					field: "name",
