@@ -204,9 +204,10 @@ describe("PostgreSqlEntityStorageConnector", () => {
 		};
 
 		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
-			new GeneralError("PostgreSqlEntityStorageConnector", "invalidEntity", {
-				entity: objectSet,
-				entitySchema: entityStorage.getSchema()
+			new GeneralError("EntitySchemaHelper", "invalidOptional", {
+				property: "valueObject",
+				type: "object",
+				value: undefined
 			})
 		);
 	});

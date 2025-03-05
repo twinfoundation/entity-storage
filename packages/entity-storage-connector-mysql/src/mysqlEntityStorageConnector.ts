@@ -5,6 +5,7 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
+	EntitySchemaHelper,
 	EntitySchemaPropertyType,
 	type IComparator,
 	type IEntitySchema,
@@ -175,7 +176,12 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				whereClauses.push(`\`${String(secondaryIndex)}\` = ?`);
 				values.push(id);
 			} else {
-				whereClauses.push("`id` = ?");
+				const primaryKeyProp = this._entitySchema.properties?.find(prop => prop.isPrimary);
+				if (primaryKeyProp) {
+					whereClauses.push(`\`${String(primaryKeyProp.property)}\` = ?`);
+				} else {
+					whereClauses.push("`id` = ?");
+				}
 				values.push(id);
 			}
 
@@ -214,8 +220,8 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
-		// Validate that the entity matches the schema
-		this.entitySqlVerification(entity);
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const id = entity["id" as keyof T] as unknown as string;
 
 		try {
@@ -229,6 +235,16 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 				.map(key => `\`${key}\``)
 				.join(", ");
 			const values = Object.values(entity as object);
+			for (const [index, value] of values.entries()) {
+				const property = Object.keys(entity as object)[index];
+				const schemaProp = this._entitySchema.properties?.find(p => p.property === property);
+				if (
+					schemaProp?.type === EntitySchemaPropertyType.Object ||
+					schemaProp?.type === EntitySchemaPropertyType.Array
+				) {
+					values[index] = JSON.stringify(value);
+				}
+			}
 			const placeholders = values.map(() => "?").join(", ");
 
 			const dbConnection = await this.createConnection();
@@ -237,7 +253,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 					.split(", ")
 					.map(col => `${col} = VALUES(${col})`)
 					.join(", ")};`,
-				values.map(value => (typeof value === "object" ? JSON.stringify(value) : value))
+				values
 			);
 		} catch (err) {
 			throw new GeneralError(
@@ -573,46 +589,17 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 				if (prop.isPrimary) {
 					if (sqlType === "LONGTEXT" || sqlType === "TEXT") {
-						primaryKeys.push(`${columnName}(255)`);
+						primaryKeys.push(`\`${columnName}\`(255)`);
 					} else {
-						primaryKeys.push(columnName);
+						primaryKeys.push(`\`${columnName}\``);
 					}
 				}
-
-				return `${columnName} ${sqlType}${nullable}`;
+				return `\`${columnName}\` ${sqlType}${nullable}`;
 			})
 			.join(", ");
 
 		const primaryKeyDefinition =
 			primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
 		return columnDefinitions + primaryKeyDefinition;
-	}
-
-	/**
-	 * Validate that the entity matches the schema.
-	 * @param entity The entity to validate.
-	 * @throws GeneralError if the entity schema properties are undefined or if the entity does not match the schema.
-	 */
-	private entitySqlVerification(entity: T): void {
-		// Validate that the entity matches the schema
-		if (!this._entitySchema.properties) {
-			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
-		}
-		for (const prop of this._entitySchema.properties) {
-			const value = entity[prop.property as keyof T];
-			if (value === undefined || value === null) {
-				if (!prop.optional) {
-					throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-						entity,
-						entitySchema: this._entitySchema
-					});
-				}
-			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
-				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-					entity,
-					entitySchema: this._entitySchema
-				});
-			}
-		}
 	}
 }

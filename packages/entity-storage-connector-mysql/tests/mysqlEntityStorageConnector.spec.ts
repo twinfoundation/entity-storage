@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 /* eslint-disable max-classes-per-file */
 import { GeneralError, I18n, ObjectHelper } from "@twin.org/core";
+import type { IJsonLdNodeObject } from "@twin.org/data-json-ld";
 import {
 	ComparisonOperator,
 	EntitySchemaFactory,
@@ -84,6 +85,47 @@ class TestType {
 	}[];
 }
 
+/**
+ * Class representing entry for the blob storage.
+ */
+@entity()
+class BlobStorageEntry {
+	@property({ type: "string", isPrimary: true })
+	public id!: string;
+
+	@property({ type: "string", format: "date-time", sortDirection: SortDirection.Descending })
+	public dateCreated!: string;
+
+	@property({
+		type: "string",
+		format: "date-time",
+		sortDirection: SortDirection.Descending,
+		optional: true
+	})
+	public dateModified?: string;
+
+	@property({ type: "number" })
+	public blobSize!: number;
+
+	@property({ type: "string" })
+	public blobHash!: string;
+
+	@property({ type: "string", optional: true })
+	public encodingFormat?: string;
+
+	@property({ type: "string", optional: true })
+	public fileExtension?: string;
+
+	@property({ type: "object", itemTypeRef: "IJsonLdNodeObject", optional: true })
+	public metadata?: IJsonLdNodeObject;
+
+	@property({ type: "string", optional: true })
+	public userIdentity?: string;
+
+	@property({ type: "string", optional: true })
+	public nodeIdentity?: string;
+}
+
 let memoryEntityStorage: MemoryEntityStorageConnector<LogEntry>;
 const config: IMySqlEntityStorageConnectorConfig = TEST_MYSQL_CONFIG;
 
@@ -93,6 +135,9 @@ describe("MySqlEntityStorageConnector", () => {
 
 		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
 		EntitySchemaFactory.register(nameof<SubType>(), () => EntitySchemaHelper.getSchema(SubType));
+		EntitySchemaFactory.register(nameof<BlobStorageEntry>(), () =>
+			EntitySchemaHelper.getSchema(BlobStorageEntry)
+		);
 
 		initSchema();
 	});
@@ -204,9 +249,10 @@ describe("MySqlEntityStorageConnector", () => {
 		};
 
 		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
-			new GeneralError("MySqlEntityStorageConnector", "invalidEntity", {
-				entity: objectSet,
-				entitySchema: entityStorage.getSchema()
+			new GeneralError("EntitySchemaHelper", "invalidOptional", {
+				property: "valueObject",
+				type: "object",
+				value: undefined
 			})
 		);
 	});
@@ -223,11 +269,7 @@ describe("MySqlEntityStorageConnector", () => {
 			value1: "aaa",
 			value2: 35,
 			value3: { field1: new Date().toISOString() },
-			valueObject: {
-				"1": {
-					value: "bob"
-				}
-			},
+			valueObject: "data test asd" as unknown as { [id: string]: { value: string } },
 			valueArray: [
 				{
 					field: "name",
@@ -990,5 +1032,114 @@ describe("MySqlEntityStorageConnector", () => {
 		});
 		expect(result).toBeDefined();
 		expect(result.entities.length).toEqual(5);
+	});
+
+	test("can get an item with JSON object", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<BlobStorageEntry>({
+			entitySchema: nameof<BlobStorageEntry>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const object = {
+			id: "1",
+			dateCreated: new Date().toISOString(),
+			blobSize: 1024,
+			blobHash: "hash123",
+			metadata: { "@context": "https://schema.org", "@type": "Person", name: "John Doe" }
+		};
+		await entityStorage.set(object);
+		const item = await entityStorage.get("1");
+
+		expect(item).toBeDefined();
+		for (const key in item) {
+			if (item[key as keyof BlobStorageEntry] === null) {
+				(item as Partial<BlobStorageEntry>)[key as keyof BlobStorageEntry] = undefined;
+			}
+		}
+		expect(item).toEqual(object);
+	});
+
+	test("can get an item with JSON array", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<BlobStorageEntry>({
+			entitySchema: nameof<BlobStorageEntry>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const object: BlobStorageEntry = {
+			id: "2",
+			dateCreated: new Date().toISOString(),
+			blobSize: 2048,
+			blobHash: "hash456",
+			metadata: {
+				"@context": "https://schema.org",
+				"@type": "Person",
+				name: "Jane Doe",
+				knows: [{ "@type": "Person", name: "John Doe" }]
+			}
+		};
+		await entityStorage.set(object);
+		const item = await entityStorage.get("2");
+		expect(item).toBeDefined();
+		for (const key in item) {
+			if (item[key as keyof BlobStorageEntry] === null) {
+				(item as Partial<BlobStorageEntry>)[key as keyof BlobStorageEntry] = undefined;
+			}
+		}
+		expect(item).toEqual(object);
+	});
+
+	test("can get an item with undefined optional fields", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<BlobStorageEntry>({
+			entitySchema: nameof<BlobStorageEntry>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const object = {
+			id: "3",
+			dateCreated: new Date().toISOString(),
+			blobSize: 4096,
+			blobHash: "hash789"
+		};
+		await entityStorage.set(object);
+		const item = await entityStorage.get("3");
+
+		expect(item).toBeDefined();
+		for (const key in item) {
+			if (item[key as keyof BlobStorageEntry] === null) {
+				(item as Partial<BlobStorageEntry>)[key as keyof BlobStorageEntry] = undefined;
+			}
+		}
+		expect(item).toEqual(object);
+	});
+
+	test("can get an item with an object embedded condition", async () => {
+		const entityStorage = new MySqlEntityStorageConnector<BlobStorageEntry>({
+			entitySchema: nameof<BlobStorageEntry>(),
+			config
+		});
+		await entityStorage.bootstrap();
+		const object = {
+			id: "4",
+			dateCreated: new Date().toISOString(),
+			blobSize: 512,
+			blobHash: "hash101",
+			metadata: { "@context": "https://schema.org", "@type": "Person", name: "Alice" }
+		};
+		await entityStorage.set(object);
+		const result = await entityStorage.query({
+			conditions: [
+				{ property: "metadata.name", value: "Alice", comparison: ComparisonOperator.Equals }
+			]
+		});
+
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		const item = result.entities[0];
+		for (const key in item) {
+			if (item[key as keyof BlobStorageEntry] === null) {
+				item[key as keyof BlobStorageEntry] = undefined;
+			}
+		}
+		expect(item).toEqual(object);
 	});
 });
