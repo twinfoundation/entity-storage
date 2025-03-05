@@ -249,9 +249,10 @@ describe("MySqlEntityStorageConnector", () => {
 		};
 
 		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
-			new GeneralError("MySqlEntityStorageConnector", "invalidEntity", {
-				entity: objectSet,
-				entitySchema: entityStorage.getSchema()
+			new GeneralError("EntitySchemaHelper", "invalidOptional", {
+				property: "valueObject",
+				type: "object",
+				value: undefined
 			})
 		);
 	});

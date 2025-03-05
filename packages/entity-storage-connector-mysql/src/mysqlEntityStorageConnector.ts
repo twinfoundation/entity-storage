@@ -5,6 +5,7 @@ import {
 	ComparisonOperator,
 	type EntityCondition,
 	EntitySchemaFactory,
+	EntitySchemaHelper,
 	EntitySchemaPropertyType,
 	type IComparator,
 	type IEntitySchema,
@@ -219,8 +220,8 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
-		// Validate that the entity matches the schema
-		this.entitySqlVerification(entity);
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const id = entity["id" as keyof T] as unknown as string;
 
 		try {
@@ -600,35 +601,5 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 		const primaryKeyDefinition =
 			primaryKeys.length > 0 ? `, PRIMARY KEY (${primaryKeys.join(", ")})` : "";
 		return columnDefinitions + primaryKeyDefinition;
-	}
-
-	/**
-	 * Validate that the entity matches the schema.
-	 * @param entity The entity to validate.
-	 * @throws GeneralError if the entity schema properties are undefined or if the entity does not match the schema.
-	 */
-	private entitySqlVerification(entity: T): void {
-		// Validate that the entity matches the schema
-		if (!this._entitySchema.properties) {
-			throw new GeneralError(this.CLASS_NAME, "entitySchemaPropertiesUndefined");
-		}
-		for (const prop of this._entitySchema.properties) {
-			const value = entity[prop.property as keyof T];
-			if (value === undefined || value === null) {
-				if (!prop.optional) {
-					throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-						entity,
-						entitySchema: this._entitySchema
-					});
-				}
-			} else if (typeof value !== prop.type && prop.type === "object") {
-			} else if (typeof value === "number" && prop.type === "integer") {
-			} else if (typeof value !== prop.type && (prop.type !== "array" || !Is.array(value))) {
-				throw new GeneralError(this.CLASS_NAME, "invalidEntity", {
-					entity,
-					entitySchema: this._entitySchema
-				});
-			}
-		}
 	}
 }
