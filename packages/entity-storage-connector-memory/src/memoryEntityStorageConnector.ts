@@ -96,6 +96,8 @@ export class MemoryEntityStorageConnector<T = unknown> implements IEntityStorage
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const existingIndex = this.findItem(
 			entity[this._primaryKey.property] as string,
 			undefined,

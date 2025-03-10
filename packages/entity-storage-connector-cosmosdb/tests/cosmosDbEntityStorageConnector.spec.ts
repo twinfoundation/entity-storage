@@ -67,7 +67,7 @@ class TestType {
 	/**
 	 * Value4.
 	 */
-	@property({ type: "object" })
+	@property({ type: "object", optional: true })
 	public valueObject?: {
 		[id: string]: {
 			value: string;
@@ -77,7 +77,7 @@ class TestType {
 	/**
 	 * Value5.
 	 */
-	@property({ type: "array" })
+	@property({ type: "array", optional: true })
 	public valueArray?: {
 		field: string;
 		value: string;

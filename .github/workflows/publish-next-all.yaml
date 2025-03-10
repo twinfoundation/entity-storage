@@ -145,9 +145,9 @@ jobs:
           npm pkg delete scripts
           npm pkg delete devDependencies
 
-      # - name: Publish
-      #   run: |
-      #     cd ${{ matrix.package }}
-      #     npm publish --provenance --access public --tag next
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish
+        run: |
+          cd ${{ matrix.package }}
+          npm publish --provenance --access public --tag next
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

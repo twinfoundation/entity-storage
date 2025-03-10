@@ -4,6 +4,7 @@
 import { BaseError, GeneralError, Guards, type IError, Is } from "@twin.org/core";
 import {
 	EntitySchemaFactory,
+	EntitySchemaHelper,
 	EntitySchemaPropertyType,
 	type IEntitySchemaProperty
 } from "@twin.org/entity";
@@ -170,6 +171,8 @@ export class ScyllaDBTableConnector<T = unknown>
 	 */
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
+
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
 
 		let connection;
 		const id = entity[this._primaryKey?.property] as string;

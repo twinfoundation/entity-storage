@@ -67,7 +67,7 @@ class TestType {
 	/**
 	 * Value4.
 	 */
-	@property({ type: "object" })
+	@property({ type: "object", optional: true })
 	public valueObject?: {
 		[id: string]: {
 			value: string;
@@ -77,7 +77,7 @@ class TestType {
 	/**
 	 * Value5.
 	 */
-	@property({ type: "array" })
+	@property({ type: "array", optional: true })
 	public valueArray?: {
 		field: string;
 		value: string;
@@ -199,14 +199,13 @@ describe("PostgreSqlEntityStorageConnector", () => {
 		const entityId = "1";
 		const objectSet = {
 			id: entityId,
-			value1: "aaa",
-			value2: 35
-		};
+			value1: "aaa"
+		} as TestType;
 
 		await expect(entityStorage.set(objectSet)).rejects.toThrowError(
 			new GeneralError("EntitySchemaHelper", "invalidOptional", {
-				property: "valueObject",
-				type: "object",
+				property: "value2",
+				type: "number",
 				value: undefined
 			})
 		);

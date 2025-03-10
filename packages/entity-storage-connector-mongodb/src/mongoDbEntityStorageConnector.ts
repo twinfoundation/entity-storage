@@ -208,6 +208,8 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const primaryKey = EntitySchemaHelper.getPrimaryKey(this.getSchema());
 		const id = entity[primaryKey.property];
 

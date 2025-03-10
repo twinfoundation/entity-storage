@@ -28,6 +28,18 @@ class TestType {
 	 */
 	@property({ type: "number", format: "uint8" })
 	public value2!: number;
+
+	/**
+	 * Node Identity.
+	 */
+	@property({ type: "string", optional: true })
+	public nodeIdentity?: string;
+
+	/**
+	 * User Identity.
+	 */
+	@property({ type: "string", optional: true })
+	public userIdentity?: string;
 }
 
 const TEST_USER_IDENTITY = "test-user-identity";

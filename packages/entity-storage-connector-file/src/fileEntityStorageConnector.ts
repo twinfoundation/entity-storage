@@ -160,6 +160,8 @@ export class FileEntityStorageConnector<T = unknown> implements IEntityStorageCo
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const store = await this.readStore();
 
 		const existingIndex = this.findItem(

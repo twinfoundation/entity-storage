@@ -352,6 +352,8 @@ export class CosmosDbEntityStorageConnector<T = unknown> implements IEntityStora
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		const id = entity[this._primaryKey.property] as string;
 
 		try {

@@ -79,7 +79,7 @@ class TestType {
 	/**
 	 * Value4.
 	 */
-	@property({ type: "object" })
+	@property({ type: "object", optional: true })
 	public valueObject?: {
 		[id: string]: {
 			value: string;
@@ -90,13 +90,13 @@ class TestType {
 	 * Value5.
 	 * Array of strings that will store the indexed values extracted from valueArray.
 	 */
-	@property({ type: "array", itemType: "string" })
+	@property({ type: "array", itemType: "string", optional: true })
 	public valueArrayFields?: string[];
 
 	/**
 	 * Value6.
 	 */
-	@property({ type: "array", itemTypeRef: "ValueType" })
+	@property({ type: "array", itemTypeRef: "ValueType", optional: true })
 	public valueArray?: ValueType[];
 }
 

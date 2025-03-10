@@ -247,6 +247,8 @@ export class FirestoreEntityStorageConnector<T = unknown> implements IEntityStor
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object(this.CLASS_NAME, nameof(entity), entity);
 
+		EntitySchemaHelper.validateEntity(entity, this.getSchema());
+
 		try {
 			const id = entity[this._primaryKey.property as keyof T] as string;
 
