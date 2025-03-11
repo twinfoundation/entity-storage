@@ -1178,4 +1178,41 @@ describe("MySqlEntityStorageConnector", () => {
 		const result = await bigIntEntityStorage.get(entityId);
 		expect(result).toEqual(objectSet);
 	});
+
+	test("can create a table with a uuid type and insert a random value", async () => {
+		/**
+		 * Test entity using a uuid field.
+		 */
+		@entity()
+		class UuidTestType {
+			@property({ type: "string", isPrimary: true, format: "uuid" })
+			public id!: string;
+
+			@property({ type: "string" })
+			public randomValue!: string;
+		}
+
+		EntitySchemaFactory.register(nameof<UuidTestType>(), () =>
+			EntitySchemaHelper.getSchema(UuidTestType)
+		);
+
+		const uuidEntityStorage = new MySqlEntityStorageConnector<UuidTestType>({
+			entitySchema: nameof<UuidTestType>(),
+			config
+		});
+		await uuidEntityStorage.bootstrap();
+
+		const entityId = crypto.randomUUID();
+		const randomValue = Math.random().toString(36).slice(2);
+
+		const objectSet = {
+			id: entityId,
+			randomValue
+		};
+
+		await uuidEntityStorage.set(objectSet);
+
+		const result = await uuidEntityStorage.get(entityId);
+		expect(result).toEqual(objectSet);
+	});
 });

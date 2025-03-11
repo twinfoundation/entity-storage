@@ -590,7 +590,7 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 							sqlType = "LONGTEXT";
 							switch (prop.format) {
 								case "uuid":
-									sqlType = "UUID";
+									sqlType = "CHAR(36)";
 									break;
 								case "date":
 								case "date-time":
