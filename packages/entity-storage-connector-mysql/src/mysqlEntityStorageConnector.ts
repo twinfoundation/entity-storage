@@ -583,7 +583,55 @@ export class MySqlEntityStorageConnector<T = unknown> implements IEntityStorageC
 
 		const columnDefinitions = entitySchema.properties
 			.map(prop => {
-				const sqlType = sqlTypeMap[prop.type] || "TEXT";
+				let sqlType = sqlTypeMap[prop.type] || "TEXT";
+				if (prop.format) {
+					switch (prop.type) {
+						case "string":
+							sqlType = "LONGTEXT";
+							switch (prop.format) {
+								case "uuid":
+									sqlType = "CHAR(36)";
+									break;
+								case "date":
+								case "date-time":
+									sqlType = "LONGTEXT";
+									break;
+							}
+							break;
+						case "number":
+							sqlType = "FLOAT";
+							switch (prop.format) {
+								case "float":
+									sqlType = "FLOAT";
+									break;
+								case "double":
+									sqlType = "DOUBLE";
+									break;
+							}
+							break;
+						case "integer":
+							sqlType = "INT";
+							switch (prop.format) {
+								case "int8":
+								case "uint8":
+									sqlType = "TINYINT";
+									break;
+								case "int16":
+								case "uint16":
+									sqlType = "SMALLINT";
+									break;
+								case "int32":
+								case "uint32":
+									sqlType = "INT";
+									break;
+								case "int64":
+								case "uint64":
+									sqlType = "BIGINT";
+									break;
+							}
+							break;
+					}
+				}
 				const columnName = String(prop.property);
 				const nullable = prop.optional ? " NULL" : " NOT NULL";
 
