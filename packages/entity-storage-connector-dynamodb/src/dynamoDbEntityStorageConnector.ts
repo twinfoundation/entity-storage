@@ -930,7 +930,11 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 			let entities: T[] = [];
 
 			if (Is.arrayValue(results.Items)) {
-				entities = results.Items.map(item => unmarshall(item) as T);
+				entities = results.Items.map(item => {
+					const unmarshalled = unmarshall(item);
+					delete unmarshalled[DynamoDbEntityStorageConnector._PARTITION_ID_NAME];
+					return unmarshalled as T;
+				});
 			}
 
 			return {
