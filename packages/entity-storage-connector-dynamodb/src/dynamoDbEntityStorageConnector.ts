@@ -641,6 +641,15 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 		prop += comparator.property as string;
 
 		let attributeName = this.populateAttributeNames(prop, attributeNames);
+
+		if (Is.undefined(comparator.value) || Is.null(comparator.value)) {
+			if (comparator.comparison === ComparisonOperator.Equals) {
+				return `attribute_not_exists(${attributeName})`;
+			} else if (comparator.comparison === ComparisonOperator.NotEquals) {
+				return `attribute_exists(${attributeName})`;
+			}
+		}
+
 		let propName = `:${attributeName.replace(/\./g, "").replace(/#/g, "")}`;
 
 		if (Is.array(comparator.value)) {
