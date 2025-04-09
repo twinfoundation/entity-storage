@@ -778,7 +778,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 	/**
 	 * Create a new DB connection.
-	 * @returns The dynamo db connection.
+	 * @returns The Dynamo DB connection.
 	 * @internal
 	 */
 	private createConnection(): DynamoDB {
@@ -787,7 +787,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 	/**
 	 * Create a new DB connection configuration.
-	 * @returns The dynamo db connection configuration.
+	 * @returns The Dynamo DB connection configuration.
 	 * @internal
 	 */
 	private createConnectionConfig(): {
