@@ -677,4 +677,65 @@ describe("DynamoDbEntityStorageConnector", () => {
 		const item = await entityStorage.get(entityId);
 		expect(item).toEqual(objectSet);
 	});
+
+	test("can query items with undefined value comparison", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+		await entityStorage.bootstrap();
+
+		await entityStorage.set({
+			id: "1",
+			value1: "test1",
+			value2: 100,
+			value3: { field1: new Date().toISOString() }
+		});
+		await entityStorage.set({
+			id: "2",
+			value1: "test2",
+			value2: 200
+		});
+
+		const result = await entityStorage.query({
+			property: "value3",
+			value: undefined,
+			comparison: ComparisonOperator.Equals
+		});
+
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.entities[0].id).toEqual("2");
+	});
+
+	test("can query items with not undefined value comparison", async () => {
+		const entityStorage = new DynamoDbEntityStorageConnector<TestType>({
+			entitySchema: nameof<TestType>(),
+			config: TEST_DYNAMODB_CONFIG
+		});
+		await entityStorage.bootstrap();
+
+		await entityStorage.set({
+			id: "1",
+			value1: "test1",
+			value2: 100,
+			value3: { field1: new Date().toISOString() }
+		});
+		await entityStorage.set({
+			id: "2",
+			value1: "test2",
+			value2: 200
+		});
+
+		const result = await entityStorage.query({
+			property: "value3",
+			value: null,
+			comparison: ComparisonOperator.NotEquals
+		});
+
+		expect(result).toBeDefined();
+		expect(result.entities.length).toEqual(1);
+		expect(result.entities[0].id).toEqual("1");
+		expect(result.entities[0].value3).toBeDefined();
+	});
 });
