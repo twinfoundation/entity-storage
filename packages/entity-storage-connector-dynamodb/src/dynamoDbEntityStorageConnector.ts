@@ -642,7 +642,7 @@ export class DynamoDbEntityStorageConnector<T = unknown> implements IEntityStora
 
 		let attributeName = this.populateAttributeNames(prop, attributeNames);
 
-		if (Is.undefined(comparator.value) || Is.null(comparator.value)) {
+		if (Is.empty(comparator.value)) {
 			if (comparator.comparison === ComparisonOperator.Equals) {
 				return `attribute_not_exists(${attributeName})`;
 			} else if (comparator.comparison === ComparisonOperator.NotEquals) {
