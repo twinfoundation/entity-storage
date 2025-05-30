@@ -366,6 +366,35 @@ export class DecentralisedEntityStorageConnector<
 	}
 
 	/**
+	 * Start the sync with further updates after an interval.
+	 * @param logging The logging connector to use for logging.
+	 * @returns Nothing.
+	 * @internal
+	 */
+	private async startSync(logging: ILoggingConnector | undefined): Promise<void> {
+		try {
+			// First we check for remote changes
+			await this.updateFromRemoteSyncState(logging);
+
+			// Now send any updates we have to the remote storage
+			await this.updateFromLocalSyncState(logging);
+		} catch (error) {
+			await logging?.log({
+				level: "error",
+				source: this.CLASS_NAME,
+				message: "syncFailed",
+				error: BaseError.fromError(error)
+			});
+		} finally {
+			// Set a timer to check for updates again
+			this._updateCheckTimer = setTimeout(
+				async () => this.startSync(logging),
+				this._updateCheckIntervalMs
+			);
+		}
+	}
+
+	/**
 	 * Check for updates in the decentralised storage.
 	 * @param logging The logging connector to use for logging.
 	 * @returns Nothing.
@@ -992,34 +1021,5 @@ export class DecentralisedEntityStorageConnector<
 		});
 
 		return proof;
-	}
-
-	/**
-	 * Start the sync with further updates after an interval.
-	 * @param logging The logging connector to use for logging.
-	 * @returns Nothing.
-	 * @internal
-	 */
-	private async startSync(logging: ILoggingConnector | undefined): Promise<void> {
-		try {
-			// First we check for remote changes
-			await this.updateFromRemoteSyncState(logging);
-
-			// Now send any updates we have to the remote storage
-			await this.updateFromLocalSyncState(logging);
-		} catch (error) {
-			await logging?.log({
-				level: "error",
-				source: this.CLASS_NAME,
-				message: "syncFailed",
-				error: BaseError.fromError(error)
-			});
-		} finally {
-			// Set a timer to check for updates again
-			this._updateCheckTimer = setTimeout(
-				async () => this.startSync(logging),
-				this._updateCheckIntervalMs
-			);
-		}
 	}
 }
