@@ -12,11 +12,6 @@ export interface IDecentralisedEntityStorageConnectorConstructorOptions {
 	entitySchema: string;
 
 	/**
-	 * The logging connector.
-	 */
-	loggingConnectorType?: string;
-
-	/**
 	 * The entity storage connector type to use for actual data.
 	 */
 	entityStorageConnectorType: string;
@@ -44,12 +39,6 @@ export interface IDecentralisedEntityStorageConnectorConstructorOptions {
 	 * @default identity
 	 */
 	identityConnectorType?: string;
-
-	/**
-	 * The identity resolver connector.
-	 * @default identity-resolver
-	 */
-	identityResolverConnectorType?: string;
 
 	/**
 	 * The configuration for the connector.

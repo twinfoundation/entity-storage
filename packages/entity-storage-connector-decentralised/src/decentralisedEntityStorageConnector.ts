@@ -33,9 +33,7 @@ import {
 import {
 	DocumentHelper,
 	IdentityConnectorFactory,
-	IdentityResolverConnectorFactory,
-	type IIdentityConnector,
-	type IIdentityResolverConnector
+	type IIdentityConnector
 } from "@twin.org/identity-models";
 import { type ILoggingConnector, LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
@@ -84,12 +82,6 @@ export class DecentralisedEntityStorageConnector<
 	private readonly _primaryKey: IEntitySchemaProperty<T>;
 
 	/**
-	 * The logging connector to use for logging.
-	 * @internal
-	 */
-	private readonly _loggingConnector?: ILoggingConnector;
-
-	/**
 	 * The entity storage connector to use for actual data.
 	 * @internal
 	 */
@@ -120,12 +112,6 @@ export class DecentralisedEntityStorageConnector<
 	 * @internal
 	 */
 	private readonly _identityConnector: IIdentityConnector;
-
-	/**
-	 * The identity resolver connector to use for verifying changesets.
-	 * @internal
-	 */
-	private readonly _identityResolverConnector: IIdentityResolverConnector;
 
 	/**
 	 * The key to use for the verifiable storage.
@@ -197,10 +183,6 @@ export class DecentralisedEntityStorageConnector<
 			}
 		}
 
-		if (Is.stringValue(options.loggingConnectorType)) {
-			this._loggingConnector = LoggingConnectorFactory.get(options.loggingConnectorType);
-		}
-
 		this._entityStorageConnector = EntityStorageConnectorFactory.get(
 			options.entityStorageConnectorType
 		);
@@ -219,10 +201,6 @@ export class DecentralisedEntityStorageConnector<
 
 		this._identityConnector = IdentityConnectorFactory.get(
 			options.identityConnectorType ?? "identity"
-		);
-
-		this._identityResolverConnector = IdentityResolverConnectorFactory.get(
-			options.identityResolverConnectorType ?? "identity-resolver"
 		);
 
 		this._verifiableStorageKey = options.config.verifiableStorageKey;

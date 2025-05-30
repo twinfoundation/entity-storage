@@ -6,14 +6,10 @@ import { MemoryEntityStorageConnector } from "@twin.org/entity-storage-connector
 import { EntityStorageConnectorFactory } from "@twin.org/entity-storage-models";
 import {
 	EntityStorageIdentityConnector,
-	EntityStorageIdentityResolverConnector,
 	type IdentityDocument,
 	initSchema as initSchemaIdentity
 } from "@twin.org/identity-connector-entity-storage";
-import {
-	IdentityConnectorFactory,
-	IdentityResolverConnectorFactory
-} from "@twin.org/identity-models";
+import { IdentityConnectorFactory } from "@twin.org/identity-models";
 import { nameof } from "@twin.org/nameof";
 import {
 	EntityStorageVaultConnector,
@@ -55,12 +51,6 @@ VaultConnectorFactory.register("vault", () => TEST_VAULT_CONNECTOR);
 
 export const TEST_IDENTITY_CONNECTOR = new EntityStorageIdentityConnector();
 IdentityConnectorFactory.register("identity", () => TEST_IDENTITY_CONNECTOR);
-
-export const TEST_IDENTITY_RESOLVER_CONNECTOR = new EntityStorageIdentityResolverConnector();
-IdentityResolverConnectorFactory.register(
-	"identity-resolver",
-	() => TEST_IDENTITY_RESOLVER_CONNECTOR
-);
 
 const walletAddressEntityStorage = new MemoryEntityStorageConnector<WalletAddress>({
 	entitySchema: nameof<WalletAddress>()

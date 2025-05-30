@@ -12,14 +12,6 @@ The name of the entity schema.
 
 ***
 
-### loggingConnectorType?
-
-> `optional` **loggingConnectorType**: `string`
-
-The logging connector.
-
-***
-
 ### entityStorageConnectorType
 
 > **entityStorageConnectorType**: `string`
@@ -80,20 +72,6 @@ The identity connector.
 
 ```ts
 identity
-```
-
-***
-
-### identityResolverConnectorType?
-
-> `optional` **identityResolverConnectorType**: `string`
-
-The identity resolver connector.
-
-#### Default
-
-```ts
-identity-resolver
 ```
 
 ***
