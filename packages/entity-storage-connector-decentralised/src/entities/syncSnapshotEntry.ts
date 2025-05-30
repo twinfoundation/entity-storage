@@ -1,0 +1,46 @@
+// Copyright 2024 IOTA Stiftung.
+// SPDX-License-Identifier: Apache-2.0.
+import { entity, property } from "@twin.org/entity";
+import type { ISyncChange } from "../models/ISyncChange";
+
+/**
+ * Class representing an entry for the sync snapshot.
+ */
+@entity()
+export class SyncSnapshotEntry<T = unknown> {
+	/**
+	 * The id for the snapshot.
+	 */
+	@property({ type: "string", isPrimary: true })
+	public id!: string;
+
+	/**
+	 * The date the snapshot was created.
+	 */
+	@property({ type: "string" })
+	public dateCreated!: string;
+
+	/**
+	 * The date the snapshot was last modified.
+	 */
+	@property({ type: "string", optional: true })
+	public dateModified?: string;
+
+	/**
+	 * The ids of the storage for the change sets in the snapshot.
+	 */
+	@property({ type: "array", itemType: "string" })
+	public changeSetStorageIds!: string[];
+
+	/**
+	 * The flag to determine this is the current local snapshot.
+	 */
+	@property({ type: "boolean", optional: true })
+	public isLocalSnapshot?: boolean;
+
+	/**
+	 * The changes that were made in this snapshot.
+	 */
+	@property({ type: "array", itemType: "object", optional: true })
+	public changes?: ISyncChange<T>[];
+}

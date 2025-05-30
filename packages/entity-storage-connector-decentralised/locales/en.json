@@ -1,0 +1,29 @@
+{
+	"info": {
+		"decentralisedEntityStorageConnector": {
+			"verifiableSyncPointerRetrieving": "Retrieving verifiable sync pointer for key \"{key}\"",
+			"verifiableSyncPointerNotFound": "No verifiable sync pointer found for key \"{key}\"",
+			"verifiableSyncPointerRetrieved": "Retrieved verifiable sync pointer for key \"{key}\" with value \"{syncPointerId}\"",
+			"verifiableSyncPointerStoring": "Storing verifiable sync pointer for key \"{key}\" with value \"{syncPointerId}\"",
+			"remoteSyncStateStoring": "Storing remote sync state entry with \"{snapshotCount}\" snapshots",
+			"remoteSyncStateRetrieving": "Retrieving remote sync state entry for syncPointerId \"{syncPointerId}\"",
+			"remoteSyncStateRetrieved": "Retrieving remote sync state entry for syncPointerId \"{syncPointerId}\" with \"{snapshotCount}\" snapshots",
+			"remoteSyncSynchronisation": "Syncing from remote state with \"{snapshotCount}\" snapshots",
+			"remoteSyncSnapshotProcessing": "Processing remote sync snapshot with id \"{snapshotId}\" created on \"{dateCreated}\"",
+			"remoteSyncSnapshotModified": "Processing modified sync snapshot with id \"{snapshotId}\", remote modified on \"{remoteModified}\", local modified on \"{localModified}\"",
+			"remoteSyncSnapshotNew": "Processing new sync snapshot with id \"{snapshotId}\", created on \"{dateCreated}\"",
+			"remoteSyncChangeApplying": "Applying remote sync change with operation id \"{operation}\" for item with id \"{id}\"",
+			"remoteSyncChangeSetStoring": "Storing remote sync change set with id \"{id}\"",
+			"verifyChangeSetProofMissing": "Verifying change set with id \"{id}\" failed, missing proof",
+			"verifyChangeSetProofInvalid": "Verifying change set with id \"{id}\" failed, invalid proof",
+			"verifyChangeSetProofValid": "Verifying change set with id \"{id}\" succeeded",
+			"createdChangeSetProof": "Created change proof for change set with id \"{id}\", proof value is \"{proofValue}\""
+		}
+	},
+	"error": {
+		"decentralisedEntityStorageConnector": {
+			"missingRequiredProperty": "To use decentralised entity storage the entity schema must contain the property \"{requiredProperty}\"",
+			"syncFailed": "Failed to sync decentralised entity storage connector"
+		}
+	}
+}
