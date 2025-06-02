@@ -227,7 +227,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000000,
 				message: "verifiableSyncPointerRetrieving",
 				data: {
@@ -237,7 +237,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000001,
 				message: "verifiableSyncPointerNotFound",
 				data: {
@@ -276,7 +276,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000000,
 				message: "verifiableSyncPointerRetrieving",
 				data: {
@@ -286,7 +286,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000001,
 				message: "verifiableSyncPointerRetrieved",
 				data: {
@@ -298,7 +298,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000002,
 				message: "remoteSyncStateRetrieving",
 				data: {
@@ -309,7 +309,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "RemoteSyncStateHelper",
 				ts: 1748502000003,
 				message: "remoteSyncStateRetrieved",
 				data: {
@@ -321,7 +321,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
 				level: "info",
-				source: "DecentralisedEntityStorageConnector",
+				source: "LocalSyncStateHelper",
 				ts: 1748502000004,
 				message: "remoteSyncSynchronisation",
 				data: {
