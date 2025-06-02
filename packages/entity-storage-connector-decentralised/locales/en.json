@@ -29,7 +29,8 @@
 	"error": {
 		"decentralisedEntityStorageConnector": {
 			"missingRequiredProperty": "To use decentralised entity storage the entity schema must contain the property \"{requiredProperty}\"",
-			"syncFailed": "Failed to sync decentralised entity storage connector"
+			"entitySyncFailed": "Failed to sync decentralised entity storage connector",
+			"consolidationSyncFailed": "Failed to consolidate decentralised entity storage connector"
 		}
 	}
 }

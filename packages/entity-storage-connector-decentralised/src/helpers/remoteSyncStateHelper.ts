@@ -140,6 +140,9 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 					// If the change is a set operation, we need to swap out the id for the entity
 					change.entity = await this._entityStorageConnector.get(change.id);
 					delete change.id;
+					// Remove the node identity as the changeset has this stored at the top level
+					// and we do not want to store it in the change itself
+					delete change.entity?.nodeIdentity;
 				}
 			}
 

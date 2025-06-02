@@ -17,18 +17,25 @@ export interface IDecentralisedEntityStorageConnectorConfig {
 	decentralisedStorageMethodId?: string;
 
 	/**
-	 * How often to check for updates in milliseconds.
+	 * How often to check for entity updates in milliseconds.
 	 * @default 300000 (5 minutes)
 	 */
-	updateCheckIntervalMs?: number;
+	entityUpdateIntervalMs?: number;
 
 	/**
-	 * Interval to perform consolidation of changesets, only available if you have write access to the verifiable storage.
+	 * Is this a node that has permission to write to the verifiable storage?
+	 * @default false
+	 */
+	isAuthoritativeNode?: boolean;
+
+	/**
+	 * Interval to perform consolidation of changesets, only used if isAuthoritativeNode is set.
+	 * @default 300000 (5 minutes)
 	 */
 	consolidationIntervalMs?: number;
 
 	/**
-	 * When the node has no permissions to write to the verifiable storage, this is the endpoint to use for remote sync.
+	 * This is the endpoint to use for remote sync when isAuthoritativeNode is not set.
 	 */
 	remoteSyncEndpoint?: string;
 }

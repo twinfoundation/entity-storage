@@ -26,11 +26,11 @@ decentralised-storage-assertion
 
 ***
 
-### updateCheckIntervalMs?
+### entityUpdateIntervalMs?
 
-> `optional` **updateCheckIntervalMs**: `number`
+> `optional` **entityUpdateIntervalMs**: `number`
 
-How often to check for updates in milliseconds.
+How often to check for entity updates in milliseconds.
 
 #### Default
 
@@ -40,11 +40,31 @@ How often to check for updates in milliseconds.
 
 ***
 
+### isAuthoritativeNode?
+
+> `optional` **isAuthoritativeNode**: `boolean`
+
+Is this a node that has permission to write to the verifiable storage?
+
+#### Default
+
+```ts
+false
+```
+
+***
+
 ### consolidationIntervalMs?
 
 > `optional` **consolidationIntervalMs**: `number`
 
-Interval to perform consolidation of changesets, only available if you have write access to the verifiable storage.
+Interval to perform consolidation of changesets, only used if isAuthoritativeNode is set.
+
+#### Default
+
+```ts
+300000 (5 minutes)
+```
 
 ***
 
@@ -52,4 +72,4 @@ Interval to perform consolidation of changesets, only available if you have writ
 
 > `optional` **remoteSyncEndpoint**: `string`
 
-When the node has no permissions to write to the verifiable storage, this is the endpoint to use for remote sync.
+This is the endpoint to use for remote sync when isAuthoritativeNode is not set.

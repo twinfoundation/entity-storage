@@ -40,10 +40,16 @@ export class DecentralisedEntityStorageConnector<
 > implements IEntityStorageConnector<T>
 {
 	/**
-	 * The default interval to check for updates.
+	 * The default interval to check for entity updates, defaults to 5 mins.
 	 * @internal
 	 */
-	private static readonly _DEFAULT_UPDATE_CHECK_INTERVAL_MS: number = 300000;
+	private static readonly _DEFAULT_ENTITY_UPDATE_INTERVAL_MS: number = 300000;
+
+	/**
+	 * The default interval to perform consolidation, defaults to 60 mins.
+	 * @internal
+	 */
+	private static readonly _DEFAULT_CONSOLIDATION_INTERVAL_MS: number = 3600000;
 
 	/**
 	 * Runtime name for the class.
@@ -95,24 +101,6 @@ export class DecentralisedEntityStorageConnector<
 	private readonly _identityConnector: IIdentityConnector;
 
 	/**
-	 * The key to use for the verifiable storage.
-	 * @internal
-	 */
-	private readonly _verifiableStorageKey: string;
-
-	/**
-	 * How often to check for updates in milliseconds..
-	 * @internal
-	 */
-	private readonly _updateCheckIntervalMs: number;
-
-	/**
-	 * The id of the identity method to use when signing/verifying changesets.
-	 * @internal
-	 */
-	private readonly _decentralisedStorageMethodId: string;
-
-	/**
 	 * The local sync state helper to use for applying changesets.
 	 * @internal
 	 */
@@ -131,10 +119,22 @@ export class DecentralisedEntityStorageConnector<
 	private readonly _changeSetHelper: ChangeSetHelper<T>;
 
 	/**
-	 * The timer id for checking for updates.
+	 * The options for the connector.
 	 * @internal
 	 */
-	private _updateCheckTimer: NodeJS.Timeout | undefined;
+	private readonly _config: Required<IDecentralisedEntityStorageConnectorConfig>;
+
+	/**
+	 * The timer id for checking for entity updates.
+	 * @internal
+	 */
+	private _entityUpdateTimer: NodeJS.Timeout | undefined;
+
+	/**
+	 * The timer id for consolidation.
+	 * @internal
+	 */
+	private _consolidationTimer: NodeJS.Timeout | undefined;
 
 	/**
 	 * The identity of the node this connector is running on.
@@ -202,18 +202,33 @@ export class DecentralisedEntityStorageConnector<
 			options.identityConnectorType ?? "identity"
 		);
 
-		this._verifiableStorageKey = options.config.verifiableStorageKey;
-		this._decentralisedStorageMethodId =
-			options.config.decentralisedStorageMethodId ?? "decentralised-storage-assertion";
-		this._updateCheckIntervalMs =
-			options.config.updateCheckIntervalMs ??
-			DecentralisedEntityStorageConnector._DEFAULT_UPDATE_CHECK_INTERVAL_MS;
+		this._config = {
+			entityUpdateIntervalMs:
+				options.config.entityUpdateIntervalMs ??
+				DecentralisedEntityStorageConnector._DEFAULT_ENTITY_UPDATE_INTERVAL_MS,
+			verifiableStorageKey: options.config.verifiableStorageKey ?? "verifiable-storage",
+			decentralisedStorageMethodId:
+				options.config.decentralisedStorageMethodId ?? "decentralised-storage-assertion",
+			isAuthoritativeNode: options.config.isAuthoritativeNode ?? false,
+			consolidationIntervalMs:
+				options.config.consolidationIntervalMs ??
+				DecentralisedEntityStorageConnector._DEFAULT_CONSOLIDATION_INTERVAL_MS,
+			remoteSyncEndpoint: options.config.remoteSyncEndpoint ?? ""
+		};
+
+		if (!this._config.isAuthoritativeNode) {
+			Guards.stringValue(
+				this.CLASS_NAME,
+				nameof(this._config.remoteSyncEndpoint),
+				this._config.remoteSyncEndpoint
+			);
+		}
 
 		this._changeSetHelper = new ChangeSetHelper<T>(
 			this._entityStorageConnector,
 			this._blobStorageConnector,
 			this._identityConnector,
-			this._decentralisedStorageMethodId
+			this._config.decentralisedStorageMethodId
 		);
 
 		this._localSyncStateHelper = new LocalSyncStateHelper<T>(
@@ -225,7 +240,7 @@ export class DecentralisedEntityStorageConnector<
 			this._blobStorageConnector,
 			this._verifiableSyncPointerStorageConnector,
 			this._changeSetHelper,
-			this._verifiableStorageKey
+			this._config.verifiableStorageKey
 		);
 	}
 
@@ -258,7 +273,11 @@ export class DecentralisedEntityStorageConnector<
 
 		this._nodeIdentity = nodeIdentity;
 
-		await this.startSync(nodeLogging);
+		await this.startEntitySync(nodeLogging);
+
+		if (this._config.isAuthoritativeNode) {
+			await this.startConsolidationSync(nodeLogging);
+		}
 	}
 
 	/**
@@ -273,9 +292,13 @@ export class DecentralisedEntityStorageConnector<
 		nodeLoggingConnectorType: string | undefined,
 		componentState?: { [id: string]: unknown }
 	): Promise<void> {
-		if (Is.notEmpty(this._updateCheckTimer)) {
-			clearInterval(this._updateCheckTimer);
-			this._updateCheckTimer = undefined;
+		if (Is.notEmpty(this._entityUpdateTimer)) {
+			clearTimeout(this._entityUpdateTimer);
+			this._entityUpdateTimer = undefined;
+		}
+		if (Is.notEmpty(this._consolidationTimer)) {
+			clearTimeout(this._consolidationTimer);
+			this._consolidationTimer = undefined;
 		}
 	}
 
@@ -389,7 +412,7 @@ export class DecentralisedEntityStorageConnector<
 	 * @returns Nothing.
 	 * @internal
 	 */
-	private async startSync(logging: ILoggingConnector | undefined): Promise<void> {
+	private async startEntitySync(logging: ILoggingConnector | undefined): Promise<void> {
 		try {
 			// First we check for remote changes
 			await this.updateFromRemoteSyncState(logging);
@@ -400,14 +423,14 @@ export class DecentralisedEntityStorageConnector<
 			await logging?.log({
 				level: "error",
 				source: this.CLASS_NAME,
-				message: "syncFailed",
+				message: "entitySyncFailed",
 				error: BaseError.fromError(error)
 			});
 		} finally {
 			// Set a timer to check for updates again
-			this._updateCheckTimer = setTimeout(
-				async () => this.startSync(logging),
-				this._updateCheckIntervalMs
+			this._entityUpdateTimer = setTimeout(
+				async () => this.startEntitySync(logging),
+				this._config.entityUpdateIntervalMs
 			);
 		}
 	}
@@ -464,6 +487,31 @@ export class DecentralisedEntityStorageConnector<
 					await this._localSyncStateHelper.removeLocalChangeSnapshot(logging, localChangeSnapshot);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Start the consolidation sync.
+	 * @param logging The logging connector to use for logging.
+	 * @returns Nothing.
+	 * @internal
+	 */
+	private async startConsolidationSync(logging: ILoggingConnector | undefined): Promise<void> {
+		try {
+			// Do some consolidation of remote changesets
+		} catch (error) {
+			await logging?.log({
+				level: "error",
+				source: this.CLASS_NAME,
+				message: "consolidationSyncFailed",
+				error: BaseError.fromError(error)
+			});
+		} finally {
+			// Set a timer to perform the consolidation again
+			this._consolidationTimer = setTimeout(
+				async () => this.startConsolidationSync(logging),
+				this._config.consolidationIntervalMs
+			);
 		}
 	}
 }

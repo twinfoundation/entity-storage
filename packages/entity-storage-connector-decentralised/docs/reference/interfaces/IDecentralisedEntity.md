@@ -4,8 +4,8 @@ The base definition for decentralised entries.
 
 ## Properties
 
-### nodeIdentity
+### nodeIdentity?
 
-> **nodeIdentity**: `string`
+> `optional` **nodeIdentity**: `string`
 
 The identity of the node that owns the entry.

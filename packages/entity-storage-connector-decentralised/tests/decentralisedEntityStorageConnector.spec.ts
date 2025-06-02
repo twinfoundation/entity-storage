@@ -203,12 +203,26 @@ describe("DecentralisedEntityStorageConnector", () => {
 		);
 	});
 
-	test("can construct", async () => {
+	test("can construct an authoritative node", async () => {
 		const entityStorage = new DecentralisedEntityStorageConnector({
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
+			}
+		});
+		expect(entityStorage).toBeDefined();
+	});
+
+	test("can construct a none authoritative node", async () => {
+		const entityStorage = new DecentralisedEntityStorageConnector({
+			entitySchema: nameof<TestType>(),
+			entityStorageConnectorType: "test-type",
+			config: {
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: false,
+				remoteSyncEndpoint: "http://localhost:3000/sync"
 			}
 		});
 		expect(entityStorage).toBeDefined();
@@ -219,7 +233,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
 			}
 		});
 		await decentrialisedEntityStorage.start(TEST_NODE_IDENTITY, "node-logging");
@@ -252,7 +267,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
 			}
 		});
 
@@ -336,7 +352,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
 			}
 		});
 
@@ -459,7 +476,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
 			}
 		});
 
@@ -606,7 +624,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
 			config: {
-				verifiableStorageKey: testTypeRemoteKey
+				verifiableStorageKey: testTypeRemoteKey,
+				isAuthoritativeNode: true
 			}
 		});
 
@@ -633,8 +652,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "222",
 				value1: "value1",
-				value2: "value2",
-				nodeIdentity: TEST_NODE_IDENTITY
+				value2: "value2"
 			}
 		]);
 
@@ -646,10 +664,10 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const blobStorageKeys = Object.keys(blobStore);
 		expect(blobStorageKeys.length).toBe(2);
 		expect(blobStorageKeys[0]).toEqual(
-			"19524a02c39ac086fedca8fa8f4f781fbf598a5f760d4bc7173b0c0f9356cbaf"
+			"49e2d03a48ad9a04061fbac2d409b21f94c8710bab7e620512591fe6852260ab"
 		);
 		expect(blobStorageKeys[1]).toEqual(
-			"07c6b6724acadd333eef51e81e9a81568690f03060222d373996ce3a74f6be28"
+			"9bc8c65ce1486a0b57c97c64ed8eb826b6588ea6c3311fbe0574339a741ded7a"
 		);
 
 		expect(await decompressObject(blobStoreValues[0])).toEqual({
@@ -661,9 +679,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 					entity: {
 						id: "222",
 						value1: "value1",
-						value2: "value2",
-						nodeIdentity:
-							"did:entity-storage:0x0101010101010101010101010101010101010101010101010101010101010101"
+						value2: "value2"
 					}
 				},
 				{
@@ -682,7 +698,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 					"did:entity-storage:0x0101010101010101010101010101010101010101010101010101010101010101#decentralised-storage-assertion",
 				proofPurpose: "assertionMethod",
 				proofValue:
-					"z3JthQQVR8gbdhVRFd5MREciQbTi5fPWucxUM12oK4LzU8vkSNcyozHA7nJvooyTpj4dwaXn7MKgGPtt2x813KhFH"
+					"z5sKVbxhbUH7Hf3VMRpJVByvZFP6JZEdk8q3zDmwLXWao2D4hQwNReSC29BLASqjMGFaeiLWc2Tz4pdXBH2D8R6Qs"
 			}
 		});
 		expect(await decompressObject(blobStoreValues[1])).toEqual({
@@ -691,7 +707,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 					id: "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
 					dateCreated: "2025-05-29T07:00:00.005Z",
 					changeSetStorageIds: [
-						"blob:memory:19524a02c39ac086fedca8fa8f4f781fbf598a5f760d4bc7173b0c0f9356cbaf"
+						"blob:memory:49e2d03a48ad9a04061fbac2d409b21f94c8710bab7e620512591fe6852260ab"
 					]
 				}
 			]
@@ -702,7 +718,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "dbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdb",
 				creator: "verifiable:entity-storage:11111111111111111111111111111111",
-				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6MDdjNmI2NzI0YWNhZGQzMzNlZWY1MWU4MWU5YTgxNTY4NjkwZjAzMDYwMjIyZDM3Mzk5NmNlM2E3NGY2YmUyOCJ9",
+				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6OWJjOGM2NWNlMTQ4NmEwYjU3Yzk3YzY0ZWQ4ZWI4MjZiNjU4OGVhNmMzMzExZmJlMDU3NDMzOWE3NDFkZWQ3YSJ9",
 				allowList: ["verifiable:entity-storage:11111111111111111111111111111111"],
 				maxAllowListSize: 100
 			}
@@ -711,7 +727,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		expect(
 			ObjectHelper.fromBytes(Converter.base64ToBytes(verifiableSyncPointerStore[0].data))
 		).toEqual({
-			syncPointerId: "blob:memory:07c6b6724acadd333eef51e81e9a81568690f03060222d373996ce3a74f6be28"
+			syncPointerId: "blob:memory:9bc8c65ce1486a0b57c97c64ed8eb826b6588ea6c3311fbe0574339a741ded7a"
 		});
 	});
 });

@@ -8,5 +8,5 @@ export interface IDecentralisedEntity {
 	/**
 	 * The identity of the node that owns the entry.
 	 */
-	nodeIdentity: string;
+	nodeIdentity?: string;
 }

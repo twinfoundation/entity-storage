@@ -126,6 +126,10 @@ export class ChangeSetHelper<
 			switch (change.operation) {
 				case "set":
 					if (!Is.empty(change.entity)) {
+						// The node identity was stripped when stored in the changeset
+						// as the changeset is signed with the node identity.
+						// so we need to restore it here.
+						change.entity.nodeIdentity = syncChangeset.nodeIdentity;
 						await this._entityStorageConnector.set(change.entity);
 					}
 					break;
