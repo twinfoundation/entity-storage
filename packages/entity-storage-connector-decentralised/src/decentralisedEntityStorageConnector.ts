@@ -52,6 +52,12 @@ export class DecentralisedEntityStorageConnector<
 	private static readonly _DEFAULT_CONSOLIDATION_INTERVAL_MS: number = 3600000;
 
 	/**
+	 * The default size of a consolidation batch.
+	 * @internal
+	 */
+	private static readonly _DEFAULT_CONSOLIDATION_BATCH_SIZE: number = 1000;
+
+	/**
 	 * Runtime name for the class.
 	 */
 	public readonly CLASS_NAME: string = nameof<DecentralisedEntityStorageConnector>();
@@ -171,7 +177,7 @@ export class DecentralisedEntityStorageConnector<
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
-		const requiredProperties: (keyof IDecentralisedEntity)[] = ["nodeIdentity"];
+		const requiredProperties: (keyof IDecentralisedEntity)[] = ["nodeIdentity", "dateCreated"];
 
 		for (const requiredProperty of requiredProperties) {
 			const foundProperty = this._entitySchema.properties?.find(
@@ -179,6 +185,10 @@ export class DecentralisedEntityStorageConnector<
 			);
 			if (Is.empty(foundProperty)) {
 				throw new GeneralError(this.CLASS_NAME, "missingRequiredProperty", { requiredProperty });
+			} else if (Is.empty(foundProperty.isSecondary) && Is.empty(foundProperty.sortDirection)) {
+				throw new GeneralError(this.CLASS_NAME, "missingRequiredPropertySort", {
+					requiredProperty
+				});
 			}
 		}
 
@@ -213,6 +223,9 @@ export class DecentralisedEntityStorageConnector<
 			consolidationIntervalMs:
 				options.config.consolidationIntervalMs ??
 				DecentralisedEntityStorageConnector._DEFAULT_CONSOLIDATION_INTERVAL_MS,
+			consolidationBatchSize:
+				options.config.consolidationBatchSize ??
+				DecentralisedEntityStorageConnector._DEFAULT_CONSOLIDATION_BATCH_SIZE,
 			remoteSyncEndpoint: options.config.remoteSyncEndpoint ?? ""
 		};
 
@@ -228,7 +241,8 @@ export class DecentralisedEntityStorageConnector<
 			this._entityStorageConnector,
 			this._blobStorageConnector,
 			this._identityConnector,
-			this._config.decentralisedStorageMethodId
+			this._config.decentralisedStorageMethodId,
+			this._primaryKey
 		);
 
 		this._localSyncStateHelper = new LocalSyncStateHelper<T>(
@@ -338,7 +352,9 @@ export class DecentralisedEntityStorageConnector<
 
 		// Make sure the entity has the node identity set
 		// as we only create sync snapshots for entities created by this node
-		entity.nodeIdentity = this._nodeIdentity ?? entity.nodeIdentity;
+		// it is the responsibility of other nodes to sync their entities
+		entity.nodeIdentity = this._nodeIdentity ?? "";
+		entity.dateCreated = new Date(Date.now()).toISOString();
 
 		EntitySchemaHelper.validateEntity(entity, this.getSchema());
 
@@ -413,25 +429,29 @@ export class DecentralisedEntityStorageConnector<
 	 * @internal
 	 */
 	private async startEntitySync(logging: ILoggingConnector | undefined): Promise<void> {
-		try {
-			// First we check for remote changes
-			await this.updateFromRemoteSyncState(logging);
+		// If the update interval is set to 0, we don't perform any updates
+		if (this._config.entityUpdateIntervalMs > 0) {
+			try {
+				// First we check for remote changes
+				await this.updateFromRemoteSyncState(logging);
 
-			// Now send any updates we have to the remote storage
-			await this.updateFromLocalSyncState(logging);
-		} catch (error) {
-			await logging?.log({
-				level: "error",
-				source: this.CLASS_NAME,
-				message: "entitySyncFailed",
-				error: BaseError.fromError(error)
-			});
-		} finally {
-			// Set a timer to check for updates again
-			this._entityUpdateTimer = setTimeout(
-				async () => this.startEntitySync(logging),
-				this._config.entityUpdateIntervalMs
-			);
+				// Now send any updates we have to the remote storage
+				await this.updateFromLocalSyncState(logging);
+			} catch (error) {
+				console.error(error);
+				await logging?.log({
+					level: "error",
+					source: this.CLASS_NAME,
+					message: "entitySyncFailed",
+					error: BaseError.fromError(error)
+				});
+			} finally {
+				// Set a timer to check for updates again
+				this._entityUpdateTimer = setTimeout(
+					async () => this.startEntitySync(logging),
+					this._config.entityUpdateIntervalMs
+				);
+			}
 		}
 	}
 
@@ -497,21 +517,45 @@ export class DecentralisedEntityStorageConnector<
 	 * @internal
 	 */
 	private async startConsolidationSync(logging: ILoggingConnector | undefined): Promise<void> {
-		try {
-			// Do some consolidation of remote changesets
-		} catch (error) {
-			await logging?.log({
-				level: "error",
-				source: this.CLASS_NAME,
-				message: "consolidationSyncFailed",
-				error: BaseError.fromError(error)
-			});
-		} finally {
-			// Set a timer to perform the consolidation again
-			this._consolidationTimer = setTimeout(
-				async () => this.startConsolidationSync(logging),
-				this._config.consolidationIntervalMs
-			);
+		// If the consolidation interval is set to 0, we don't perform any consolidation
+		if (this._config.consolidationIntervalMs > 0) {
+			let localChangeSnapshot: SyncSnapshotEntry<T> | undefined;
+			try {
+				// If we are performing a consolidation, we can remove the local changes
+				await this._localSyncStateHelper.getLocalChangeSnapshot();
+				if (!Is.empty(localChangeSnapshot)) {
+					await this._localSyncStateHelper.removeLocalChangeSnapshot(logging, localChangeSnapshot);
+				}
+
+				if (Is.stringValue(this._nodeIdentity)) {
+					await this._remoteSyncStateHelper.consolidateFromLocal(
+						logging,
+						this._nodeIdentity,
+						this._config.consolidationBatchSize ??
+							DecentralisedEntityStorageConnector._DEFAULT_CONSOLIDATION_BATCH_SIZE
+					);
+
+					// The consolidation was successful, so we can remove the local change snapshot permanently
+					localChangeSnapshot = undefined;
+				}
+			} catch (error) {
+				if (localChangeSnapshot) {
+					// If the consolidation failed, we can keep the local change snapshot
+					await this._localSyncStateHelper.setLocalChangeSnapshot(localChangeSnapshot);
+				}
+				await logging?.log({
+					level: "error",
+					source: this.CLASS_NAME,
+					message: "consolidationSyncFailed",
+					error: BaseError.fromError(error)
+				});
+			} finally {
+				// Set a timer to perform the consolidation again
+				this._consolidationTimer = setTimeout(
+					async () => this.startConsolidationSync(logging),
+					this._config.consolidationIntervalMs
+				);
+			}
 		}
 	}
 }

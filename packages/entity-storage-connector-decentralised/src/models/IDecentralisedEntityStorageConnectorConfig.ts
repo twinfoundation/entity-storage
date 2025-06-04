@@ -35,6 +35,12 @@ export interface IDecentralisedEntityStorageConnectorConfig {
 	consolidationIntervalMs?: number;
 
 	/**
+	 * The number of entities to process in a single consolidation batch.
+	 * @default 1000
+	 */
+	consolidationBatchSize?: number;
+
+	/**
 	 * This is the endpoint to use for remote sync when isAuthoritativeNode is not set.
 	 */
 	remoteSyncEndpoint?: string;

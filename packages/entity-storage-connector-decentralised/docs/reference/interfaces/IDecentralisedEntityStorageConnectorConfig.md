@@ -68,6 +68,20 @@ Interval to perform consolidation of changesets, only used if isAuthoritativeNod
 
 ***
 
+### consolidationBatchSize?
+
+> `optional` **consolidationBatchSize**: `number`
+
+The number of entities to process in a single consolidation batch.
+
+#### Default
+
+```ts
+1000
+```
+
+***
+
 ### remoteSyncEndpoint?
 
 > `optional` **remoteSyncEndpoint**: `string`

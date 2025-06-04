@@ -34,11 +34,19 @@ The date the change set was last modified.
 
 ***
 
-### changes
+### entities?
 
-> **changes**: [`ISyncChange`](ISyncChange.md)\<`T`\>[]
+> `optional` **entities**: `T`[]
 
-The changes to perform.
+The entities when performing a snapshot.
+
+***
+
+### changes?
+
+> `optional` **changes**: [`ISyncChange`](ISyncChange.md)\<`T`\>[]
+
+The changes to apply after a snapshot.
 
 ***
 

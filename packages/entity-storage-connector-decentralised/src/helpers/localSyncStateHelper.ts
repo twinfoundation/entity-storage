@@ -66,9 +66,13 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 			localChangeSnapshot.changes.splice(previousChangeIndex, 1);
 		}
 
+		if (localChangeSnapshot.changes.length > 0) {
+			localChangeSnapshot.dateModified = new Date(Date.now()).toISOString();
+		}
+
 		localChangeSnapshot.changes.push({ operation, id });
 
-		await this._localSyncSnapshotEntryEntityStorage.set(localChangeSnapshot);
+		await this.setLocalChangeSnapshot(localChangeSnapshot);
 	}
 
 	/**
@@ -93,6 +97,16 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 			changeSetStorageIds: [],
 			isLocalSnapshot: true
 		};
+	}
+
+	/**
+	 * Set the current local snapshot.
+	 * @param localChangeSnapshot The local change snapshot to set.
+	 * @returns Nothing.
+	 * @internal
+	 */
+	public async setLocalChangeSnapshot(localChangeSnapshot: SyncSnapshotEntry<T>): Promise<void> {
+		await this._localSyncSnapshotEntryEntityStorage.set(localChangeSnapshot);
 	}
 
 	/**

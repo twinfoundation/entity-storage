@@ -1,7 +1,8 @@
 {
 	"info": {
 		"changeSetHelper": {
-			"changeSetApplying": "Applying remote sync change with operation id \"{operation}\" for item with id \"{id}\"",
+			"changeSetEntity": "Adding entity with item id \"{id}\"",
+			"changeSetApplyingChange": "Applying remote sync change with operation id \"{operation}\" for item with id \"{id}\"",
 			"changeSetStoring": "Storing remote sync change set with id \"{id}\"",
 			"verifyChangeSetProofMissing": "Verifying change set with id \"{id}\" failed, missing proof",
 			"verifyChangeSetProofInvalid": "Verifying change set with id \"{id}\" failed, invalid proof",
@@ -23,12 +24,15 @@
 			"remoteSyncStateStoring": "Storing remote sync state entry with \"{snapshotCount}\" snapshots",
 			"remoteSyncStateRetrieving": "Retrieving remote sync state entry for syncPointerId \"{syncPointerId}\"",
 			"remoteSyncStateRetrieved": "Retrieving remote sync state entry for syncPointerId \"{syncPointerId}\" with \"{snapshotCount}\" snapshots",
-			"remoteSyncStateNotFound": "No remote sync state entry found for syncPointerId \"{syncPointerId}\""
+			"remoteSyncStateNotFound": "No remote sync state entry found for syncPointerId \"{syncPointerId}\"",
+			"consolidationStarting": "Starting consolidation of remote sync state",
+			"consolidationCompleted": "Consolidation of remote sync state completed"
 		}
 	},
 	"error": {
 		"decentralisedEntityStorageConnector": {
 			"missingRequiredProperty": "To use decentralised entity storage the entity schema must contain the property \"{requiredProperty}\"",
+			"missingRequiredPropertySort": "To use decentralised entity storage the entity schema must contain the property \"{requiredProperty}\" and it must be sortable",
 			"entitySyncFailed": "Failed to sync decentralised entity storage connector",
 			"consolidationSyncFailed": "Failed to consolidate decentralised entity storage connector"
 		}

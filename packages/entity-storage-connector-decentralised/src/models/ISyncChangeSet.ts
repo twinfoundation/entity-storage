@@ -23,9 +23,14 @@ export interface ISyncChangeSet<T = unknown> {
 	dateModified?: string;
 
 	/**
-	 * The changes to perform.
+	 * The entities when performing a snapshot.
 	 */
-	changes: ISyncChange<T>[];
+	entities?: T[];
+
+	/**
+	 * The changes to apply after a snapshot.
+	 */
+	changes?: ISyncChange<T>[];
 
 	/**
 	 * The identity of the node that created the change set.

@@ -6,7 +6,7 @@ The object definition for a sync change.
 
 ### T
 
-`T` = `unknown`
+`T`
 
 ## Properties
 
@@ -22,7 +22,7 @@ Operation.
 
 > `optional` **id**: `string`
 
-The item id if the operation is a delete.
+The item id of the operation if it is a delete.
 
 ***
 

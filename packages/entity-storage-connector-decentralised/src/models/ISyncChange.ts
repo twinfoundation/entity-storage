@@ -4,14 +4,14 @@
 /**
  * The object definition for a sync change.
  */
-export interface ISyncChange<T = unknown> {
+export interface ISyncChange<T> {
 	/**
 	 * Operation.
 	 */
 	operation: "set" | "delete";
 
 	/**
-	 * The item id if the operation is a delete.
+	 * The item id of the operation if it is a delete.
 	 */
 	id?: string;
 

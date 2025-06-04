@@ -6,7 +6,12 @@
  */
 export interface IDecentralisedEntity {
 	/**
+	 * The date the entry was created
+	 */
+	dateCreated: string;
+
+	/**
 	 * The identity of the node that owns the entry.
 	 */
-	nodeIdentity?: string;
+	nodeIdentity: string;
 }

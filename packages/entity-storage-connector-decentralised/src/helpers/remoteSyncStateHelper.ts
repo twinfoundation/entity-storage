@@ -1,8 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type {
-	IBlobStorageConnector
-} from "@twin.org/blob-storage-models";
+import type { IBlobStorageConnector } from "@twin.org/blob-storage-models";
 import {
 	BaseError,
 	Compression,
@@ -13,14 +11,11 @@ import {
 	ObjectHelper,
 	RandomHelper
 } from "@twin.org/core";
-import type {
-	IEntityStorageConnector
-} from "@twin.org/entity-storage-models";
+import { SortDirection } from "@twin.org/entity";
+import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import type {
-	IVerifiableStorageConnector
-} from "@twin.org/verifiable-storage-models";
+import type { IVerifiableStorageConnector } from "@twin.org/verifiable-storage-models";
 import type { ChangeSetHelper } from "./changeSetHelper";
 import type { SyncSnapshotEntry } from "../entities/syncSnapshotEntry";
 import type { IDecentralisedEntity } from "../models/IDecentralisedEntity";
@@ -142,7 +137,7 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 					delete change.id;
 					// Remove the node identity as the changeset has this stored at the top level
 					// and we do not want to store it in the change itself
-					delete change.entity?.nodeIdentity;
+					ObjectHelper.propertyDelete(change.entity, "nodeIdentity");
 				}
 			}
 
@@ -155,7 +150,10 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 			};
 
 			// And sign it with the node identity
-			syncChangeSet.proof = await this._changeSetHelper.createChangeSetProof(logging, syncChangeSet);
+			syncChangeSet.proof = await this._changeSetHelper.createChangeSetProof(
+				logging,
+				syncChangeSet
+			);
 
 			// Store the changeset in the blob storage
 			const changeSetStorageId = await this._changeSetHelper.storeChangeSet(logging, syncChangeSet);
@@ -174,6 +172,81 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 		}
 
 		return false;
+	}
+
+	/**
+	 * Create a consolidated snapshot for the entire storage.
+	 * @param logging The logging connector to use for logging.
+	 * @param nodeIdentity The identity of the node that is performing the update.
+	 * @returns Nothing.
+	 * @internal
+	 */
+	public async consolidateFromLocal(
+		logging: ILoggingConnector | undefined,
+		nodeIdentity: string,
+		consolidationBatchSize: number
+	): Promise<void> {
+		let cursor: string | undefined;
+		const changeSetStorageIds: string[] = [];
+
+		await logging?.log({
+			level: "info",
+			source: this.CLASS_NAME,
+			message: "consolidationStarting"
+		});
+
+		do {
+			const result = await this._entityStorageConnector.query(
+				undefined,
+				[{ property: "dateCreated", sortDirection: SortDirection.Ascending }],
+				undefined,
+				cursor,
+				consolidationBatchSize
+			);
+
+			// Create a new snapshot entry for the current batch
+			const syncChangeSet: ISyncChangeSet<T> = {
+				id: Converter.bytesToHex(RandomHelper.generate(32)),
+				dateCreated: new Date(Date.now()).toISOString(),
+				entities: result.entities as T[],
+				nodeIdentity
+			};
+
+			// And sign it with the node identity
+			syncChangeSet.proof = await this._changeSetHelper.createChangeSetProof(
+				logging,
+				syncChangeSet
+			);
+
+			// Store the changeset in the blob storage
+			const changeSetStorageId = await this._changeSetHelper.storeChangeSet(logging, syncChangeSet);
+
+			// Add the changeset storage id to the snapshot ids
+			changeSetStorageIds.push(changeSetStorageId);
+
+			cursor = result.cursor;
+		} while (Is.stringValue(cursor));
+
+		const syncState: ISyncState = { snapshots: [] };
+
+		const batchSnapshot: ISyncSnapshot = {
+			id: Converter.bytesToHex(RandomHelper.generate(32)),
+			dateCreated: new Date(Date.now()).toISOString(),
+			changeSetStorageIds
+		};
+		syncState.snapshots.push(batchSnapshot);
+
+		// Store the sync state in the blob storage
+		const syncStateId = await this.storeRemoteSyncState(logging, syncState);
+
+		// Store the verifiable sync pointer in the verifiable storage
+		await this.storeVerifiableSyncPointer(logging, syncStateId);
+
+		await logging?.log({
+			level: "info",
+			source: this.CLASS_NAME,
+			message: "consolidationCompleted"
+		});
 	}
 
 	/**

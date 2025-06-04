@@ -1,22 +1,11 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type {
-	IBlobStorageConnector
-} from "@twin.org/blob-storage-models";
-import {
-	Compression,
-	CompressionType,
-	Is,
-	ObjectHelper
-} from "@twin.org/core";
+import type { IBlobStorageConnector } from "@twin.org/blob-storage-models";
+import { Compression, CompressionType, Is, ObjectHelper } from "@twin.org/core";
 import type { IJsonLdNodeObject } from "@twin.org/data-json-ld";
-import type {
-	IEntityStorageConnector
-} from "@twin.org/entity-storage-models";
-import {
-	DocumentHelper,
-	type IIdentityConnector
-} from "@twin.org/identity-models";
+import type { IEntitySchemaProperty } from "@twin.org/entity";
+import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
+import { DocumentHelper, type IIdentityConnector } from "@twin.org/identity-models";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import { type IProof, ProofTypes } from "@twin.org/standards-w3c-did";
@@ -26,10 +15,7 @@ import type { ISyncChangeSet } from "../models/ISyncChangeSet";
 /**
  * Class for performing entity storage operations in decentralised storage.
  */
-export class ChangeSetHelper<
-	T extends IDecentralisedEntity = IDecentralisedEntity
->
-{
+export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEntity> {
 	/**
 	 * Runtime name for the class.
 	 */
@@ -60,22 +46,31 @@ export class ChangeSetHelper<
 	private readonly _decentralisedStorageMethodId: string;
 
 	/**
+	 * The primary key.
+	 * @internal
+	 */
+	private readonly _primaryKey: IEntitySchemaProperty<T>;
+
+	/**
 	 * Create a new instance of ChangeSetHelper.
 	 * @param entityStorageConnector The entity storage connector to use for actual data.
 	 * @param blobStorageConnector The blob storage connector to use for remote sync states.
 	 * @param identityConnector The identity connector to use for signing/verifying changesets.
 	 * @param decentralisedStorageMethodId The id of the identity method to use when signing/verifying changesets.
+	 * @param primaryKey The primary key of the entity schema to use for the changeset.
 	 */
 	constructor(
 		entityStorageConnector: IEntityStorageConnector<T>,
 		blobStorageConnector: IBlobStorageConnector,
 		identityConnector: IIdentityConnector,
-		decentralisedStorageMethodId: string
+		decentralisedStorageMethodId: string,
+		primaryKey: IEntitySchemaProperty<T>
 	) {
 		this._entityStorageConnector = entityStorageConnector;
 		this._decentralisedStorageMethodId = decentralisedStorageMethodId;
 		this._blobStorageConnector = blobStorageConnector;
 		this._identityConnector = identityConnector;
+		this._primaryKey = primaryKey;
 	}
 
 	/**
@@ -112,32 +107,50 @@ export class ChangeSetHelper<
 		logging: ILoggingConnector | undefined,
 		syncChangeset: ISyncChangeSet<T>
 	): Promise<void> {
-		for (const change of syncChangeset.changes) {
-			await logging?.log({
-				level: "info",
-				source: this.CLASS_NAME,
-				message: "changeSetApplying",
-				data: {
-					operation: change.operation,
-					id: change.id
-				}
-			});
+		if (Is.arrayValue(syncChangeset.entities)) {
+			for (const entity of syncChangeset.entities) {
+				const entityId = entity[this._primaryKey.property] as string;
+				await logging?.log({
+					level: "info",
+					source: this.CLASS_NAME,
+					message: "changeSetEntity",
+					data: {
+						id: entityId
+					}
+				});
 
-			switch (change.operation) {
-				case "set":
-					if (!Is.empty(change.entity)) {
-						// The node identity was stripped when stored in the changeset
-						// as the changeset is signed with the node identity.
-						// so we need to restore it here.
-						change.entity.nodeIdentity = syncChangeset.nodeIdentity;
-						await this._entityStorageConnector.set(change.entity);
+				await this._entityStorageConnector.set(entity);
+			}
+		}
+
+		if (Is.arrayValue(syncChangeset.changes)) {
+			for (const change of syncChangeset.changes) {
+				await logging?.log({
+					level: "info",
+					source: this.CLASS_NAME,
+					message: "changeSetApplyingChange",
+					data: {
+						operation: change.operation,
+						id: change.id
 					}
-					break;
-				case "delete":
-					if (!Is.empty(change.id)) {
-						await this._entityStorageConnector.remove(change.id);
-					}
-					break;
+				});
+
+				switch (change.operation) {
+					case "set":
+						if (!Is.empty(change.entity)) {
+							// The node identity was stripped when stored in the changeset
+							// as the changeset is signed with the node identity.
+							// so we need to restore it here.
+							change.entity.nodeIdentity = syncChangeset.nodeIdentity;
+							await this._entityStorageConnector.set(change.entity);
+						}
+						break;
+					case "delete":
+						if (!Is.empty(change.id)) {
+							await this._entityStorageConnector.remove(change.id);
+						}
+						break;
+				}
 			}
 		}
 	}
