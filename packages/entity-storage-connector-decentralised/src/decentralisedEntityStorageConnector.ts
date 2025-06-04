@@ -438,7 +438,6 @@ export class DecentralisedEntityStorageConnector<
 				// Now send any updates we have to the remote storage
 				await this.updateFromLocalSyncState(logging);
 			} catch (error) {
-				console.error(error);
 				await logging?.log({
 					level: "error",
 					source: this.CLASS_NAME,
