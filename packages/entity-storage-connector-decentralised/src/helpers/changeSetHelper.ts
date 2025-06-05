@@ -9,13 +9,13 @@ import { DocumentHelper, type IIdentityConnector } from "@twin.org/identity-mode
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import { type IProof, ProofTypes } from "@twin.org/standards-w3c-did";
-import type { IDecentralisedEntity } from "../models/IDecentralisedEntity";
 import type { ISyncChangeSet } from "../models/ISyncChangeSet";
+import type { ISynchronisedEntity } from "../models/ISynchronisedEntity";
 
 /**
  * Class for performing entity storage operations in decentralised storage.
  */
-export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEntity> {
+export class ChangeSetHelper<T extends ISynchronisedEntity = ISynchronisedEntity> {
 	/**
 	 * Runtime name for the class.
 	 */
@@ -23,31 +23,26 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 
 	/**
 	 * The entity storage connector to use for actual data.
-	 * @internal
 	 */
 	private readonly _entityStorageConnector: IEntityStorageConnector<T>;
 
 	/**
 	 * The blob storage connector to use for remote sync states.
-	 * @internal
 	 */
 	private readonly _blobStorageConnector: IBlobStorageConnector;
 
 	/**
 	 * The identity connector to use for signing/verifying changesets.
-	 * @internal
 	 */
 	private readonly _identityConnector: IIdentityConnector;
 
 	/**
 	 * The id of the identity method to use when signing/verifying changesets.
-	 * @internal
 	 */
 	private readonly _decentralisedStorageMethodId: string;
 
 	/**
 	 * The primary key.
-	 * @internal
 	 */
 	private readonly _primaryKey: IEntitySchemaProperty<T>;
 
@@ -74,26 +69,44 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 	}
 
 	/**
-	 * Apply a sync changeset.
+	 * Get and verify a changeset.
 	 * @param logging The logging connector to use for logging.
 	 * @param changeSetStorageId The id of the sync changeset to apply.
-	 * @returns Nothing.
-	 * @internal
+	 * @returns The changeset if it was verified.
 	 */
-	public async getAndApplyChangeset(
+	public async getAndVerifyChangeset(
 		logging: ILoggingConnector | undefined,
 		changeSetStorageId: string
-	): Promise<void> {
+	): Promise<ISyncChangeSet<T> | undefined> {
 		const blobData = await this._blobStorageConnector.get(changeSetStorageId);
 		if (Is.uint8Array(blobData)) {
 			const decompressed = await Compression.decompress(blobData, CompressionType.Gzip);
 
 			const syncChangeset = ObjectHelper.fromBytes<ISyncChangeSet<T>>(decompressed);
 
-			if (await this.verifyChangesetProof(logging, syncChangeset)) {
-				await this.applyChangeset(logging, syncChangeset);
-			}
+			const verified = await this.verifyChangesetProof(logging, syncChangeset);
+			return verified ? syncChangeset : undefined;
 		}
+	}
+
+	/**
+	 * Apply a sync changeset.
+	 * @param logging The logging connector to use for logging.
+	 * @param changeSetStorageId The id of the sync changeset to apply.
+	 * @returns True if the change was applied.
+	 */
+	public async getAndApplyChangeset(
+		logging: ILoggingConnector | undefined,
+		changeSetStorageId: string
+	): Promise<boolean> {
+		const syncChangeset = await this.getAndVerifyChangeset(logging, changeSetStorageId);
+
+		if (!Is.empty(syncChangeset)) {
+			await this.applyChangeset(logging, syncChangeset);
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -101,7 +114,6 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 	 * @param logging The logging connector to use for logging.
 	 * @param syncChangeset The sync changeset to apply.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async applyChangeset(
 		logging: ILoggingConnector | undefined,
@@ -160,7 +172,6 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 	 * @param logging The logging connector to use for logging.
 	 * @param syncChangeSet The sync change set to store.
 	 * @returns The id of the change set.
-	 * @internal
 	 */
 	public async storeChangeSet(
 		logging: ILoggingConnector | undefined,
@@ -185,9 +196,9 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 
 	/**
 	 * Verify the proof of a sync changeset.
+	 * @param logging The logging connector to use for logging.
 	 * @param syncChangeset The sync changeset to verify.
 	 * @returns True if the proof is valid, false otherwise.
-	 * @internal
 	 */
 	public async verifyChangesetProof(
 		logging: ILoggingConnector | undefined,
@@ -237,9 +248,9 @@ export class ChangeSetHelper<T extends IDecentralisedEntity = IDecentralisedEnti
 
 	/**
 	 * Create the proof of a sync change set.
+	 * @param logging The logging connector to use for logging.
 	 * @param syncChangeset The sync changeset to create the proof for.
 	 * @returns The proof.
-	 * @internal
 	 */
 	public async createChangeSetProof(
 		logging: ILoggingConnector | undefined,

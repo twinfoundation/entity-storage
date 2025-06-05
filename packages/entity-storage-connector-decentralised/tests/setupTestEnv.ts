@@ -61,7 +61,7 @@ export const TEST_WALLET_CONNECTOR = new EntityStorageWalletConnector();
 WalletConnectorFactory.register("wallet", () => TEST_WALLET_CONNECTOR);
 
 export let TEST_NODE_IDENTITY: string;
-export let TEST_USER_IDENTITY: string;
+export let TEST_NODE_IDENTITY_2: string;
 export let TEST_VAULT_KEY: string;
 
 /**
@@ -86,10 +86,20 @@ export async function setupTestEnv(): Promise<void> {
 		"test-node-identity",
 		didNode.id,
 		"assertionMethod",
-		"decentralised-storage-assertion"
+		"synchronised-storage-assertion"
 	);
 
 	TEST_NODE_IDENTITY = didNode.id;
+
+	const didNode2 = await testIdentityConnector.createDocument("test-node-identity-2");
+	await testIdentityConnector.addVerificationMethod(
+		"test-node-identity-2",
+		didNode2.id,
+		"assertionMethod",
+		"synchronised-storage-assertion"
+	);
+
+	TEST_NODE_IDENTITY_2 = didNode2.id;
 }
 
 /**

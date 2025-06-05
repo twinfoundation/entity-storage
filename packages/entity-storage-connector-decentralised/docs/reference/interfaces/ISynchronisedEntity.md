@@ -1,6 +1,6 @@
-# Interface: IDecentralisedEntity
+# Interface: ISynchronisedEntity
 
-The base definition for decentralised entries.
+The base definition for synchronised entries.
 
 ## Properties
 

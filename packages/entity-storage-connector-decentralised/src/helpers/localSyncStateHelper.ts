@@ -7,13 +7,13 @@ import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { ChangeSetHelper } from "./changeSetHelper";
 import type { SyncSnapshotEntry } from "../entities/syncSnapshotEntry";
-import type { IDecentralisedEntity } from "../models/IDecentralisedEntity";
+import type { ISynchronisedEntity } from "../models/ISynchronisedEntity";
 import type { ISyncState } from "../models/ISyncState";
 
 /**
  * Class for performing entity storage operations in decentralised storage.
  */
-export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralisedEntity> {
+export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedEntity> {
 	/**
 	 * Runtime name for the class.
 	 */
@@ -21,7 +21,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 
 	/**
 	 * The storage connector for the sync snapshot entries.
-	 * @internal
 	 */
 	private readonly _localSyncSnapshotEntryEntityStorage: IEntityStorageConnector<
 		SyncSnapshotEntry<T>
@@ -29,7 +28,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 
 	/**
 	 * The change set helper to use for applying changesets.
-	 * @internal
 	 */
 	private readonly _changeSetHelper: ChangeSetHelper<T>;
 
@@ -51,7 +49,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * @param operation The operation to perform, either "set" or "delete".
 	 * @param id The id of the entity to add the change for.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async addLocalChange(operation: "set" | "delete", id: string): Promise<void> {
 		const localChangeSnapshot = await this.getLocalChangeSnapshot();
@@ -78,7 +75,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	/**
 	 * Get the current local snapshot.
 	 * @returns The local snapshot entry.
-	 * @internal
 	 */
 	public async getLocalChangeSnapshot(): Promise<SyncSnapshotEntry<T>> {
 		const queryResult = await this._localSyncSnapshotEntryEntityStorage.query({
@@ -103,7 +99,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * Set the current local snapshot.
 	 * @param localChangeSnapshot The local change snapshot to set.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async setLocalChangeSnapshot(localChangeSnapshot: SyncSnapshotEntry<T>): Promise<void> {
 		await this._localSyncSnapshotEntryEntityStorage.set(localChangeSnapshot);
@@ -114,7 +109,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * @param logging The logging connector to use for logging.
 	 * @param localChangeSnapshot The local change snapshot to remove.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async removeLocalChangeSnapshot(
 		logging: ILoggingConnector | undefined,
@@ -136,7 +130,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * @param logging The logging connector to use for logging.
 	 * @param remoteSyncState The sync state to sync with.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async syncFromRemote(
 		logging: ILoggingConnector | undefined,
@@ -202,7 +195,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * @param logging The logging connector to use for logging.
 	 * @param modifiedSnapshots The modified snapshots to process.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async processModifiedSnapshots(
 		logging: ILoggingConnector | undefined,
@@ -245,7 +237,6 @@ export class LocalSyncStateHelper<T extends IDecentralisedEntity = IDecentralise
 	 * @param logging The logging connector to use for logging.
 	 * @param newSnapshots The new snapshots to process.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	private async processNewSnapshots(
 		logging: ILoggingConnector | undefined,

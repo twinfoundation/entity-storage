@@ -20,64 +20,16 @@ The entity storage connector type to use for actual data.
 
 ***
 
-### syncSnapshotStorageConnectorType?
+### synchronisedStorageConnectorType
 
-> `optional` **syncSnapshotStorageConnectorType**: `string`
+> **synchronisedStorageConnectorType**: `string`
 
-The entity storage connector type to use for sync snapshots.
-
-#### Default
-
-```ts
-sync-snapshot-entry
-```
+The synchronised entity storage connector type to use.
 
 ***
 
-### blobStorageConnectorType?
+### config?
 
-> `optional` **blobStorageConnectorType**: `string`
-
-The blob storage component used for remote sync state.
-
-#### Default
-
-```ts
-blob-storage
-```
-
-***
-
-### verifiableStorageConnectorType?
-
-> `optional` **verifiableStorageConnectorType**: `string`
-
-The verifiable storage connector type to use for decentralised state.
-
-#### Default
-
-```ts
-verifiable-storage
-```
-
-***
-
-### identityConnectorType?
-
-> `optional` **identityConnectorType**: `string`
-
-The identity connector.
-
-#### Default
-
-```ts
-identity
-```
-
-***
-
-### config
-
-> **config**: [`IDecentralisedEntityStorageConnectorConfig`](IDecentralisedEntityStorageConnectorConfig.md)
+> `optional` **config**: [`IDecentralisedEntityStorageConnectorConfig`](IDecentralisedEntityStorageConnectorConfig.md)
 
 The configuration for the connector.

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0.
 
 /**
- * The base definition for decentralised entries.
+ * The base definition for synchronised entries.
  */
-export interface IDecentralisedEntity {
+export interface ISynchronisedEntity {
 	/**
 	 * The date the entry was created
 	 */

@@ -17,17 +17,17 @@ import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVerifiableStorageConnector } from "@twin.org/verifiable-storage-models";
 import type { ChangeSetHelper } from "./changeSetHelper";
-import type { SyncSnapshotEntry } from "../entities/syncSnapshotEntry";
-import type { IDecentralisedEntity } from "../models/IDecentralisedEntity";
+import type { ISyncChange } from "../models/ISyncChange";
 import type { ISyncChangeSet } from "../models/ISyncChangeSet";
+import type { ISynchronisedEntity } from "../models/ISynchronisedEntity";
+import type { ISyncPointer } from "../models/ISyncPointer";
 import type { ISyncSnapshot } from "../models/ISyncSnapshot";
 import type { ISyncState } from "../models/ISyncState";
-import type { IVerifiableSyncPointer } from "../models/IVerifiableSyncPointer";
 
 /**
  * Class for performing entity storage operations in decentralised storage.
  */
-export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralisedEntity> {
+export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedEntity> {
 	/**
 	 * Runtime name for the class.
 	 */
@@ -35,33 +35,23 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 
 	/**
 	 * The entity storage connector to use for actual data.
-	 * @internal
 	 */
 	private readonly _entityStorageConnector: IEntityStorageConnector<T>;
 
 	/**
 	 * The blob storage connector to use for remote sync states.
-	 * @internal
 	 */
 	private readonly _blobStorageConnector: IBlobStorageConnector;
 
 	/**
 	 * The verifiable storage connector to use for storing sync pointers.
-	 * @internal
 	 */
 	private readonly _verifiableSyncPointerStorageConnector: IVerifiableStorageConnector;
 
 	/**
 	 * The change set helper to use for applying changesets.
-	 * @internal
 	 */
 	private readonly _changeSetHelper: ChangeSetHelper<T>;
-
-	/**
-	 * The key to use for the verifiable storage.
-	 * @internal
-	 */
-	private readonly _verifiableStorageKey: string;
 
 	/**
 	 * Create a new instance of DecentralisedEntityStorageConnector.
@@ -69,68 +59,34 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 	 * @param blobStorageConnector The blob storage connector to use for remote sync states.
 	 * @param verifiableSyncPointerStorageConnector The verifiable storage connector to use for storing sync pointers.
 	 * @param changeSetHelper The change set helper to use for managing changesets.
-	 * @param verifiableStorageKey The key to use for the verifiable storage.
 	 */
 	constructor(
 		entityStorageConnector: IEntityStorageConnector<T>,
 		blobStorageConnector: IBlobStorageConnector,
 		verifiableSyncPointerStorageConnector: IVerifiableStorageConnector,
-		changeSetHelper: ChangeSetHelper<T>,
-		verifiableStorageKey: string
+		changeSetHelper: ChangeSetHelper<T>
 	) {
 		this._entityStorageConnector = entityStorageConnector;
 		this._blobStorageConnector = blobStorageConnector;
 		this._verifiableSyncPointerStorageConnector = verifiableSyncPointerStorageConnector;
 		this._changeSetHelper = changeSetHelper;
-		this._verifiableStorageKey = verifiableStorageKey;
 	}
 
 	/**
-	 * Check for updates not yet stored in decentralised storage.
+	 * Create and store a change set.
 	 * @param logging The logging connector to use for logging.
-	 * @param localChangeSnapshot The local change snapshot to use for updates.
+	 * @param changes The changes to apply.
 	 * @param nodeIdentity The identity of the node that is performing the update.
-	 * @returns True if the local sync state was used.
-	 * @internal
+	 * @returns The storage id of the change set if created.
 	 */
-	public async updateFromLocalSyncState(
+	public async createAndStoreChangeSet(
 		logging: ILoggingConnector | undefined,
-		localChangeSnapshot: SyncSnapshotEntry<T>,
+		changes: ISyncChange<T>[] | undefined,
 		nodeIdentity: string
-	): Promise<boolean> {
-		if (Is.arrayValue(localChangeSnapshot.changes)) {
-			// First load the current sync state if there is one
-			const syncStatePointer = await this.getVerifiableSyncPointer(logging);
-			let syncState: ISyncState | undefined;
-			if (!Is.empty(syncStatePointer?.syncPointerId)) {
-				syncState = await this.getRemoteSyncState(logging, syncStatePointer.syncPointerId);
-			}
-			// No current sync state, so we create a new one
-			if (Is.empty(syncState)) {
-				syncState = { snapshots: [] };
-			}
-
-			// Sort the snapshots so the newest snapshot is last in the array
-			const sortedSnapshots = syncState.snapshots.sort((a, b) =>
-				a.dateCreated.localeCompare(b.dateCreated)
-			);
-
-			// Get the current snapshot, if it does not exist we create a new one
-			let currentSnapshot: ISyncSnapshot | undefined = sortedSnapshots[sortedSnapshots.length - 1];
-			if (Is.empty(currentSnapshot)) {
-				currentSnapshot = {
-					id: Converter.bytesToHex(RandomHelper.generate(32)),
-					dateCreated: new Date(Date.now()).toISOString(),
-					changeSetStorageIds: []
-				};
-				syncState.snapshots.push(currentSnapshot);
-			} else {
-				// Snapshot exists, we update the dateModified
-				currentSnapshot.dateModified = new Date(Date.now()).toISOString();
-			}
-
+	): Promise<string | undefined> {
+		if (Is.arrayValue(changes)) {
 			// Populate the full details for the sync change set
-			for (const change of localChangeSnapshot.changes) {
+			for (const change of changes) {
 				if (change.operation === "set" && Is.stringValue(change.id)) {
 					// If the change is a set operation, we need to swap out the id for the entity
 					change.entity = await this._entityStorageConnector.get(change.id);
@@ -145,7 +101,7 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 			const syncChangeSet: ISyncChangeSet<T> = {
 				id: Converter.bytesToHex(RandomHelper.generate(32)),
 				dateCreated: new Date(Date.now()).toISOString(),
-				changes: localChangeSnapshot.changes,
+				changes,
 				nodeIdentity
 			};
 
@@ -156,34 +112,74 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 			);
 
 			// Store the changeset in the blob storage
-			const changeSetStorageId = await this._changeSetHelper.storeChangeSet(logging, syncChangeSet);
+			return this._changeSetHelper.storeChangeSet(logging, syncChangeSet);
+		}
+	}
 
-			// Add the changeset storage id to the current snapshot
-			currentSnapshot.changeSetStorageIds.push(changeSetStorageId);
-
-			// Store the sync state in the blob storage
-			const syncStateId = await this.storeRemoteSyncState(logging, syncState);
-
-			// Store the verifiable sync pointer in the verifiable storage
-			await this.storeVerifiableSyncPointer(logging, syncStateId);
-
-			// Remove the local changeset
-			return true;
+	/**
+	 * Add a new changeset into the sync state.
+	 * @param logging The logging connector to use for logging.
+	 * @param synchronisedStorageKey The key to use for the synchronised storage.
+	 * @param changeSetStorageId The id of the change set to add the the current state
+	 * @returns Nothing.
+	 */
+	public async addChangeSetToSyncState(
+		logging: ILoggingConnector | undefined,
+		synchronisedStorageKey: string,
+		changeSetStorageId: string
+	): Promise<void> {
+		// First load the current sync state if there is one
+		const syncStatePointer = await this.getVerifiableSyncPointer(logging, synchronisedStorageKey);
+		let syncState: ISyncState | undefined;
+		if (!Is.empty(syncStatePointer?.syncPointerId)) {
+			syncState = await this.getRemoteSyncState(logging, syncStatePointer.syncPointerId);
+		}
+		// No current sync state, so we create a new one
+		if (Is.empty(syncState)) {
+			syncState = { snapshots: [] };
 		}
 
-		return false;
+		// Sort the snapshots so the newest snapshot is last in the array
+		const sortedSnapshots = syncState.snapshots.sort((a, b) =>
+			a.dateCreated.localeCompare(b.dateCreated)
+		);
+
+		// Get the current snapshot, if it does not exist we create a new one
+		let currentSnapshot: ISyncSnapshot | undefined = sortedSnapshots[sortedSnapshots.length - 1];
+		if (Is.empty(currentSnapshot)) {
+			currentSnapshot = {
+				id: Converter.bytesToHex(RandomHelper.generate(32)),
+				dateCreated: new Date(Date.now()).toISOString(),
+				changeSetStorageIds: []
+			};
+			syncState.snapshots.push(currentSnapshot);
+		} else {
+			// Snapshot exists, we update the dateModified
+			currentSnapshot.dateModified = new Date(Date.now()).toISOString();
+		}
+
+		// Add the changeset storage id to the current snapshot
+		currentSnapshot.changeSetStorageIds.push(changeSetStorageId);
+
+		// Store the sync state in the blob storage
+		const syncStateId = await this.storeRemoteSyncState(logging, syncState);
+
+		// Store the verifiable sync pointer in the verifiable storage
+		await this.storeVerifiableSyncPointer(logging, synchronisedStorageKey, syncStateId);
 	}
 
 	/**
 	 * Create a consolidated snapshot for the entire storage.
 	 * @param logging The logging connector to use for logging.
 	 * @param nodeIdentity The identity of the node that is performing the update.
+	 * @param synchronisedStorageKey The key to use for the synchronised storage.
+	 * @param consolidationBatchSize The batch size to use for consolidation.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async consolidateFromLocal(
 		logging: ILoggingConnector | undefined,
 		nodeIdentity: string,
+		synchronisedStorageKey: string,
 		consolidationBatchSize: number
 	): Promise<void> {
 		let cursor: string | undefined;
@@ -240,7 +236,7 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 		const syncStateId = await this.storeRemoteSyncState(logging, syncState);
 
 		// Store the verifiable sync pointer in the verifiable storage
-		await this.storeVerifiableSyncPointer(logging, syncStateId);
+		await this.storeVerifiableSyncPointer(logging, synchronisedStorageKey, syncStateId);
 
 		await logging?.log({
 			level: "info",
@@ -252,33 +248,34 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 	/**
 	 * Get the sync pointer.
 	 * @param logging The logging connector to use for logging.
+	 * @param synchronisedStorageKey The key to use for the synchronised storage.
 	 * @returns The sync pointer.
-	 * @internal
 	 */
 	public async getVerifiableSyncPointer(
-		logging: ILoggingConnector | undefined
-	): Promise<IVerifiableSyncPointer | undefined> {
+		logging: ILoggingConnector | undefined,
+		synchronisedStorageKey: string
+	): Promise<ISyncPointer | undefined> {
 		try {
 			await logging?.log({
 				level: "info",
 				source: this.CLASS_NAME,
 				message: "verifiableSyncPointerRetrieving",
 				data: {
-					key: this._verifiableStorageKey
+					key: synchronisedStorageKey
 				}
 			});
 			const syncPointerStore = await this._verifiableSyncPointerStorageConnector.get(
-				this._verifiableStorageKey,
+				synchronisedStorageKey,
 				{ includeData: true }
 			);
 			if (Is.uint8Array(syncPointerStore.data)) {
-				const syncPointer = ObjectHelper.fromBytes<IVerifiableSyncPointer>(syncPointerStore.data);
+				const syncPointer = ObjectHelper.fromBytes<ISyncPointer>(syncPointerStore.data);
 				await logging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
 					message: "verifiableSyncPointerRetrieved",
 					data: {
-						key: this._verifiableStorageKey,
+						key: synchronisedStorageKey,
 						syncPointerId: syncPointer.syncPointerId
 					}
 				});
@@ -295,7 +292,7 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 			source: this.CLASS_NAME,
 			message: "verifiableSyncPointerNotFound",
 			data: {
-				key: this._verifiableStorageKey
+				key: synchronisedStorageKey
 			}
 		});
 	}
@@ -303,15 +300,17 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 	/**
 	 * Store the verifiable sync pointer in the verifiable storage.
 	 * @param logging The logging connector to use for logging.
+	 * @param synchronisedStorageKey The key to use for the synchronised storage.
+	 * @param syncStateId The id of the sync state to store.
 	 * @returns Nothing.
-	 * @internal
 	 */
 	public async storeVerifiableSyncPointer(
 		logging: ILoggingConnector | undefined,
+		synchronisedStorageKey: string,
 		syncStateId: string
-	): Promise<IVerifiableSyncPointer> {
+	): Promise<ISyncPointer> {
 		// Create a new verifiable sync pointer object pointing to the sync state
-		const verifiableSyncPointer: IVerifiableSyncPointer = {
+		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: syncStateId
 		};
 
@@ -320,15 +319,15 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 			source: this.CLASS_NAME,
 			message: "verifiableSyncPointerStoring",
 			data: {
-				key: this._verifiableStorageKey,
+				key: synchronisedStorageKey,
 				syncPointerId: verifiableSyncPointer.syncPointerId
 			}
 		});
 
 		// Store the verifiable sync pointer in the verifiable storage
 		await this._verifiableSyncPointerStorageConnector.create(
-			this._verifiableStorageKey,
-			ObjectHelper.toBytes<IVerifiableSyncPointer>(verifiableSyncPointer)
+			synchronisedStorageKey,
+			ObjectHelper.toBytes<ISyncPointer>(verifiableSyncPointer)
 		);
 
 		return verifiableSyncPointer;
@@ -339,7 +338,6 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 	 * @param logging The logging connector to use for logging.
 	 * @param syncState The sync state to store.
 	 * @returns The id of the sync state.
-	 * @internal
 	 */
 	public async storeRemoteSyncState(
 		logging: ILoggingConnector | undefined,
@@ -367,7 +365,6 @@ export class RemoteSyncStateHelper<T extends IDecentralisedEntity = IDecentralis
 	 * @param logging The logging connector to use for logging.
 	 * @param syncPointerId The id of the sync pointer to retrieve the state for.
 	 * @returns The remote sync state.
-	 * @internal
 	 */
 	public async getRemoteSyncState(
 		logging: ILoggingConnector | undefined,

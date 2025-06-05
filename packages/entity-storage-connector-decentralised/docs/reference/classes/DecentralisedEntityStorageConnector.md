@@ -6,7 +6,7 @@ Class for performing entity storage operations in decentralised storage.
 
 ### T
 
-`T` *extends* [`IDecentralisedEntity`](../interfaces/IDecentralisedEntity.md) = [`IDecentralisedEntity`](../interfaces/IDecentralisedEntity.md)
+`T` *extends* [`ISynchronisedEntity`](../interfaces/ISynchronisedEntity.md) = [`ISynchronisedEntity`](../interfaces/ISynchronisedEntity.md)
 
 ## Implements
 
@@ -45,104 +45,6 @@ Runtime name for the class.
 `IEntityStorageConnector.CLASS_NAME`
 
 ## Methods
-
-### bootstrap()
-
-> **bootstrap**(`nodeLoggingConnectorType?`): `Promise`\<`boolean`\>
-
-Bootstrap the connector by creating and initializing any resources it needs.
-
-#### Parameters
-
-##### nodeLoggingConnectorType?
-
-`string`
-
-The node logging connector type, defaults to "node-logging".
-
-#### Returns
-
-`Promise`\<`boolean`\>
-
-True if the bootstrapping process was successful.
-
-#### Implementation of
-
-`IEntityStorageConnector.bootstrap`
-
-***
-
-### start()
-
-> **start**(`nodeIdentity`, `nodeLoggingConnectorType`, `componentState?`): `Promise`\<`void`\>
-
-The component needs to be started when the node is initialized.
-
-#### Parameters
-
-##### nodeIdentity
-
-`string`
-
-The identity of the node starting the component.
-
-##### nodeLoggingConnectorType
-
-The node logging connector type, defaults to "node-logging".
-
-`undefined` | `string`
-
-##### componentState?
-
-A persistent state which can be modified by the method.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-Nothing.
-
-#### Implementation of
-
-`IEntityStorageConnector.start`
-
-***
-
-### stop()
-
-> **stop**(`nodeIdentity`, `nodeLoggingConnectorType`, `componentState?`): `Promise`\<`void`\>
-
-The component needs to be stopped when the node is closed.
-
-#### Parameters
-
-##### nodeIdentity
-
-`string`
-
-The identity of the node stopping the component.
-
-##### nodeLoggingConnectorType
-
-The node logging connector type, defaults to "node-logging".
-
-`undefined` | `string`
-
-##### componentState?
-
-A persistent state which can be modified by the method.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-Nothing.
-
-#### Implementation of
-
-`IEntityStorageConnector.stop`
-
-***
 
 ### getSchema()
 

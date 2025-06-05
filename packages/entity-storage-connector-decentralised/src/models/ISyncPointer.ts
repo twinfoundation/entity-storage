@@ -4,7 +4,7 @@
 /**
  * The object definition for the sync pointer.
  */
-export interface IVerifiableSyncPointer {
+export interface ISyncPointer {
 	/**
 	 * The pointer to where the sync data resides.
 	 */

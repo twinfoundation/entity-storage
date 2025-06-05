@@ -4,17 +4,21 @@
 
 - [DecentralisedEntityStorageConnector](classes/DecentralisedEntityStorageConnector.md)
 - [SyncSnapshotEntry](classes/SyncSnapshotEntry.md)
+- [SynchronisedStorageService](classes/SynchronisedStorageService.md)
 
 ## Interfaces
 
-- [IDecentralisedEntity](interfaces/IDecentralisedEntity.md)
 - [IDecentralisedEntityStorageConnectorConfig](interfaces/IDecentralisedEntityStorageConnectorConfig.md)
 - [IDecentralisedEntityStorageConnectorConstructorOptions](interfaces/IDecentralisedEntityStorageConnectorConstructorOptions.md)
 - [ISyncChange](interfaces/ISyncChange.md)
 - [ISyncChangeSet](interfaces/ISyncChangeSet.md)
+- [ISyncPointer](interfaces/ISyncPointer.md)
 - [ISyncSnapshot](interfaces/ISyncSnapshot.md)
 - [ISyncState](interfaces/ISyncState.md)
-- [IVerifiableSyncPointer](interfaces/IVerifiableSyncPointer.md)
+- [ISynchronisedEntity](interfaces/ISynchronisedEntity.md)
+- [ISynchronisedStorageService](interfaces/ISynchronisedStorageService.md)
+- [ISynchronisedStorageServiceConfig](interfaces/ISynchronisedStorageServiceConfig.md)
+- [ISynchronisedStorageServiceConstructorOptions](interfaces/ISynchronisedStorageServiceConstructorOptions.md)
 
 ## Functions
 

@@ -1,4 +1,4 @@
-# Interface: IVerifiableSyncPointer
+# Interface: ISyncPointer
 
 The object definition for the sync pointer.
 
