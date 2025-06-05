@@ -10,7 +10,7 @@ Class for performing synchronised storage operations.
 
 ## Implements
 
-- [`ISynchronisedStorageService`](../interfaces/ISynchronisedStorageService.md)\<`T`\>
+- [`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md)\<`T`\>
 
 ## Constructors
 
@@ -42,7 +42,7 @@ Runtime name for the class.
 
 #### Implementation of
 
-`ISynchronisedStorageService.CLASS_NAME`
+`ISynchronisedStorageComponent.CLASS_NAME`
 
 ## Methods
 
@@ -78,7 +78,7 @@ Nothing.
 
 #### Implementation of
 
-`ISynchronisedStorageService.start`
+`ISynchronisedStorageComponent.start`
 
 ***
 
@@ -114,7 +114,7 @@ Nothing.
 
 #### Implementation of
 
-`ISynchronisedStorageService.stop`
+`ISynchronisedStorageComponent.stop`
 
 ***
 
@@ -138,7 +138,7 @@ The entity to prepare for synchronisation.
 
 #### Implementation of
 
-[`ISynchronisedStorageService`](../interfaces/ISynchronisedStorageService.md).[`prepareEntityForSync`](../interfaces/ISynchronisedStorageService.md#prepareentityforsync)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`prepareEntityForSync`](../interfaces/ISynchronisedStorageComponent.md#prepareentityforsync)
 
 ***
 
@@ -164,7 +164,7 @@ Nothing.
 
 #### Implementation of
 
-[`ISynchronisedStorageService`](../interfaces/ISynchronisedStorageService.md).[`syncEntitySet`](../interfaces/ISynchronisedStorageService.md#syncentityset)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`syncEntitySet`](../interfaces/ISynchronisedStorageComponent.md#syncentityset)
 
 ***
 
@@ -190,30 +190,4 @@ Nothing.
 
 #### Implementation of
 
-[`ISynchronisedStorageService`](../interfaces/ISynchronisedStorageService.md).[`syncEntityRemove`](../interfaces/ISynchronisedStorageService.md#syncentityremove)
-
-***
-
-### syncChangeSet()
-
-> **syncChangeSet**(`changeSetStorageId`): `Promise`\<`void`\>
-
-Synchronise a complete set of changes, assumes this is a trusted node.
-
-#### Parameters
-
-##### changeSetStorageId
-
-`string`
-
-The id of the change set to synchronise in blob storage.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-Nothing.
-
-#### Implementation of
-
-[`ISynchronisedStorageService`](../interfaces/ISynchronisedStorageService.md).[`syncChangeSet`](../interfaces/ISynchronisedStorageService.md#syncchangeset)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`syncEntityRemove`](../interfaces/ISynchronisedStorageComponent.md#syncentityremove)

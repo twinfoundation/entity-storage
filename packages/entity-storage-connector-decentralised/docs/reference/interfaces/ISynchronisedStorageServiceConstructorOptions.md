@@ -2,13 +2,41 @@
 
 Options for the Synchronised Storage Service constructor.
 
+## Extends
+
+- [`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md)
+
 ## Properties
+
+### trustedSynchronisedStorageComponentType?
+
+> `optional` **trustedSynchronisedStorageComponentType**: `string`
+
+The synchronised entity storage component type to use if this node is not trusted.
+
+***
+
+### config
+
+> **config**: [`ISynchronisedStorageServiceConfig`](ISynchronisedStorageServiceConfig.md)
+
+The configuration for the connector.
+
+#### Overrides
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`config`](ITrustedSynchronisedStorageServiceConstructorOptions.md#config)
+
+***
 
 ### entitySchema
 
 > **entitySchema**: `string`
 
 The name of the entity schema.
+
+#### Inherited from
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`entitySchema`](ITrustedSynchronisedStorageServiceConstructorOptions.md#entityschema)
 
 ***
 
@@ -17,6 +45,10 @@ The name of the entity schema.
 > **entityStorageConnectorType**: `string`
 
 The entity storage connector type to use for actual data.
+
+#### Inherited from
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`entityStorageConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#entitystorageconnectortype)
 
 ***
 
@@ -32,6 +64,10 @@ The entity storage connector type to use for sync snapshots.
 sync-snapshot-entry
 ```
 
+#### Inherited from
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`syncSnapshotStorageConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#syncsnapshotstorageconnectortype)
+
 ***
 
 ### blobStorageConnectorType?
@@ -45,6 +81,10 @@ The blob storage component used for remote sync state.
 ```ts
 blob-storage
 ```
+
+#### Inherited from
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`blobStorageConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#blobstorageconnectortype)
 
 ***
 
@@ -60,6 +100,10 @@ The verifiable storage connector type to use for decentralised state.
 verifiable-storage
 ```
 
+#### Inherited from
+
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`verifiableStorageConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#verifiablestorageconnectortype)
+
 ***
 
 ### identityConnectorType?
@@ -74,18 +118,6 @@ The identity connector.
 identity
 ```
 
-***
+#### Inherited from
 
-### trustedSynchronisedStorageConnectorType?
-
-> `optional` **trustedSynchronisedStorageConnectorType**: `string`
-
-The synchronised entity storage connector type to use if this node is not trusted.
-
-***
-
-### config
-
-> **config**: [`ISynchronisedStorageServiceConfig`](ISynchronisedStorageServiceConfig.md)
-
-The configuration for the connector.
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`identityConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#identityconnectortype)

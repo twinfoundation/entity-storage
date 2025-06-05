@@ -27,15 +27,16 @@ import { ChangeSetHelper } from "./helpers/changeSetHelper";
 import { LocalSyncStateHelper } from "./helpers/localSyncStateHelper";
 import { RemoteSyncStateHelper } from "./helpers/remoteSyncStateHelper";
 import type { ISynchronisedEntity } from "./models/ISynchronisedEntity";
-import type { ISynchronisedStorageService } from "./models/ISynchronisedStorageService";
+import type { ISynchronisedStorageComponent } from "./models/ISynchronisedStorageComponent";
 import type { ISynchronisedStorageServiceConfig } from "./models/ISynchronisedStorageServiceConfig";
 import type { ISynchronisedStorageServiceConstructorOptions } from "./models/ISynchronisedStorageServiceConstructorOptions";
+import type { ITrustedSynchronisedStorageComponent } from "./models/ITrustedSynchronisedStorageComponent";
 
 /**
  * Class for performing synchronised storage operations.
  */
 export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchronisedEntity>
-	implements ISynchronisedStorageService<T>
+	implements ISynchronisedStorageComponent<T>
 {
 	/**
 	 * The default interval to check for entity updates, defaults to 5 mins.
@@ -108,7 +109,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	 * The synchronised storage service to use when this is not a trusted node.
 	 * @internal
 	 */
-	private readonly _trustedSynchronisedStorageService?: SynchronisedStorageService<T>;
+	private readonly _trustedSynchronisedStorageComponent?: ITrustedSynchronisedStorageComponent;
 
 	/**
 	 * The change set helper.
@@ -233,12 +234,13 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 		if (!this._config.isTrustedNode) {
 			Guards.stringValue(
 				this.CLASS_NAME,
-				nameof(options.trustedSynchronisedStorageConnectorType),
-				options.trustedSynchronisedStorageConnectorType
+				nameof(options.trustedSynchronisedStorageComponentType),
+				options.trustedSynchronisedStorageComponentType
 			);
-			this._trustedSynchronisedStorageService = ComponentFactory.get<SynchronisedStorageService<T>>(
-				options.trustedSynchronisedStorageConnectorType
-			);
+			this._trustedSynchronisedStorageComponent =
+				ComponentFactory.get<ITrustedSynchronisedStorageComponent>(
+					options.trustedSynchronisedStorageComponentType
+				);
 		}
 
 		this._changeSetHelper = new ChangeSetHelper<T>(
@@ -348,34 +350,6 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	}
 
 	/**
-	 * Synchronise a complete set of changes, assumes this is a trusted node.
-	 * @param changeSetStorageId The id of the change set to synchronise in blob storage.
-	 * @returns Nothing.
-	 */
-	public async syncChangeSet(changeSetStorageId: string): Promise<void> {
-		// This method is called by non trusted nodes to synchronise changes
-		Guards.stringValue(this.CLASS_NAME, nameof(changeSetStorageId), changeSetStorageId);
-
-		// TODO: The change set has a proof signed by the originating node identity
-		// The proof is verified that the change set is valid and has not been tampered with.
-		// but we also need to check that the originating node has permissions
-		// to store the change set in the synchronised storage.
-
-		const changeSet = await this._changeSetHelper.getAndApplyChangeset(
-			undefined,
-			changeSetStorageId
-		);
-
-		if (!Is.empty(changeSet)) {
-			await this._remoteSyncStateHelper.addChangeSetToSyncState(
-				undefined,
-				this._config.synchronisedStorageKey,
-				changeSetStorageId
-			);
-		}
-	}
-
-	/**
 	 * Start the sync with further updates after an interval.
 	 * @param logging The logging connector to use for logging.
 	 * @returns Nothing.
@@ -459,9 +433,9 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 							this._config.synchronisedStorageKey,
 							changeSetStorageId
 						);
-					} else if (!Is.empty(this._trustedSynchronisedStorageService)) {
+					} else if (!Is.empty(this._trustedSynchronisedStorageComponent)) {
 						// If we are not a trusted node, we need to send the changes to the trusted node
-						await this._trustedSynchronisedStorageService.syncChangeSet(changeSetStorageId);
+						await this._trustedSynchronisedStorageComponent.syncChangeSet(changeSetStorageId);
 					}
 
 					await this._localSyncStateHelper.removeLocalChangeSnapshot(logging, localChangeSnapshot);

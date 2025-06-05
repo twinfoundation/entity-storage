@@ -6,7 +6,7 @@ import type { ISynchronisedEntity } from "./ISynchronisedEntity";
 /**
  * Class for performing synchronised storage operations.
  */
-export interface ISynchronisedStorageService<T extends ISynchronisedEntity = ISynchronisedEntity>
+export interface ISynchronisedStorageComponent<T extends ISynchronisedEntity = ISynchronisedEntity>
 	extends IComponent {
 	/**
 	 * Prepares an entry for synchronisation.
@@ -28,11 +28,4 @@ export interface ISynchronisedStorageService<T extends ISynchronisedEntity = ISy
 	 * @returns Nothing.
 	 */
 	syncEntityRemove(id: string): Promise<void>;
-
-	/**
-	 * Synchronise a complete set of changes, assumes this is a trusted node.
-	 * @param changeSetStorageId The id of the change set to synchronise in blob storage.
-	 * @returns Nothing.
-	 */
-	syncChangeSet(changeSetStorageId: string): Promise<void>;
 }

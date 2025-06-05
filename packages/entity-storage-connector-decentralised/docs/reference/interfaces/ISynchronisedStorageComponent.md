@@ -1,4 +1,4 @@
-# Interface: ISynchronisedStorageService\<T\>
+# Interface: ISynchronisedStorageComponent\<T\>
 
 Class for performing synchronised storage operations.
 
@@ -71,28 +71,6 @@ Synchronise an entity removal operation.
 `string`
 
 The id of the entity to synchronise.
-
-#### Returns
-
-`Promise`\<`void`\>
-
-Nothing.
-
-***
-
-### syncChangeSet()
-
-> **syncChangeSet**(`changeSetStorageId`): `Promise`\<`void`\>
-
-Synchronise a complete set of changes, assumes this is a trusted node.
-
-#### Parameters
-
-##### changeSetStorageId
-
-`string`
-
-The id of the change set to synchronise in blob storage.
 
 #### Returns
 

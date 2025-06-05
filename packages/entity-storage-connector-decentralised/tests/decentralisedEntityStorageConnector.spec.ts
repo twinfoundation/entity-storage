@@ -33,11 +33,12 @@ import { DecentralisedEntityStorageConnector } from "../src/decentralisedEntityS
 import type { SyncSnapshotEntry } from "../src/entities/syncSnapshotEntry";
 import type { IDecentralisedEntityStorageConnectorConfig } from "../src/models/IDecentralisedEntityStorageConnectorConfig";
 import type { ISyncChangeSet } from "../src/models/ISyncChangeSet";
+import type { ISyncPointer } from "../src/models/ISyncPointer";
 import type { ISyncSnapshot } from "../src/models/ISyncSnapshot";
 import type { ISyncState } from "../src/models/ISyncState";
-import type { IVerifiableSyncPointer } from "../src/models/IVerifiableSyncPointer";
 import { initSchema } from "../src/schema";
 import { SynchronisedStorageService } from "../src/synchronisedStorageService";
+import { TrustedSynchronisedStorageService } from "../src/trustedSynchronisedStorageService";
 
 /**
  * Test Type Definition.
@@ -266,7 +267,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		synchronisedStorageService = new SynchronisedStorageService<TestType>({
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
-			trustedSynchronisedStorageConnectorType: "synchronised-storage",
+			trustedSynchronisedStorageComponentType: "synchronised-storage",
 			config: {
 				synchronisedStorageKey: testTypeRemoteKey,
 				isTrustedNode: false
@@ -344,7 +345,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		};
 		const blobStorageId = await memoryBlobStorage.set(await compressObject(syncState));
 
-		const verifiableSyncPointer: IVerifiableSyncPointer = {
+		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: blobStorageId
 		};
 		await verifiableSyncPointerMemoryEntityStorage.set({
@@ -474,7 +475,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		};
 		const blobStorageId = await memoryBlobStorage.set(await compressObject(remoteSyncState));
 
-		const verifiableSyncPointer: IVerifiableSyncPointer = {
+		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: blobStorageId
 		};
 		await verifiableSyncPointerMemoryEntityStorage.set({
@@ -613,7 +614,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		};
 		const remoteBlobStorageId = await memoryBlobStorage.set(await compressObject(remoteSyncState));
 
-		const verifiableSyncPointer: IVerifiableSyncPointer = {
+		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: remoteBlobStorageId
 		};
 		await verifiableSyncPointerMemoryEntityStorage.set({
@@ -976,7 +977,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 	});
 
 	test("can synchronise with a trusted node", async () => {
-		const trustedSynchronisedStorageService = new SynchronisedStorageService<TestType>({
+		const remoteSynchronisedStorageService = new SynchronisedStorageService<TestType>({
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "trusted-test-type",
 			config: {
@@ -986,14 +987,26 @@ describe("DecentralisedEntityStorageConnector", () => {
 			}
 		});
 		ComponentFactory.register(
-			"trusted-synchronised-storage",
-			() => trustedSynchronisedStorageService
+			"remote-synchronised-storage",
+			() => remoteSynchronisedStorageService
+		);
+
+		const remoteTrustedSynchronisedStorageService = new TrustedSynchronisedStorageService({
+			entitySchema: nameof<TestType>(),
+			entityStorageConnectorType: "trusted-test-type",
+			config: {
+				synchronisedStorageKey: testTypeRemoteKey
+			}
+		});
+		ComponentFactory.register(
+			"trusted-remote-synchronised-storage",
+			() => remoteTrustedSynchronisedStorageService
 		);
 
 		synchronisedStorageService = new SynchronisedStorageService<TestType>({
 			entitySchema: nameof<TestType>(),
 			entityStorageConnectorType: "test-type",
-			trustedSynchronisedStorageConnectorType: "trusted-synchronised-storage",
+			trustedSynchronisedStorageComponentType: "trusted-remote-synchronised-storage",
 			syncSnapshotStorageConnectorType: "trusted-sync-snapshot-entry",
 			config: {
 				synchronisedStorageKey: testTypeRemoteKey,
@@ -1017,7 +1030,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		});
 
 		await synchronisedStorageService.start(TEST_NODE_IDENTITY, "node-logging");
-		await trustedSynchronisedStorageService.start(TEST_NODE_IDENTITY_2, "node-logging");
+		await remoteSynchronisedStorageService.start(TEST_NODE_IDENTITY_2, "node-logging");
 
 		const localEntityStore = testTypeMemoryEntityStorage.getStore();
 		expect(localEntityStore.length).toEqual(1);
