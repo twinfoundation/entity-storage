@@ -8,19 +8,12 @@ import {
 	EntitySchemaHelper,
 	type IEntitySchema,
 	LogicalOperator,
-	SortDirection
+	type SortDirection
 } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
 import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
-import {
-	MongoClient,
-	type Collection,
-	type WithId,
-	type Sort,
-	type Filter,
-	type Document
-} from "mongodb";
+import { type Collection, type Document, type Filter, MongoClient, type WithId } from "mongodb";
 import type { IMongoDbEntityStorageConnectorConfig } from "./models/IMongoDbEntityStorageConnectorConfig";
 import type { IMongoDbEntityStorageConnectorConstructorOptions } from "./models/IMongoDbEntityStorageConnectorConstructorOptions";
 
@@ -293,11 +286,10 @@ export class MongoDbEntityStorageConnector<T = unknown> implements IEntityStorag
 			this.buildQueryParameters("", conditions, filter);
 		}
 
-		const sort: Sort = {};
+		const sort = new Map<string, SortDirection>();
 		if (Array.isArray(sortProperties)) {
 			for (const sortProperty of sortProperties) {
-				const direction = sortProperty.sortDirection === SortDirection.Ascending ? 1 : -1;
-				sort[sortProperty.property as string] = direction;
+				sort.set(sortProperty.property as string, sortProperty.sortDirection);
 			}
 		}
 
