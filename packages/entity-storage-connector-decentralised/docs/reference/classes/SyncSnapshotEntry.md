@@ -28,6 +28,14 @@ The id for the snapshot.
 
 ***
 
+### context
+
+> **context**: `string`
+
+The context for the snapshot i.e. which entity is being synchronized.
+
+***
+
 ### dateCreated
 
 > **dateCreated**: `string`

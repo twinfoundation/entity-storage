@@ -4,7 +4,7 @@ import {
 	BlobStorageConnectorFactory,
 	type IBlobStorageConnector
 } from "@twin.org/blob-storage-models";
-import { BaseError, ComponentFactory, GeneralError, Guards, Is } from "@twin.org/core";
+import { BaseError, ComponentFactory, GeneralError, Guards, Is, StringHelper } from "@twin.org/core";
 import {
 	EntitySchemaFactory,
 	EntitySchemaHelper,
@@ -154,6 +154,12 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	private _nodeIdentity?: string;
 
 	/**
+	 * The context for the entity being synchronised.
+	 * @internal
+	 */
+	private readonly _entityContext: string;
+
+	/**
 	 * Create a new instance of SynchronisedStorageService.
 	 * @param options The options for the service.
 	 */
@@ -176,6 +182,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 		);
 
 		this._entitySchema = EntitySchemaFactory.get(options.entitySchema);
+		this._entityContext = StringHelper.kebabCase(options.entitySchema);
 		this._primaryKey = EntitySchemaHelper.getPrimaryKey<T>(this._entitySchema);
 
 		const requiredProperties: (keyof ISynchronisedEntity)[] = ["nodeIdentity", "dateCreated"];
@@ -253,7 +260,8 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 
 		this._localSyncStateHelper = new LocalSyncStateHelper<T>(
 			this._localSyncSnapshotEntryEntityStorage,
-			this._changeSetHelper
+			this._changeSetHelper,
+			this._entityContext
 		);
 
 		this._remoteSyncStateHelper = new RemoteSyncStateHelper<T>(

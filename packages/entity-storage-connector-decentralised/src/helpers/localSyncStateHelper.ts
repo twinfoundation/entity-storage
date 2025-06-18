@@ -21,6 +21,7 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 
 	/**
 	 * The storage connector for the sync snapshot entries.
+	 * @internal
 	 */
 	private readonly _localSyncSnapshotEntryEntityStorage: IEntityStorageConnector<
 		SyncSnapshotEntry<T>
@@ -28,20 +29,30 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 
 	/**
 	 * The change set helper to use for applying changesets.
+	 * @internal
 	 */
 	private readonly _changeSetHelper: ChangeSetHelper<T>;
+
+	/**
+	 * The context for the entity being synchronised.
+	 * @internal
+	 */
+	private readonly _entityContext: string;
 
 	/**
 	 * Create a new instance of LocalSyncStateHelper.
 	 * @param localSyncSnapshotEntryEntityStorage The storage connector for the local sync snapshot entries.
 	 * @param changeSetHelper The change set helper to use for applying changesets.
+	 * @param entityContext The context for the entity being synchronised.
 	 */
 	constructor(
 		localSyncSnapshotEntryEntityStorage: IEntityStorageConnector<SyncSnapshotEntry<T>>,
-		changeSetHelper: ChangeSetHelper<T>
+		changeSetHelper: ChangeSetHelper<T>,
+		entityContext: string
 	) {
 		this._localSyncSnapshotEntryEntityStorage = localSyncSnapshotEntryEntityStorage;
 		this._changeSetHelper = changeSetHelper;
+		this._entityContext = entityContext;
 	}
 
 	/**
@@ -78,9 +89,18 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 	 */
 	public async getLocalChangeSnapshot(): Promise<SyncSnapshotEntry<T>> {
 		const queryResult = await this._localSyncSnapshotEntryEntityStorage.query({
-			property: "isLocalSnapshot",
-			value: true,
-			comparison: ComparisonOperator.Equals
+			conditions: [
+				{
+					property: "isLocalSnapshot",
+					value: true,
+					comparison: ComparisonOperator.Equals
+				},
+				{
+					property: "context",
+					value: this._entityContext,
+					comparison: ComparisonOperator.Equals
+				}
+			]
 		});
 
 		if (queryResult.entities.length > 0) {
@@ -89,6 +109,7 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 
 		return {
 			id: Converter.bytesToHex(RandomHelper.generate(32)),
+			context: this._entityContext,
 			dateCreated: new Date(Date.now()).toISOString(),
 			changeSetStorageIds: [],
 			isLocalSnapshot: true
@@ -167,15 +188,19 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 			});
 
 			const localSnapshot = await this._localSyncSnapshotEntryEntityStorage.get(remoteSnapshot.id);
+			const remoteSnapshotWithContext: SyncSnapshotEntry<T> = {
+				...remoteSnapshot,
+				context: this._entityContext
+			};
 
 			if (Is.empty(localSnapshot)) {
 				// We don't have the snapshot locally, so we need to process it
-				newSnapshots.push(remoteSnapshot);
+				newSnapshots.push(remoteSnapshotWithContext);
 			} else if (localSnapshot.dateModified !== remoteSnapshot.dateModified) {
 				// If the local snapshot has a different dateModified, we need to update it
 				modifiedSnapshots.push({
 					localSnapshot,
-					remoteSnapshot
+					remoteSnapshot: remoteSnapshotWithContext
 				});
 			} else {
 				// we sorted the snapshots from newest to oldest, so if we found a local snapshot

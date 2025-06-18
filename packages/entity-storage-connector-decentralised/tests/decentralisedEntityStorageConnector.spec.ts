@@ -492,6 +492,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				dateCreated: "2025-05-29T07:00:00.003Z",
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+				context: "test-type",
 				changeSetStorageIds: [remoteSyncChangeSetId]
 			}
 		]);
@@ -648,6 +649,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				dateCreated: "2025-05-29T07:00:00.003Z",
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+				context: "test-type",
 				changeSetStorageIds: [remoteSyncChangeSetId]
 			}
 		]);

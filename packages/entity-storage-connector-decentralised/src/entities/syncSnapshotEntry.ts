@@ -15,6 +15,12 @@ export class SyncSnapshotEntry<T = unknown> {
 	public id!: string;
 
 	/**
+	 * The context for the snapshot i.e. which entity is being synchronized.
+	 */
+	@property({ type: "string", isSecondary: true })
+	public context!: string;
+
+	/**
 	 * The date the snapshot was created.
 	 */
 	@property({ type: "string" })
