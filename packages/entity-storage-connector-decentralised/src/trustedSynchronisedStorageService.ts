@@ -1,9 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import {
-	BlobStorageConnectorFactory,
-	type IBlobStorageComponent
-} from "@twin.org/blob-storage-models";
+import type { IBlobStorageComponent } from "@twin.org/blob-storage-models";
 import { ComponentFactory, Guards, Is } from "@twin.org/core";
 import { EntitySchemaFactory, EntitySchemaHelper } from "@twin.org/entity";
 import {
