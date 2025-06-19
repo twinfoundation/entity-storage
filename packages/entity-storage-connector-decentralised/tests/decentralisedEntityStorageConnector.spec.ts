@@ -1,7 +1,15 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { MemoryBlobStorageConnector } from "@twin.org/blob-storage-connector-memory";
-import { BlobStorageConnectorFactory } from "@twin.org/blob-storage-models";
+import {
+	BlobStorageCompressionType,
+	BlobStorageConnectorFactory
+} from "@twin.org/blob-storage-models";
+import {
+	type BlobStorageEntry,
+	BlobStorageService,
+	initSchema as initSchemaBlobStorage
+} from "@twin.org/blob-storage-service";
 import { ComponentFactory, Converter, I18n, ObjectHelper, RandomHelper } from "@twin.org/core";
 import type { IJsonLdNodeObject } from "@twin.org/data-json-ld";
 import { EntitySchemaFactory, EntitySchemaHelper, entity, property } from "@twin.org/entity";
@@ -17,17 +25,23 @@ import { LoggingConnectorFactory } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import { ProofTypes } from "@twin.org/standards-w3c-did";
 import {
+	EntityStorageVaultConnector,
+	type VaultKey,
+	type VaultSecret,
+	initSchema as initSchemaVault
+} from "@twin.org/vault-connector-entity-storage";
+import { VaultConnectorFactory } from "@twin.org/vault-models";
+import {
 	EntityStorageVerifiableStorageConnector,
 	type VerifiableItem,
 	initSchema as initSchemaVerifiableStorage
 } from "@twin.org/verifiable-storage-connector-entity-storage";
 import { VerifiableStorageConnectorFactory } from "@twin.org/verifiable-storage-models";
 import {
-	compressObject,
-	decompressObject,
-	setupTestEnv,
 	TEST_NODE_IDENTITY,
-	TEST_NODE_IDENTITY_2
+	TEST_NODE_IDENTITY_2,
+	decompressObject,
+	setupTestEnv
 } from "./setupTestEnv";
 import { DecentralisedEntityStorageConnector } from "../src/decentralisedEntityStorageConnector";
 import type { SyncSnapshotEntry } from "../src/entities/syncSnapshotEntry";
@@ -81,6 +95,7 @@ let localSyncSnapshotEntryMemoryEntityStorage: MemoryEntityStorageConnector<Sync
 let verifiableSyncPointerMemoryEntityStorage: MemoryEntityStorageConnector<VerifiableItem>;
 let testTypeMemoryEntityStorage: MemoryEntityStorageConnector<TestType>;
 let memoryBlobStorage: MemoryBlobStorageConnector;
+let blobStorageConnector: BlobStorageService;
 let verifiableStorage: EntityStorageVerifiableStorageConnector;
 let decentrialisedEntityStorage: DecentralisedEntityStorageConnector<TestType> | undefined;
 let trustedSyncSnapshotEntryMemoryEntityStorage: MemoryEntityStorageConnector<SyncSnapshotEntry>;
@@ -98,6 +113,8 @@ describe("DecentralisedEntityStorageConnector", () => {
 		EntitySchemaFactory.register(nameof<TestType>(), () => EntitySchemaHelper.getSchema(TestType));
 		initSchemaLogging();
 		initSchemaVerifiableStorage();
+		initSchemaVault();
+		initSchemaBlobStorage();
 		initSchema();
 	});
 
@@ -135,7 +152,37 @@ describe("DecentralisedEntityStorageConnector", () => {
 		VerifiableStorageConnectorFactory.register("verifiable-storage", () => verifiableStorage);
 
 		memoryBlobStorage = new MemoryBlobStorageConnector();
-		BlobStorageConnectorFactory.register("blob-storage", () => memoryBlobStorage);
+		BlobStorageConnectorFactory.register("memory", () => memoryBlobStorage);
+
+		const vaultKeyEntityStorageConnector = new MemoryEntityStorageConnector<VaultKey>({
+			entitySchema: nameof<VaultKey>()
+		});
+
+		const vaultSecretEntityStorageConnector = new MemoryEntityStorageConnector<VaultSecret>({
+			entitySchema: nameof<VaultSecret>()
+		});
+
+		EntityStorageConnectorFactory.register("vault-key", () => vaultKeyEntityStorageConnector);
+		EntityStorageConnectorFactory.register("vault-secret", () => vaultSecretEntityStorageConnector);
+
+		VaultConnectorFactory.register("vault", () => new EntityStorageVaultConnector());
+
+		const blobEntryEntityStorageConnector = new MemoryEntityStorageConnector<BlobStorageEntry>({
+			entitySchema: nameof<BlobStorageEntry>()
+		});
+
+		EntityStorageConnectorFactory.register(
+			"blob-storage-entry",
+			() => blobEntryEntityStorageConnector
+		);
+
+		blobStorageConnector = new BlobStorageService({
+			config: {
+				includeNodeIdentity: false,
+				includeUserIdentity: false
+			}
+		});
+		ComponentFactory.register("blob-storage", () => blobStorageConnector);
 
 		// These are the trusted version of the node
 		trustedSyncSnapshotEntryMemoryEntityStorage =
@@ -343,7 +390,13 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const syncState: ISyncState = {
 			snapshots: []
 		};
-		const blobStorageId = await memoryBlobStorage.set(await compressObject(syncState));
+		const blobStorageId = await blobStorageConnector.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes(syncState)),
+			undefined,
+			undefined,
+			undefined,
+			{ disableEncryption: true, compress: BlobStorageCompressionType.Gzip }
+		);
 
 		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: blobStorageId
@@ -361,7 +414,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 				id: "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
 				level: "info",
 				source: "RemoteSyncStateHelper",
-				ts: 1748502000000,
+				ts: 1748502000001,
 				message: "verifiableSyncPointerRetrieving",
 				data: {
 					key: "verifiable:entity-storage:11111111111111111111111111111111"
@@ -371,7 +424,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
 				level: "info",
 				source: "RemoteSyncStateHelper",
-				ts: 1748502000001,
+				ts: 1748502000002,
 				message: "verifiableSyncPointerRetrieved",
 				data: {
 					key: "verifiable:entity-storage:11111111111111111111111111111111",
@@ -383,7 +436,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 				id: "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
 				level: "info",
 				source: "RemoteSyncStateHelper",
-				ts: 1748502000002,
+				ts: 1748502000003,
 				message: "remoteSyncStateRetrieving",
 				data: {
 					syncPointerId:
@@ -394,7 +447,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 				id: "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
 				level: "info",
 				source: "RemoteSyncStateHelper",
-				ts: 1748502000003,
+				ts: 1748502000012,
 				message: "remoteSyncStateRetrieved",
 				data: {
 					syncPointerId:
@@ -406,7 +459,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 				id: "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
 				level: "info",
 				source: "LocalSyncStateHelper",
-				ts: 1748502000004,
+				ts: 1748502000013,
 				message: "remoteSyncSynchronisation",
 				data: {
 					snapshotCount: 0
@@ -460,8 +513,15 @@ describe("DecentralisedEntityStorageConnector", () => {
 			remoteSyncChangeSet
 		);
 
-		const remoteSyncChangeSetId = await memoryBlobStorage.set(
-			await compressObject(remoteSyncChangeSet)
+		const remoteSyncChangeSetId = await blobStorageConnector.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes(remoteSyncChangeSet)),
+			undefined,
+			undefined,
+			undefined,
+			{
+				disableEncryption: true,
+				compress: BlobStorageCompressionType.Gzip
+			}
 		);
 
 		const remoteSyncSnapshotEntry: ISyncSnapshot = {
@@ -473,7 +533,16 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const remoteSyncState: ISyncState = {
 			snapshots: [remoteSyncSnapshotEntry]
 		};
-		const blobStorageId = await memoryBlobStorage.set(await compressObject(remoteSyncState));
+		const blobStorageId = await blobStorageConnector.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes(remoteSyncState)),
+			undefined,
+			undefined,
+			undefined,
+			{
+				disableEncryption: true,
+				compress: BlobStorageCompressionType.Gzip
+			}
+		);
 
 		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: blobStorageId
@@ -490,7 +559,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const localSyncSnapshotStore = localSyncSnapshotEntryMemoryEntityStorage.getStore();
 		expect(localSyncSnapshotStore).toEqual([
 			{
-				dateCreated: "2025-05-29T07:00:00.003Z",
+				dateCreated: "2025-05-29T07:00:00.005Z",
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
 				context: "test-type",
 				changeSetStorageIds: [remoteSyncChangeSetId]
@@ -542,7 +611,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			snapshots: [
 				{
 					id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
-					dateCreated: "2025-05-29T07:00:00.003Z",
+					dateCreated: "2025-05-29T07:00:00.005Z",
 					changeSetStorageIds: [
 						"blob:memory:0e9b13cbdd49b37587ed8bd8a409f303edecb9d7dc2b00f7c3525e148007d0aa"
 					]
@@ -600,8 +669,15 @@ describe("DecentralisedEntityStorageConnector", () => {
 			remoteSyncChangeSet
 		);
 
-		const remoteSyncChangeSetId = await memoryBlobStorage.set(
-			await compressObject(remoteSyncChangeSet)
+		const remoteSyncChangeSetId = await blobStorageConnector.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes(remoteSyncChangeSet)),
+			undefined,
+			undefined,
+			undefined,
+			{
+				disableEncryption: true,
+				compress: BlobStorageCompressionType.Gzip
+			}
 		);
 
 		const remoteSyncSnapshotEntry: ISyncSnapshot = {
@@ -613,7 +689,16 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const remoteSyncState: ISyncState = {
 			snapshots: [remoteSyncSnapshotEntry]
 		};
-		const remoteBlobStorageId = await memoryBlobStorage.set(await compressObject(remoteSyncState));
+		const remoteBlobStorageId = await blobStorageConnector.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes(remoteSyncState)),
+			undefined,
+			undefined,
+			undefined,
+			{
+				disableEncryption: true,
+				compress: BlobStorageCompressionType.Gzip
+			}
+		);
 
 		const verifiableSyncPointer: ISyncPointer = {
 			syncPointerId: remoteBlobStorageId
@@ -647,7 +732,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const localSyncSnapshotStore = localSyncSnapshotEntryMemoryEntityStorage.getStore();
 		expect(localSyncSnapshotStore).toEqual([
 			{
-				dateCreated: "2025-05-29T07:00:00.003Z",
+				dateCreated: "2025-05-29T07:00:00.004Z",
 				id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
 				context: "test-type",
 				changeSetStorageIds: [remoteSyncChangeSetId]
@@ -704,7 +789,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			snapshots: [
 				{
 					id: "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
-					dateCreated: "2025-05-29T07:00:00.003Z",
+					dateCreated: "2025-05-29T07:00:00.004Z",
 					changeSetStorageIds: [
 						"blob:memory:a8355dda135329030bfd326c6988a52ddbcf3b54c93d286b6f143637af0fe20b"
 					]
@@ -772,7 +857,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			"487b1bd3ceea686db2258d39b1b50a1d99bdb8419a8cacd6ffe03708a8f3c18c"
 		);
 		expect(blobStorageKeys[1]).toEqual(
-			"bcac87cffb7fb1320f7003c99a13e070ee17243c4402be67d830beaa57ee8176"
+			"70da12391998bd19ba753efebf7fe6d022704c8ca7bffd0d0dfc08605a77ba91"
 		);
 
 		expect(await decompressObject(blobStoreValues[0])).toEqual({
@@ -811,7 +896,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			snapshots: [
 				{
 					id: "d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8",
-					dateCreated: "2025-05-29T07:00:00.013Z",
+					dateCreated: "2025-05-29T07:00:00.014Z",
 					changeSetStorageIds: [
 						"blob:memory:487b1bd3ceea686db2258d39b1b50a1d99bdb8419a8cacd6ffe03708a8f3c18c"
 					]
@@ -824,7 +909,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "dbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdb",
 				creator: "verifiable:entity-storage:11111111111111111111111111111111",
-				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6YmNhYzg3Y2ZmYjdmYjEzMjBmNzAwM2M5OWExM2UwNzBlZTE3MjQzYzQ0MDJiZTY3ZDgzMGJlYWE1N2VlODE3NiJ9",
+				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6NzBkYTEyMzkxOTk4YmQxOWJhNzUzZWZlYmY3ZmU2ZDAyMjcwNGM4Y2E3YmZmZDBkMGRmYzA4NjA1YTc3YmE5MSJ9",
 				allowList: ["verifiable:entity-storage:11111111111111111111111111111111"],
 				maxAllowListSize: 100
 			}
@@ -833,7 +918,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		expect(
 			ObjectHelper.fromBytes(Converter.base64ToBytes(verifiableSyncPointerStore[0].data))
 		).toEqual({
-			syncPointerId: "blob:memory:bcac87cffb7fb1320f7003c99a13e070ee17243c4402be67d830beaa57ee8176"
+			syncPointerId: "blob:memory:70da12391998bd19ba753efebf7fe6d022704c8ca7bffd0d0dfc08605a77ba91"
 		});
 	});
 
@@ -879,10 +964,10 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const blobStorageKeys = Object.keys(blobStore);
 		expect(blobStorageKeys).toEqual([
 			"964ed034343e8af33eba21c6e057c6037061f0655b84001cc053539024cb8a3b",
-			"d7d5da00a64191553ec5c976082e09d86c49f9ba6b46d3da8e08eb4f17cdfcf6",
-			"543341d0cff2aeccda5b04301fe2bf6bfaa2e9c38ef6ef03dc0f3bd40cd8b03d",
-			"aedbb2d785e89fad9f3759985d1533039371592a6813190227872897b8f8a152",
-			"0cfe37807c62fbdab528d188a69694e12f7d53c7b624c8f224b606c2bb837744"
+			"22110fa69476d7b976fa3e3cbf8055a60279c5b978b377fba936b408b2dd10af",
+			"89ee7d65b25830680af5034059f5d763e46956c2d1a21b2ea0a7228ae16d163c",
+			"006113e724fadf46a413a05597fe6b77214e80f1ffdc7ca4a256dfa5d25d15a1",
+			"17a46265a96666a3a9a11541fede622ba8caefbe06143aa3a94c0f62a54162f7"
 		]);
 
 		expect(await decompressObject(blobStoreValues[0])).toEqual({
@@ -949,12 +1034,12 @@ describe("DecentralisedEntityStorageConnector", () => {
 			snapshots: [
 				{
 					id: "dededededededededededededededededededededededededededededededede",
-					dateCreated: "2025-05-29T07:00:00.018Z",
+					dateCreated: "2025-05-29T07:00:00.022Z",
 					changeSetStorageIds: [
 						"blob:memory:964ed034343e8af33eba21c6e057c6037061f0655b84001cc053539024cb8a3b",
-						"blob:memory:d7d5da00a64191553ec5c976082e09d86c49f9ba6b46d3da8e08eb4f17cdfcf6",
-						"blob:memory:543341d0cff2aeccda5b04301fe2bf6bfaa2e9c38ef6ef03dc0f3bd40cd8b03d",
-						"blob:memory:aedbb2d785e89fad9f3759985d1533039371592a6813190227872897b8f8a152"
+						"blob:memory:22110fa69476d7b976fa3e3cbf8055a60279c5b978b377fba936b408b2dd10af",
+						"blob:memory:89ee7d65b25830680af5034059f5d763e46956c2d1a21b2ea0a7228ae16d163c",
+						"blob:memory:006113e724fadf46a413a05597fe6b77214e80f1ffdc7ca4a256dfa5d25d15a1"
 					]
 				}
 			]
@@ -965,7 +1050,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
 				creator: "verifiable:entity-storage:11111111111111111111111111111111",
-				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6MGNmZTM3ODA3YzYyZmJkYWI1MjhkMTg4YTY5Njk0ZTEyZjdkNTNjN2I2MjRjOGYyMjRiNjA2YzJiYjgzNzc0NCJ9",
+				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6MTdhNDYyNjVhOTY2NjZhM2E5YTExNTQxZmVkZTYyMmJhOGNhZWZiZTA2MTQzYWEzYTk0YzBmNjJhNTQxNjJmNyJ9",
 				allowList: ["verifiable:entity-storage:11111111111111111111111111111111"],
 				maxAllowListSize: 100
 			}
@@ -974,7 +1059,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		expect(
 			ObjectHelper.fromBytes(Converter.base64ToBytes(verifiableSyncPointerStore[0].data))
 		).toEqual({
-			syncPointerId: "blob:memory:0cfe37807c62fbdab528d188a69694e12f7d53c7b624c8f224b606c2bb837744"
+			syncPointerId: "blob:memory:17a46265a96666a3a9a11541fede622ba8caefbe06143aa3a94c0f62a54162f7"
 		});
 	});
 
@@ -1051,7 +1136,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		const blobStorageKeys = Object.keys(blobStore);
 		expect(blobStorageKeys).toEqual([
 			"f970d728ac67e4a46eda46ceffe51870e9f2898133c98d784c9628caacd32e3c",
-			"f2f0e9aec58e62933acc10090b0e6c73c6049b19c1b8d2d5ac591118363ad2dd"
+			"27c1d05c102a5478e8f066e08a76a7cea31ad14376d1309f11f46440ae49099b"
 		]);
 
 		expect(await decompressObject(blobStoreValues[0])).toEqual({
@@ -1087,7 +1172,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			snapshots: [
 				{
 					id: "d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6",
-					dateCreated: "2025-05-29T07:00:00.008Z",
+					dateCreated: "2025-05-29T07:00:00.018Z",
 					changeSetStorageIds: [
 						"blob:memory:f970d728ac67e4a46eda46ceffe51870e9f2898133c98d784c9628caacd32e3c"
 					]
@@ -1100,7 +1185,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 			{
 				id: "d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7",
 				creator: "verifiable:entity-storage:11111111111111111111111111111111",
-				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6ZjJmMGU5YWVjNThlNjI5MzNhY2MxMDA5MGIwZTZjNzNjNjA0OWIxOWMxYjhkMmQ1YWM1OTExMTgzNjNhZDJkZCJ9",
+				data: "eyJzeW5jUG9pbnRlcklkIjoiYmxvYjptZW1vcnk6MjdjMWQwNWMxMDJhNTQ3OGU4ZjA2NmUwOGE3NmE3Y2VhMzFhZDE0Mzc2ZDEzMDlmMTFmNDY0NDBhZTQ5MDk5YiJ9",
 				allowList: ["verifiable:entity-storage:11111111111111111111111111111111"],
 				maxAllowListSize: 100
 			}
@@ -1109,7 +1194,7 @@ describe("DecentralisedEntityStorageConnector", () => {
 		expect(
 			ObjectHelper.fromBytes(Converter.base64ToBytes(verifiableSyncPointerStore[0].data))
 		).toEqual({
-			syncPointerId: "blob:memory:f2f0e9aec58e62933acc10090b0e6c73c6049b19c1b8d2d5ac591118363ad2dd"
+			syncPointerId: "blob:memory:27c1d05c102a5478e8f066e08a76a7cea31ad14376d1309f11f46440ae49099b"
 		});
 	});
 });

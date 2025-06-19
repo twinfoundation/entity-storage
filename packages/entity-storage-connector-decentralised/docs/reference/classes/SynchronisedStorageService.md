@@ -118,9 +118,9 @@ Nothing.
 
 ***
 
-### prepareEntityForSync()
+### prepare()
 
-> **prepareEntityForSync**(`entity`): `Promise`\<`void`\>
+> **prepare**(`entity`): `Promise`\<`void`\>
 
 Prepares an entry for synchronisation.
 
@@ -138,13 +138,13 @@ The entity to prepare for synchronisation.
 
 #### Implementation of
 
-[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`prepareEntityForSync`](../interfaces/ISynchronisedStorageComponent.md#prepareentityforsync)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`prepare`](../interfaces/ISynchronisedStorageComponent.md#prepare)
 
 ***
 
-### syncEntitySet()
+### set()
 
-> **syncEntitySet**(`entity`): `Promise`\<`void`\>
+> **set**(`entity`): `Promise`\<`void`\>
 
 Synchronise an entity storage operation.
 
@@ -164,13 +164,13 @@ Nothing.
 
 #### Implementation of
 
-[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`syncEntitySet`](../interfaces/ISynchronisedStorageComponent.md#syncentityset)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`set`](../interfaces/ISynchronisedStorageComponent.md#set)
 
 ***
 
-### syncEntityRemove()
+### remove()
 
-> **syncEntityRemove**(`id`): `Promise`\<`void`\>
+> **remove**(`id`): `Promise`\<`void`\>
 
 Synchronise an entity removal operation.
 
@@ -190,4 +190,4 @@ Nothing.
 
 #### Implementation of
 
-[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`syncEntityRemove`](../interfaces/ISynchronisedStorageComponent.md#syncentityremove)
+[`ISynchronisedStorageComponent`](../interfaces/ISynchronisedStorageComponent.md).[`remove`](../interfaces/ISynchronisedStorageComponent.md#remove)

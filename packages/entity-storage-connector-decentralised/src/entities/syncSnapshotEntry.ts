@@ -33,20 +33,20 @@ export class SyncSnapshotEntry<T = unknown> {
 	public dateModified?: string;
 
 	/**
-	 * The ids of the storage for the change sets in the snapshot.
-	 */
-	@property({ type: "array", itemType: "string" })
-	public changeSetStorageIds!: string[];
-
-	/**
-	 * The flag to determine this is the current local snapshot.
+	 * The flag to determine if this is the current local snapshot containing changes for this node.
 	 */
 	@property({ type: "boolean", optional: true })
 	public isLocalSnapshot?: boolean;
 
 	/**
-	 * The changes that were made in this snapshot.
+	 * The ids of the storage for the change sets in the snapshot, if this is not a local snapshot.
+	 */
+	@property({ type: "array", itemType: "string", optional: true })
+	public changeSetStorageIds?: string[];
+
+	/**
+	 * The changes that were made in this snapshot, if this is a local snapshot.
 	 */
 	@property({ type: "array", itemType: "object", optional: true })
-	public changes?: ISyncChange<T>[];
+	public localChanges?: ISyncChange<T>[];
 }

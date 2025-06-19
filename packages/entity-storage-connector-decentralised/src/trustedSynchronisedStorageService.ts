@@ -1,7 +1,10 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BlobStorageConnectorFactory } from "@twin.org/blob-storage-models";
-import { Guards, Is } from "@twin.org/core";
+import {
+	BlobStorageConnectorFactory,
+	type IBlobStorageComponent
+} from "@twin.org/blob-storage-models";
+import { ComponentFactory, Guards, Is } from "@twin.org/core";
 import { EntitySchemaFactory, EntitySchemaHelper } from "@twin.org/entity";
 import {
 	EntityStorageConnectorFactory,
@@ -77,8 +80,8 @@ export class TrustedSynchronisedStorageService implements ITrustedSynchronisedSt
 			options.verifiableStorageConnectorType ?? "verifiable-storage"
 		);
 
-		const blobStorageConnector = BlobStorageConnectorFactory.get(
-			options.blobStorageConnectorType ?? "blob-storage"
+		const blobStorageComponent = ComponentFactory.get<IBlobStorageComponent>(
+			options.blobStorageComponentType ?? "blob-storage"
 		);
 
 		const identityConnector = IdentityConnectorFactory.get(
@@ -93,7 +96,7 @@ export class TrustedSynchronisedStorageService implements ITrustedSynchronisedSt
 
 		this._changeSetHelper = new ChangeSetHelper(
 			entityStorageConnector,
-			blobStorageConnector,
+			blobStorageComponent,
 			identityConnector,
 			this._config.synchronisedStorageMethodId,
 			primaryKey
@@ -101,7 +104,7 @@ export class TrustedSynchronisedStorageService implements ITrustedSynchronisedSt
 
 		this._remoteSyncStateHelper = new RemoteSyncStateHelper(
 			entityStorageConnector,
-			blobStorageConnector,
+			blobStorageComponent,
 			verifiableSyncPointerStorageConnector,
 			this._changeSetHelper
 		);
@@ -120,6 +123,7 @@ export class TrustedSynchronisedStorageService implements ITrustedSynchronisedSt
 		// The proof is verified that the change set is valid and has not been tampered with.
 		// but we also need to check that the originating node has permissions
 		// to store the change set in the synchronised storage.
+		// This will be performed using rights-management
 
 		const changeSet = await this._changeSetHelper.getAndApplyChangeset(
 			undefined,

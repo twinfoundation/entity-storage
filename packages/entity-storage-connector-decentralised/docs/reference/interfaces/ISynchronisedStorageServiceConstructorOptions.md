@@ -70,9 +70,9 @@ sync-snapshot-entry
 
 ***
 
-### blobStorageConnectorType?
+### blobStorageComponentType?
 
-> `optional` **blobStorageConnectorType**: `string`
+> `optional` **blobStorageComponentType**: `string`
 
 The blob storage component used for remote sync state.
 
@@ -84,7 +84,7 @@ blob-storage
 
 #### Inherited from
 
-[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`blobStorageConnectorType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#blobstorageconnectortype)
+[`ITrustedSynchronisedStorageServiceConstructorOptions`](ITrustedSynchronisedStorageServiceConstructorOptions.md).[`blobStorageComponentType`](ITrustedSynchronisedStorageServiceConstructorOptions.md#blobstoragecomponenttype)
 
 ***
 

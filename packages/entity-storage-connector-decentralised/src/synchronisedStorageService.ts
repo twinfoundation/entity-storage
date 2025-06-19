@@ -1,9 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import {
-	BlobStorageConnectorFactory,
-	type IBlobStorageConnector
-} from "@twin.org/blob-storage-models";
+import type { IBlobStorageComponent } from "@twin.org/blob-storage-models";
 import {
 	BaseError,
 	ComponentFactory,
@@ -95,10 +92,10 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	>;
 
 	/**
-	 * The blob storage connector to use for remote sync states.
+	 * The blob storage component to use for remote sync states.
 	 * @internal
 	 */
-	private readonly _blobStorageConnector: IBlobStorageConnector;
+	private readonly _blobStorageComponent: IBlobStorageComponent;
 
 	/**
 	 * The verifiable storage connector to use for storing sync pointers.
@@ -219,8 +216,8 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 			options.verifiableStorageConnectorType ?? "verifiable-storage"
 		);
 
-		this._blobStorageConnector = BlobStorageConnectorFactory.get(
-			options.blobStorageConnectorType ?? "blob-storage"
+		this._blobStorageComponent = ComponentFactory.get(
+			options.blobStorageComponentType ?? "blob-storage"
 		);
 
 		this._identityConnector = IdentityConnectorFactory.get(
@@ -259,7 +256,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 
 		this._changeSetHelper = new ChangeSetHelper<T>(
 			this._entityStorageConnector,
-			this._blobStorageConnector,
+			this._blobStorageComponent,
 			this._identityConnector,
 			this._config.synchronisedStorageMethodId,
 			this._primaryKey
@@ -273,7 +270,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 
 		this._remoteSyncStateHelper = new RemoteSyncStateHelper<T>(
 			this._entityStorageConnector,
-			this._blobStorageConnector,
+			this._blobStorageComponent,
 			this._verifiableSyncPointerStorageConnector,
 			this._changeSetHelper
 		);
@@ -334,7 +331,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	 * Prepares an entry for synchronisation.
 	 * @param entity The entity to prepare for synchronisation.
 	 */
-	public async prepareEntityForSync(entity: T): Promise<void> {
+	public async prepare(entity: T): Promise<void> {
 		// Make sure the entity has the node identity set
 		// as we only create sync snapshots for entities created by this node
 		// it is the responsibility of other nodes to sync their entities
@@ -347,7 +344,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	 * @param entity The entity to synchronise.
 	 * @returns Nothing.
 	 */
-	public async syncEntitySet(entity: T): Promise<void> {
+	public async set(entity: T): Promise<void> {
 		// Add the local change to the sync snapshot, we only store id for the change
 		// as the entity is already stored in the entity storage and we will retrieve it
 		// when we need to create the changeset
@@ -360,7 +357,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 	 * @param id The id of the entity to synchronise.
 	 * @returns Nothing.
 	 */
-	public async syncEntityRemove(id: string): Promise<void> {
+	public async remove(id: string): Promise<void> {
 		await this._localSyncStateHelper.addLocalChange("delete", id);
 	}
 
@@ -378,7 +375,6 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 			// Now send any updates we have to the remote storage
 			await this.updateFromLocalSyncState(logging);
 		} catch (error) {
-			// console.log(error);
 			await logging?.log({
 				level: "error",
 				source: this.CLASS_NAME,
@@ -436,7 +432,7 @@ export class SynchronisedStorageService<T extends ISynchronisedEntity = ISynchro
 			if (!Is.empty(localChangeSnapshot)) {
 				const changeSetStorageId = await this._remoteSyncStateHelper.createAndStoreChangeSet(
 					logging,
-					localChangeSnapshot.changes,
+					localChangeSnapshot.localChanges,
 					this._nodeIdentity
 				);
 

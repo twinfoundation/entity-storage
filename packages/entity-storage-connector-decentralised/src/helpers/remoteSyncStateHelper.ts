@@ -1,10 +1,8 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { IBlobStorageConnector } from "@twin.org/blob-storage-models";
+import { BlobStorageCompressionType, type IBlobStorageComponent } from "@twin.org/blob-storage-models";
 import {
 	BaseError,
-	Compression,
-	CompressionType,
 	Converter,
 	Is,
 	NotFoundError,
@@ -39,9 +37,9 @@ export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronised
 	private readonly _entityStorageConnector: IEntityStorageConnector<T>;
 
 	/**
-	 * The blob storage connector to use for remote sync states.
+	 * The blob storage component to use for remote sync states.
 	 */
-	private readonly _blobStorageConnector: IBlobStorageConnector;
+	private readonly _blobStorageComponent: IBlobStorageComponent;
 
 	/**
 	 * The verifiable storage connector to use for storing sync pointers.
@@ -56,18 +54,18 @@ export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronised
 	/**
 	 * Create a new instance of DecentralisedEntityStorageConnector.
 	 * @param entityStorageConnector The entity storage connector to use for actual data.
-	 * @param blobStorageConnector The blob storage connector to use for remote sync states.
+	 * @param blobStorageComponent The blob storage component to use for remote sync states.
 	 * @param verifiableSyncPointerStorageConnector The verifiable storage connector to use for storing sync pointers.
 	 * @param changeSetHelper The change set helper to use for managing changesets.
 	 */
 	constructor(
 		entityStorageConnector: IEntityStorageConnector<T>,
-		blobStorageConnector: IBlobStorageConnector,
+		blobStorageComponent: IBlobStorageComponent,
 		verifiableSyncPointerStorageConnector: IVerifiableStorageConnector,
 		changeSetHelper: ChangeSetHelper<T>
 	) {
 		this._entityStorageConnector = entityStorageConnector;
-		this._blobStorageConnector = blobStorageConnector;
+		this._blobStorageComponent = blobStorageComponent;
 		this._verifiableSyncPointerStorageConnector = verifiableSyncPointerStorageConnector;
 		this._changeSetHelper = changeSetHelper;
 	}
@@ -352,12 +350,15 @@ export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronised
 			}
 		});
 
-		const compressed = await Compression.compress(
-			ObjectHelper.toBytes<ISyncState>(syncState),
-			CompressionType.Gzip
+		// We don't want to encrypt the sync state as no other nodes would be able to read it
+		// the blob storage also needs to be publicly accessible so that other nodes can retrieve it
+		return this._blobStorageComponent.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes<ISyncState>(syncState)),
+			undefined,
+			undefined,
+			undefined,
+			{ disableEncryption: true, compress: BlobStorageCompressionType.Gzip }
 		);
-
-		return this._blobStorageConnector.set(compressed);
 	}
 
 	/**
@@ -379,12 +380,12 @@ export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronised
 					syncPointerId
 				}
 			});
-			const blobData = await this._blobStorageConnector.get(syncPointerId);
+			const blobEntry = await this._blobStorageComponent.get(syncPointerId, {
+				includeContent: true
+			});
 
-			if (Is.uint8Array(blobData)) {
-				const decompressed = await Compression.decompress(blobData, CompressionType.Gzip);
-
-				const syncState = ObjectHelper.fromBytes<ISyncState>(decompressed);
+			if (Is.stringBase64(blobEntry.blob)) {
+				const syncState = ObjectHelper.fromBytes<ISyncState>(Converter.base64ToBytes(blobEntry.blob));
 				await logging?.log({
 					level: "info",
 					source: this.CLASS_NAME,

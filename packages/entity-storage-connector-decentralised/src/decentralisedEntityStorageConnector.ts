@@ -15,7 +15,7 @@ import {
 import { nameof } from "@twin.org/nameof";
 import type { IDecentralisedEntityStorageConnectorConstructorOptions } from "./models/IDecentralisedEntityStorageConnectorConstructorOptions";
 import type { ISynchronisedEntity } from "./models/ISynchronisedEntity";
-import type { SynchronisedStorageService } from "./synchronisedStorageService";
+import type { ISynchronisedStorageComponent } from "./models/ISynchronisedStorageComponent";
 
 /**
  * Class for performing entity storage operations in decentralised storage.
@@ -45,7 +45,7 @@ export class DecentralisedEntityStorageConnector<
 	 * The synchronised storage service to use for synchronised storage operations.
 	 * @internal
 	 */
-	private readonly _synchronisedStorageService: SynchronisedStorageService<T>;
+	private readonly _synchronisedStorageComponent: ISynchronisedStorageComponent<T>;
 
 	/**
 	 * Create a new instance of DecentralisedEntityStorageConnector.
@@ -75,7 +75,7 @@ export class DecentralisedEntityStorageConnector<
 			options.entityStorageConnectorType
 		);
 
-		this._synchronisedStorageService = ComponentFactory.get(
+		this._synchronisedStorageComponent = ComponentFactory.get(
 			options.synchronisedStorageConnectorType
 		);
 	}
@@ -114,13 +114,13 @@ export class DecentralisedEntityStorageConnector<
 	public async set(entity: T, conditions?: { property: keyof T; value: unknown }[]): Promise<void> {
 		Guards.object<T>(this.CLASS_NAME, nameof(entity), entity);
 
-		await this._synchronisedStorageService.prepareEntityForSync(entity);
+		await this._synchronisedStorageComponent.prepare(entity);
 
 		EntitySchemaHelper.validateEntity(entity, this.getSchema());
 
 		await this._entityStorageConnector.set(entity, conditions);
 
-		await this._synchronisedStorageService.syncEntitySet(entity);
+		await this._synchronisedStorageComponent.set(entity);
 	}
 
 	/**
@@ -137,7 +137,7 @@ export class DecentralisedEntityStorageConnector<
 
 		await this._entityStorageConnector.remove(id, conditions);
 
-		await this._synchronisedStorageService.syncEntityRemove(id);
+		await this._synchronisedStorageComponent.remove(id);
 	}
 
 	/**

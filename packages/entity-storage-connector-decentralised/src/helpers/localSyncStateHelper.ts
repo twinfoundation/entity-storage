@@ -64,21 +64,23 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 	public async addLocalChange(operation: "set" | "delete", id: string): Promise<void> {
 		const localChangeSnapshot = await this.getLocalChangeSnapshot();
 
-		localChangeSnapshot.changes ??= [];
+		localChangeSnapshot.localChanges ??= [];
 
 		// If we already have a change for this id we are
 		// about to supersede it, we remove the previous change
 		// to avoid having multiple changes for the same id
-		const previousChangeIndex = localChangeSnapshot.changes.findIndex(change => change.id === id);
+		const previousChangeIndex = localChangeSnapshot.localChanges.findIndex(
+			change => change.id === id
+		);
 		if (previousChangeIndex !== -1) {
-			localChangeSnapshot.changes.splice(previousChangeIndex, 1);
+			localChangeSnapshot.localChanges.splice(previousChangeIndex, 1);
 		}
 
-		if (localChangeSnapshot.changes.length > 0) {
+		if (localChangeSnapshot.localChanges.length > 0) {
 			localChangeSnapshot.dateModified = new Date(Date.now()).toISOString();
 		}
 
-		localChangeSnapshot.changes.push({ operation, id });
+		localChangeSnapshot.localChanges.push({ operation, id });
 
 		await this.setLocalChangeSnapshot(localChangeSnapshot);
 	}
@@ -246,10 +248,14 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 				}
 			});
 
-			for (const storageId of modifiedSnapshot.remoteSnapshot.changeSetStorageIds) {
-				// Check if the local snapshot does not have the storageId
-				if (!modifiedSnapshot.localSnapshot.changeSetStorageIds.includes(storageId)) {
-					await this._changeSetHelper.getAndApplyChangeset(logging, storageId);
+			const remoteChangeSetStorageIds = modifiedSnapshot.remoteSnapshot.changeSetStorageIds;
+			const localChangeSetStorageIds = modifiedSnapshot.localSnapshot.changeSetStorageIds ?? [];
+			if (Is.arrayValue(remoteChangeSetStorageIds)) {
+				for (const storageId of remoteChangeSetStorageIds) {
+					// Check if the local snapshot does not have the storageId
+					if (!localChangeSetStorageIds.includes(storageId)) {
+						await this._changeSetHelper.getAndApplyChangeset(logging, storageId);
+					}
 				}
 			}
 
@@ -278,8 +284,11 @@ export class LocalSyncStateHelper<T extends ISynchronisedEntity = ISynchronisedE
 				}
 			});
 
-			for (const storageId of newSnapshot.changeSetStorageIds) {
-				await this._changeSetHelper.getAndApplyChangeset(logging, storageId);
+			const newSnapshotChangeSetStorageIds = newSnapshot.changeSetStorageIds ?? [];
+			if (Is.arrayValue(newSnapshotChangeSetStorageIds)) {
+				for (const storageId of newSnapshotChangeSetStorageIds) {
+					await this._changeSetHelper.getAndApplyChangeset(logging, storageId);
+				}
 			}
 
 			await this._localSyncSnapshotEntryEntityStorage.set(newSnapshot);

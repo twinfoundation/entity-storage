@@ -26,7 +26,7 @@ export interface ITrustedSynchronisedStorageServiceConstructorOptions {
 	 * The blob storage component used for remote sync state.
 	 * @default blob-storage
 	 */
-	blobStorageConnectorType?: string;
+	blobStorageComponentType?: string;
 
 	/**
 	 * The verifiable storage connector type to use for decentralised state.

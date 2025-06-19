@@ -30,7 +30,7 @@
 		"prepare": "ts-patch install -s"
 	},
 	"dependencies": {
-		"@twin.org/blob-storage-models": "0.0.1-next.29",
+		"@twin.org/blob-storage-models": "next",
 		"@twin.org/core": "next",
 		"@twin.org/crypto": "next",
 		"@twin.org/data-json-ld": "next",
@@ -44,6 +44,7 @@
 	},
 	"devDependencies": {
 		"@twin.org/blob-storage-connector-memory": "next",
+		"@twin.org/blob-storage-service": "next",
 		"@twin.org/entity-storage-connector-memory": "0.0.1-next.29",
 		"@twin.org/identity-connector-entity-storage": "next",
 		"@twin.org/logging-connector-entity-storage": "next",

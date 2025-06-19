@@ -14,9 +14,9 @@ Class for performing synchronised storage operations.
 
 ## Methods
 
-### prepareEntityForSync()
+### prepare()
 
-> **prepareEntityForSync**(`entity`): `Promise`\<`void`\>
+> **prepare**(`entity`): `Promise`\<`void`\>
 
 Prepares an entry for synchronisation.
 
@@ -36,9 +36,9 @@ Nothing.
 
 ***
 
-### syncEntitySet()
+### set()
 
-> **syncEntitySet**(`entity`): `Promise`\<`void`\>
+> **set**(`entity`): `Promise`\<`void`\>
 
 Synchronise an entity storage operation.
 
@@ -58,9 +58,9 @@ Nothing.
 
 ***
 
-### syncEntityRemove()
+### remove()
 
-> **syncEntityRemove**(`id`): `Promise`\<`void`\>
+> **remove**(`id`): `Promise`\<`void`\>
 
 Synchronise an entity removal operation.
 

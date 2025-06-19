@@ -103,15 +103,6 @@ export async function setupTestEnv(): Promise<void> {
 }
 
 /**
- * Compress an object using Gzip compression.
- * @param obj The object to compress.
- * @returns A promise that resolves to the compressed object as a Uint8Array.
- */
-export async function compressObject<T>(obj: T): Promise<Uint8Array> {
-	return Compression.compress(ObjectHelper.toBytes(obj), CompressionType.Gzip);
-}
-
-/**
  * Decompress an array using Gzip compression.
  * @param arr The array to decompress.
  * @returns A promise that resolves to the decompressed object.

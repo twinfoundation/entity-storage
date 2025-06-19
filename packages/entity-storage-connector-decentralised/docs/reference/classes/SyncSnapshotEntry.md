@@ -52,24 +52,24 @@ The date the snapshot was last modified.
 
 ***
 
-### changeSetStorageIds
-
-> **changeSetStorageIds**: `string`[]
-
-The ids of the storage for the change sets in the snapshot.
-
-***
-
 ### isLocalSnapshot?
 
 > `optional` **isLocalSnapshot**: `boolean`
 
-The flag to determine this is the current local snapshot.
+The flag to determine if this is the current local snapshot containing changes for this node.
 
 ***
 
-### changes?
+### changeSetStorageIds?
 
-> `optional` **changes**: [`ISyncChange`](../interfaces/ISyncChange.md)\<`T`\>[]
+> `optional` **changeSetStorageIds**: `string`[]
 
-The changes that were made in this snapshot.
+The ids of the storage for the change sets in the snapshot, if this is not a local snapshot.
+
+***
+
+### localChanges?
+
+> `optional` **localChanges**: [`ISyncChange`](../interfaces/ISyncChange.md)\<`T`\>[]
+
+The changes that were made in this snapshot, if this is a local snapshot.

@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { IBlobStorageConnector } from "@twin.org/blob-storage-models";
-import { Compression, CompressionType, Is, ObjectHelper } from "@twin.org/core";
+import { BlobStorageCompressionType, type IBlobStorageComponent } from "@twin.org/blob-storage-models";
+import { Converter, Is, ObjectHelper } from "@twin.org/core";
 import type { IJsonLdNodeObject } from "@twin.org/data-json-ld";
 import type { IEntitySchemaProperty } from "@twin.org/entity";
 import type { IEntityStorageConnector } from "@twin.org/entity-storage-models";
@@ -27,9 +27,9 @@ export class ChangeSetHelper<T extends ISynchronisedEntity = ISynchronisedEntity
 	private readonly _entityStorageConnector: IEntityStorageConnector<T>;
 
 	/**
-	 * The blob storage connector to use for remote sync states.
+	 * The blob storage component to use for remote sync states.
 	 */
-	private readonly _blobStorageConnector: IBlobStorageConnector;
+	private readonly _blobStorageComponent: IBlobStorageComponent;
 
 	/**
 	 * The identity connector to use for signing/verifying changesets.
@@ -49,21 +49,21 @@ export class ChangeSetHelper<T extends ISynchronisedEntity = ISynchronisedEntity
 	/**
 	 * Create a new instance of ChangeSetHelper.
 	 * @param entityStorageConnector The entity storage connector to use for actual data.
-	 * @param blobStorageConnector The blob storage connector to use for remote sync states.
+	 * @param blobStorageComponent The blob storage component to use for remote sync states.
 	 * @param identityConnector The identity connector to use for signing/verifying changesets.
 	 * @param decentralisedStorageMethodId The id of the identity method to use when signing/verifying changesets.
 	 * @param primaryKey The primary key of the entity schema to use for the changeset.
 	 */
 	constructor(
 		entityStorageConnector: IEntityStorageConnector<T>,
-		blobStorageConnector: IBlobStorageConnector,
+		blobStorageComponent: IBlobStorageComponent,
 		identityConnector: IIdentityConnector,
 		decentralisedStorageMethodId: string,
 		primaryKey: IEntitySchemaProperty<T>
 	) {
 		this._entityStorageConnector = entityStorageConnector;
 		this._decentralisedStorageMethodId = decentralisedStorageMethodId;
-		this._blobStorageConnector = blobStorageConnector;
+		this._blobStorageComponent = blobStorageComponent;
 		this._identityConnector = identityConnector;
 		this._primaryKey = primaryKey;
 	}
@@ -78,11 +78,15 @@ export class ChangeSetHelper<T extends ISynchronisedEntity = ISynchronisedEntity
 		logging: ILoggingConnector | undefined,
 		changeSetStorageId: string
 	): Promise<ISyncChangeSet<T> | undefined> {
-		const blobData = await this._blobStorageConnector.get(changeSetStorageId);
-		if (Is.uint8Array(blobData)) {
-			const decompressed = await Compression.decompress(blobData, CompressionType.Gzip);
-
-			const syncChangeset = ObjectHelper.fromBytes<ISyncChangeSet<T>>(decompressed);
+		// Changesets are not encrypted as they are signed with the node identity
+		// and they are publicly accessible so that other nodes can retrieve them.
+		const blobEntry = await this._blobStorageComponent.get(changeSetStorageId, {
+			includeContent: true
+		});
+		if (Is.stringBase64(blobEntry.blob)) {
+			const syncChangeset = ObjectHelper.fromBytes<ISyncChangeSet<T>>(
+				Converter.base64ToBytes(blobEntry.blob)
+			);
 
 			const verified = await this.verifyChangesetProof(logging, syncChangeset);
 			return verified ? syncChangeset : undefined;
@@ -186,12 +190,18 @@ export class ChangeSetHelper<T extends ISynchronisedEntity = ISynchronisedEntity
 			}
 		});
 
-		const compressed = await Compression.compress(
-			ObjectHelper.toBytes<ISyncChangeSet>(syncChangeSet),
-			CompressionType.Gzip
+		// We don't want to encrypt the sync state as no other nodes would be able to read it
+		// the blob storage also needs to be publicly accessible so that other nodes can retrieve it
+		return this._blobStorageComponent.create(
+			Converter.bytesToBase64(ObjectHelper.toBytes<ISyncChangeSet>(syncChangeSet)),
+			undefined,
+			undefined,
+			undefined,
+			{
+				disableEncryption: true,
+				compress: BlobStorageCompressionType.Gzip
+			}
 		);
-
-		return this._blobStorageConnector.set(compressed);
 	}
 
 	/**

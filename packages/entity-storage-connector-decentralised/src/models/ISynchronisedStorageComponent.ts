@@ -13,19 +13,19 @@ export interface ISynchronisedStorageComponent<T extends ISynchronisedEntity = I
 	 * @param entity The entity to prepare for synchronisation.
 	 * @returns Nothing.
 	 */
-	prepareEntityForSync(entity: T): Promise<void>;
+	prepare(entity: T): Promise<void>;
 
 	/**
 	 * Synchronise an entity storage operation.
 	 * @param entity The entity to synchronise.
 	 * @returns Nothing.
 	 */
-	syncEntitySet(entity: T): Promise<void>;
+	set(entity: T): Promise<void>;
 
 	/**
 	 * Synchronise an entity removal operation.
 	 * @param id The id of the entity to synchronise.
 	 * @returns Nothing.
 	 */
-	syncEntityRemove(id: string): Promise<void>;
+	remove(id: string): Promise<void>;
 }
