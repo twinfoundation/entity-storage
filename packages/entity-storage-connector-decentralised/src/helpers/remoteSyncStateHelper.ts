@@ -1,6 +1,9 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { BlobStorageCompressionType, type IBlobStorageComponent } from "@twin.org/blob-storage-models";
+import {
+	BlobStorageCompressionType,
+	type IBlobStorageComponent
+} from "@twin.org/blob-storage-models";
 import {
 	BaseError,
 	Converter,
@@ -385,7 +388,9 @@ export class RemoteSyncStateHelper<T extends ISynchronisedEntity = ISynchronised
 			});
 
 			if (Is.stringBase64(blobEntry.blob)) {
-				const syncState = ObjectHelper.fromBytes<ISyncState>(Converter.base64ToBytes(blobEntry.blob));
+				const syncState = ObjectHelper.fromBytes<ISyncState>(
+					Converter.base64ToBytes(blobEntry.blob)
+				);
 				await logging?.log({
 					level: "info",
 					source: this.CLASS_NAME,
