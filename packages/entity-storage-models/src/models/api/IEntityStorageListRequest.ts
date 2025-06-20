@@ -33,7 +33,7 @@ export interface IEntityStorageListRequest {
 		/**
 		 * The number of entries to return per page.
 		 */
-		pageSize?: number;
+		pageSize?: number | string;
 
 		/**
 		 * The cursor to get next chunk of data, returned in previous response.
