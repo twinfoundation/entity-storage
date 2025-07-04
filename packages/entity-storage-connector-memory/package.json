@@ -1,6 +1,6 @@
 {
 	"name": "@twin.org/entity-storage-connector-memory",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Entity Storage connector implementation using in-memory storage",
 	"repository": {
 		"type": "git",
@@ -33,7 +33,7 @@
 		"@twin.org/core": "^0.0.1",
 		"@twin.org/entity": "^0.0.1",
 		"@twin.org/nameof": "^0.0.1",
-		"@twin.org/entity-storage-models": "^0.0.0"
+		"@twin.org/entity-storage-models": "^0.0.1"
 	},
 	"devDependencies": {
 		"@twin.org/nameof-transformer": "^0.0.1",
