@@ -200,29 +200,36 @@ async function processDependencies(
 	if (!dependencies) {
 		return;
 	}
-	for (const packageKey of Object.keys(dependencies)) {
+	for (const [name, version] of Object.entries(dependencies)) {
 		// Only process @twin.org packages (internal dependencies)
-		if (packageKey.startsWith('@twin.org')) {
+		if (name.startsWith('@twin.org')) {
 			if (isPeerDependency) {
 				// If it's a peer dependency, we just match the major version
 				// This allows the package to work with any compatible version
-				await getPackageVersion(packageKey, 'latest', versionCache);
-				const latest = versionCache[packageKey];
+				await getPackageVersion(name, 'latest', versionCache);
+				const latest = versionCache[name];
 				const latestMajor = Number.parseInt(latest.split('.')[0], 10);
-				dependencies[packageKey] = `>=${latestMajor}.0.0-0 <${latestMajor + 1}.0.0`;
+				dependencies[name] = `>=${latestMajor}.0.0-0 <${latestMajor + 1}.0.0`;
 			} else if (isProduction) {
 				// PRODUCTION MODE: Convert "next" references to actual published versions
 				// If the dependency is set to "next", we need to resolve it to the actual version
 				// Set the dependency to a caret range of the resolved or production version
 				// This allows compatible updates (e.g., ^1.2.3 allows 1.2.4 but not 1.3.0)
-				await getPackageVersion(packageKey, 'latest', versionCache);
-				dependencies[packageKey] = `^${versionCache[packageKey] ?? prodVersion}`;
+				if (version === 'next') {
+					// If the package is set to "next", we resolve it to the latest stable
+					await getPackageVersion(name, 'latest', versionCache);
+				}
+				dependencies[name] = `^${versionCache[name] ?? prodVersion}`;
 			} else if (!isProduction) {
 				// NEXT MODE: Convert fixed versions back to "next" references
 				// For development, use either the cached version which will be a local package
 				// or "next" to get latest prerelease
-				await getPackageVersion(packageKey, 'next', versionCache);
-				dependencies[packageKey] = versionCache[packageKey] ?? 'next';
+				if (version.startsWith('^')) {
+					dependencies[name] = 'next';
+				} else {
+					await getPackageVersion(name, 'next', versionCache);
+					dependencies[name] = versionCache[name];
+				}
 			}
 		}
 	}
