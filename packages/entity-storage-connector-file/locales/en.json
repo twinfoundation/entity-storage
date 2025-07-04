@@ -1,0 +1,14 @@
+{
+	"info": {
+		"fileEntityStorageConnector": {
+			"directoryCreating": "Creating directory \"{directory}\"",
+			"directoryCreated": "Created directory \"{directory}\"",
+			"directoryExists": "Skipping create directory \"{directory}\" as it already exists"
+		}
+	},
+	"error": {
+		"fileEntityStorageConnector": {
+			"directoryCreateFailed": "Creating directory \"{directory}\" failed"
+		}
+	}
+}
