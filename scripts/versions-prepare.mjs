@@ -38,11 +38,11 @@ async function run() {
 		throw new Error('Invalid command specified, use either production or next');
 	}
 
-	process.stdout.write(`Command: ${command}\n`);
+	process.stdout.write(`Command: ${command}\n\n`);
 
 	// Read the production release manifest to determine version information
 	// This file contains the current stable versions of all packages
-	process.stdout.write(`Loading release-please manifest: ${MANIFEST_PRODUCTION_FILENAME}\n`);
+	process.stdout.write(`Loading release-please manifest: ${MANIFEST_PRODUCTION_FILENAME}\n\n`);
 	const releaseManifestProd = await loadJson(MANIFEST_PRODUCTION_FILENAME);
 
 	// Extract the current production version from the first package in the manifest
@@ -55,7 +55,7 @@ async function run() {
 	const nextPatch = Number.parseInt(versionParts[2], 10) + 1;
 	const nextVersion = `${versionParts[0]}.${versionParts[1]}.${nextPatch}-next.0`;
 
-	process.stdout.write(`Production Version: ${prodVersion}\n\n`);
+	process.stdout.write(`Production Version: ${prodVersion}\n`);
 	process.stdout.write(`Next Version: ${nextVersion}\n\n`);
 
 	// Load the root package.json to get the list of workspaces
