@@ -208,8 +208,8 @@ async function processDependencies(
 				// This allows the package to work with any compatible version
 				await getPackageVersion(packageKey, 'latest', versionCache);
 				const latest = versionCache[packageKey];
-				const latestMajor = `${latest.split('.')[0]}.x`;
-				dependencies[packageKey] = `${latestMajor}`;
+				const latestMajor = Number.parseInt(latest.split('.')[0], 10);
+				dependencies[packageKey] = `>=${latestMajor}.0.0-0 <${latestMajor + 1}.0.0`;
 			} else if (isProduction) {
 				// PRODUCTION MODE: Convert "next" references to actual published versions
 				// If the dependency is set to "next", we need to resolve it to the actual version
