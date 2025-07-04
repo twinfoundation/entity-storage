@@ -1,6 +1,6 @@
 {
 	"name": "@twin.org/entity-storage-service",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Entity Storage contract implementation and REST endpoint definitions",
 	"repository": {
 		"type": "git",
@@ -34,12 +34,12 @@
 		"@twin.org/api-models": "^0.0.1",
 		"@twin.org/core": "^0.0.1",
 		"@twin.org/entity": "^0.0.1",
-		"@twin.org/entity-storage-models": "^0.0.0",
+		"@twin.org/entity-storage-models": "^0.0.1",
 		"@twin.org/nameof": "^0.0.1",
 		"@twin.org/web": "^0.0.1"
 	},
 	"devDependencies": {
-		"@twin.org/entity-storage-connector-memory": "^0.0.0",
+		"@twin.org/entity-storage-connector-memory": "^0.0.1",
 		"@twin.org/ts-to-openapi": "^0.0.1",
 		"@twin.org/nameof-transformer": "^0.0.1",
 		"@twin.org/nameof-vitest-plugin": "^0.0.1",
