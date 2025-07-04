@@ -225,7 +225,7 @@ async function processDependencies(
 				// For development, use either the cached version which will be a local package
 				// or "next" to get latest prerelease
 				if (version.startsWith('^')) {
-					dependencies[name] = 'next';
+					dependencies[name] = versionCache[name] ?? 'next';
 				} else {
 					await getPackageVersion(name, 'next', versionCache);
 					dependencies[name] = versionCache[name];
